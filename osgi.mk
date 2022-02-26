@@ -10,7 +10,7 @@ BND_TOOL := /usr/bin/bnd
 
 BUILD_BASE = $(SDK_BUILD_BASE)/$(A2_CATEGORY)
 
-WORKSPACE_BNDS := $(shell cd $(SDK_SRC_BASE) && find cnf -name '*.bnd')
+WORKSPACE_BNDS := $(shell cd $(SDK_SRC_BASE) && find cnf -name '*.bnd') sdk/argeo-build/argeo.bnd
 BUILD_WORKSPACE_BNDS := $(WORKSPACE_BNDS:%=$(BUILD_BASE)/%)
 
 A2_JARS = $(foreach category, $(DEP_CATEGORIES), $(shell find $(A2_BASE)/$(category) -name '*.jar'))
@@ -35,6 +35,10 @@ $(BUILD_BASE)/cnf/%.bnd: cnf/%.bnd
 	mkdir -p $(dir $@)
 	cp $< $@
 	
+$(BUILD_BASE)/sdk/argeo-build/%.bnd: sdk/argeo-build/%.bnd
+	mkdir -p $(dir $@)
+	cp $< $@
+	
 $(A2_OUTPUT)/$(A2_CATEGORY)/%.$(MAJOR).$(MINOR).jar : $(BUILD_BASE)/%.jar
 	mkdir -p $(dir $@)
 	cp $< $@
@@ -50,13 +54,13 @@ $(BUILD_BASE)/jars-built: $(BNDS)
 $(BUILD_BASE)/%/bnd.bnd : %/bnd.bnd $(BUILD_BASE)/java-compiled 
 	mkdir -p $(dir $@)bin
 	rsync -r --exclude "*.java" $(dir  $<)src/ $(dir $@)bin
-	rsync -r --exclude-from $(SDK_SRC_BASE)/sdk/excludes.txt $(dir  $<) $(dir $@)bin
+	rsync -r --exclude-from $(SDK_SRC_BASE)/sdk/argeo-build/excludes.txt $(dir  $<) $(dir $@)bin
 	if [ -d "$(dir  $<)OSGI-INF" ]; then rsync -r $(dir  $<)OSGI-INF/ $(dir $@)/OSGI-INF; fi
 	cp $< $@
 	echo "\n-sourcepath:$(SDK_SRC_BASE)/$(dir  $<)src\n" >> $@
 
 $(BUILD_BASE)/java-compiled : $(JAVA_SRCS)
-	$(JVM) -jar $(ECJ_JAR) @$(SDK_SRC_BASE)/sdk/ecj.args -cp $(A2_CLASSPATH) $(ECJ_SRCS)
+	$(JVM) -jar $(ECJ_JAR) @$(SDK_SRC_BASE)/sdk/argeo-build/ecj.args -cp $(A2_CLASSPATH) $(ECJ_SRCS)
 	touch $@
 
 # Local manifests
