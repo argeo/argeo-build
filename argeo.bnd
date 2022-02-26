@@ -1,5 +1,5 @@
 # Common
-Bundle-Version: ${version.released}${qualifier}
+Bundle-Version: ${MAJOR}.${MINOR}.${MICRO}${qualifier}
 Private-Package: *.internal.*
 Export-Package: !*.internal.*, *
 #-consumer-policy : ${range;[==,=+)}
