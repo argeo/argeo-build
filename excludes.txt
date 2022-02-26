@@ -1,0 +1,8 @@
+src
+target
+.*
+bnd.bnd
+pom.xml
+build.properties
+bin
+generated
