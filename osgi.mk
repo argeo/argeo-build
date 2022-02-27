@@ -65,6 +65,7 @@ $(BUILD_BASE)/java-compiled : $(JAVA_SRCS)
 
 # Local manifests
 manifests : osgi
+	$(foreach bundle, $(BUNDLES), mkdir -p  $(bundle)/META-INF/;)
 	$(foreach bundle, $(BUNDLES), cp -v $(BUILD_BASE)/$(shell basename $(bundle))/META-INF/MANIFEST.MF  $(bundle)/META-INF/MANIFEST.MF;)
 
 null  :=
