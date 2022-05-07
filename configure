@@ -1,0 +1,55 @@
+#!/bin/sh
+
+# We build where we are
+SDK_BUILD_BASE=$(pwd -P)/output
+
+# Source are located where this script is
+SDK_SRC_BASE="$(cd "$(dirname "$0")"; pwd -P)"
+
+SDK_MK=$SDK_SRC_BASE/sdk.mk
+
+#echo SDK_BUILD_BASE=$SDK_BUILD_BASE
+#echo SDK_SRC_BASE=$SDK_SRC_BASE
+#echo SDK_MK=$SDK_MK
+
+if [ -f "$SDK_MK" ]; 
+then
+
+echo "File $SDK_MK already exists. Remove it in order to configure a new build location:"
+echo "rm $SDK_MK"
+exit 1
+
+else
+
+if [ -z "$JAVA_HOME" ]
+then
+echo "Environment variable JAVA_HOME must be set"
+exit 1
+fi
+
+# Create build directory, so that it can be used right away
+# and we check whether we have the rights
+mkdir -p $SDK_BUILD_BASE
+if [ -f "$SDK_MK" ];
+then
+echo "Cannot create $SDK_BUILD_BASE, SDK configuration has failed."
+exit 2
+fi
+
+# Generate sdk.mk
+cat > "$SDK_MK" <<EOF
+SDK_SRC_BASE := $SDK_SRC_BASE
+SDK_BUILD_BASE := $SDK_BUILD_BASE
+JAVA_HOME := $JAVA_HOME
+
+include \$(SDK_SRC_BASE)/branch.mk
+EOF
+
+
+echo SDK was configured.
+echo "JAVA_HOME        : $JAVA_HOME"
+echo "Base for sources : $SDK_SRC_BASE"
+echo "Base for builds  : $SDK_BUILD_BASE"
+exit 0
+fi
+
