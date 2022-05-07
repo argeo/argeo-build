@@ -5,7 +5,7 @@
 #
 JVM := $(JAVA_HOME)/bin/java
 JAVADOC := $(JAVA_HOME)/bin/javadoc
-ECJ_JAR := $(A2_BASE)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.3.28.jar
+ECJ_JAR := $(A2_BASE)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.3.29.jar
 BND_TOOL := /usr/bin/bnd
 
 BUILD_BASE = $(SDK_BUILD_BASE)/$(A2_CATEGORY)
