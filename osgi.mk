@@ -28,35 +28,40 @@ ECJ_SRCS = $(foreach bundle, $(BUNDLES), $(bundle)/src[-d $(BUILD_BASE)/$(bundle
 
 JAVADOC_SRCS = $(foreach bundle, $(JAVADOC_BUNDLES),$(bundle)/src)
 
-osgi: $(BUILD_WORKSPACE_BNDS) $(A2_BUNDLES)
+osgi: $(BUILD_BASE)/jars-built
 
 javadoc: $(BUILD_BASE)/java-compiled
 	$(JAVADOC) -d $(BUILD_BASE)/api --source-path $(subst $(space),$(pathsep),$(strip $(JAVADOC_SRCS))) -subpackages $(JAVADOC_PACKAGES)
 
 
 # SDK level
-$(BUILD_BASE)/cnf/%.bnd: cnf/%.bnd
-	mkdir -p $(dir $@)
-	cp $< $@
+#$(BUILD_BASE)/cnf/%.bnd: cnf/%.bnd
+#	mkdir -p $(dir $@)
+#	cp $< $@
 	
-$(BUILD_BASE)/sdk/argeo-build/%.bnd: sdk/argeo-build/%.bnd
-	mkdir -p $(dir $@)
-	cp $< $@
+#$(BUILD_BASE)/sdk/argeo-build/%.bnd: sdk/argeo-build/%.bnd
+#	mkdir -p $(dir $@)
+#	cp $< $@
 	
-$(A2_OUTPUT)/$(A2_CATEGORY)/%.$(MAJOR).$(MINOR).jar : $(BUILD_BASE)/%.jar
-	mkdir -p $(dir $@)
-	cp $< $@
+#$(A2_OUTPUT)/$(A2_CATEGORY)/%.$(MAJOR).$(MINOR).jar : $(BUILD_BASE)/jars-built:
+#	touch $@
+#	mkdir -p $(dir $@)
+#	cp $< $@
 
-$(BUILD_BASE)/%.jar: $(BUILD_BASE)/jars-built
+#$(BUILD_BASE)/%.jar: $(BUILD_BASE)/jars-built
 	#mv $(basename $@)/generated/*.jar $(basename $@).jar
 
 # Build level
 $(BUILD_BASE)/jars-built: $(BUILD_BASE)/java-compiled 
-	$(ARGEO_MAKE) bundle --bundles $(BUNDLES)
+	$(ARGEO_MAKE) bundle --category $(A2_CATEGORY) --bundles $(BUNDLES)
+	touch $@
 
 $(BUILD_BASE)/java-compiled : $(JAVA_SRCS)
-	$(JVM) -jar $(ECJ_JAR) @$(SDK_SRC_BASE)/sdk/argeo-build/ecj.args -cp $(A2_CLASSPATH) $(ECJ_SRCS)
+	$(ARGEO_MAKE) compile --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) --bundles $(BUNDLES)
 	touch $@
+	
+argeo-all:
+	$(ARGEO_MAKE) all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) --category $(A2_CATEGORY) --bundles $(BUNDLES)
 
 # Local manifests
 manifests : osgi

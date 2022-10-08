@@ -6,5 +6,6 @@ Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-SymbolicName: argeo-build
 Bundle-Version: 2.3.9.next
 Import-Package: aQute.bnd.osgi;version="4.7.0",
- org.eclipse.jdt.core.compiler
+ org.eclipse.jdt.core.compiler,
+ org.eclipse.jdt.internal.compiler.batch
 Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=17))"
