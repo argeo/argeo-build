@@ -2,7 +2,6 @@ package org.argeo.build;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,7 +11,6 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,24 +67,28 @@ public class Make {
 	 */
 
 	void bundle(Map<String, List<String>> options) throws IOException {
-		// generate manifests
-		subDirs: for (Path subDir : Files.newDirectoryStream(buildBase, (p) -> Files.isDirectory(p))) {
-			String bundleSymbolicName = subDir.getFileName().toString();
-			if (!bundleSymbolicName.contains("."))
-				continue subDirs;
-			generateManifest(bundleSymbolicName, subDir);
-		}
+//		// generate manifests
+//		subDirs: for (Path subDir : Files.newDirectoryStream(buildBase, (p) -> Files.isDirectory(p))) {
+//			String bundleSymbolicName = subDir.getFileName().toString();
+//			if (!bundleSymbolicName.contains("."))
+//				continue subDirs;
+//			generateManifest(bundleSymbolicName, subDir);
+//		}
+
+		List<String> bundles = options.get("--bundles");
+		Objects.requireNonNull(bundles, "--bundles argument must be set");
 
 		// create jars
-		subDirs: for (Path subDir : Files.newDirectoryStream(buildBase, (p) -> Files.isDirectory(p))) {
-			String bundleSymbolicName = subDir.getFileName().toString();
-			if (!bundleSymbolicName.contains("."))
-				continue subDirs;
-			Path source = sdkSrcBase.resolve(subDir.getFileName());
-			if (!Files.exists(source))
-				continue subDirs;
-			Path jarP = buildBase.resolve(subDir.getFileName() + ".jar");
-			createJar(source, subDir, jarP);
+		subDirs: for (String bundle : bundles) {
+			Path source = sdkSrcBase.resolve(bundle);
+//			String bundleSymbolicName = source.getFileName().toString();
+			Path compiled = buildBase.resolve(bundle);
+//			if (!bundleSymbolicName.contains("."))
+//				continue subDirs;
+//			if (!Files.exists(source))
+//				continue subDirs;
+			Path jarP = buildBase.resolve(compiled.getFileName() + ".jar");
+			createBundle(source, compiled, jarP);
 		}
 
 	}
@@ -95,7 +97,57 @@ public class Make {
 	 * BND
 	 */
 
-	void generateManifest(String bundleSymbolicName, Path compiled) throws IOException {
+//	void generateManifest(String bundleSymbolicName, Path compiled) throws IOException {
+//		Properties properties = new Properties();
+//		Path argeoBnd = argeoBuildBase.resolve("argeo.bnd");
+//		try (InputStream in = Files.newInputStream(argeoBnd)) {
+//			properties.load(in);
+//		}
+//		// FIXME make it configurable
+//		Path branchBnd = sdkSrcBase.resolve("cnf/unstable.bnd");
+//		try (InputStream in = Files.newInputStream(branchBnd)) {
+//			properties.load(in);
+//		}
+//
+//		Path bndBnd = compiled.resolve("bnd.bnd");
+//		try (InputStream in = Files.newInputStream(bndBnd)) {
+//			properties.load(in);
+//		}
+//
+//		// Normalise
+//		properties.put("Bundle-SymbolicName", bundleSymbolicName);
+//
+//		// Calculate MANIFEST
+//		Path binP = compiled.resolve("bin");
+//		Manifest manifest;
+//		try (Analyzer bndAnalyzer = new Analyzer()) {
+//			bndAnalyzer.setProperties(properties);
+//			Jar jar = new Jar(bundleSymbolicName, binP.toFile());
+//			bndAnalyzer.setJar(jar);
+//			manifest = bndAnalyzer.calcManifest();
+//
+////			keys: for (Object key : manifest.getMainAttributes().keySet()) {
+////				System.out.println(key + ": " + manifest.getMainAttributes().getValue(key.toString()));
+////			}
+//		} catch (Exception e) {
+//			throw new RuntimeException("Bnd analysis of " + compiled + " failed", e);
+//		}
+//
+//		// Write manifest
+//		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
+//		Files.createDirectories(manifestP.getParent());
+//		try (OutputStream out = Files.newOutputStream(manifestP)) {
+//			manifest.write(out);
+//		}
+//	}
+
+	/*
+	 * JAR PACKAGING
+	 */
+	void createBundle(Path source, Path compiled, Path jarP) throws IOException {
+		String bundleSymbolicName = source.getFileName().toString();
+
+		// Metadata
 		Properties properties = new Properties();
 		Path argeoBnd = argeoBuildBase.resolve("argeo.bnd");
 		try (InputStream in = Files.newInputStream(argeoBnd)) {
@@ -107,7 +159,7 @@ public class Make {
 			properties.load(in);
 		}
 
-		Path bndBnd = compiled.resolve("bnd.bnd");
+		Path bndBnd = source.resolve("bnd.bnd");
 		try (InputStream in = Files.newInputStream(bndBnd)) {
 			properties.load(in);
 		}
@@ -132,27 +184,22 @@ public class Make {
 		}
 
 		// Write manifest
-		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
-		Files.createDirectories(manifestP.getParent());
-		try (OutputStream out = Files.newOutputStream(manifestP)) {
-			manifest.write(out);
-		}
-	}
-
-	/*
-	 * JAR PACKAGING
-	 */
-	void createJar(Path source, Path compiled, Path jarP) throws IOException {
-		// Load manifest
-		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
-		if (!Files.exists(manifestP))
-			throw new IllegalStateException("Manifest " + manifestP + " not found");
-		Manifest manifest;
-		try (InputStream in = Files.newInputStream(manifestP)) {
-			manifest = new Manifest(in);
-		} catch (IOException e) {
-			throw new IllegalStateException("Cannot read manifest " + manifestP, e);
-		}
+//		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
+//		Files.createDirectories(manifestP.getParent());
+//		try (OutputStream out = Files.newOutputStream(manifestP)) {
+//			manifest.write(out);
+//		}
+//		
+//		// Load manifest
+//		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
+//		if (!Files.exists(manifestP))
+//			throw new IllegalStateException("Manifest " + manifestP + " not found");
+//		Manifest manifest;
+//		try (InputStream in = Files.newInputStream(manifestP)) {
+//			manifest = new Manifest(in);
+//		} catch (IOException e) {
+//			throw new IllegalStateException("Cannot read manifest " + manifestP, e);
+//		}
 
 		// Load excludes
 		List<PathMatcher> excludes = new ArrayList<>();
@@ -165,7 +212,7 @@ public class Make {
 		Files.createDirectories(jarP.getParent());
 		try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(jarP), manifest)) {
 			// add all classes first
-			Path binP = compiled.resolve("bin");
+//			Path binP = compiled.resolve("bin");
 			Files.walkFileTree(binP, new SimpleFileVisitor<Path>() {
 
 				@Override
@@ -237,30 +284,26 @@ public class Make {
 			throw new IllegalArgumentException("At least an action must be provided");
 		int actionIndex = 0;
 		String action = args[actionIndex];
-		if (args.length > actionIndex + 1 && args[actionIndex + 1].startsWith("-"))
+		if (args.length > actionIndex + 1 && !args[actionIndex + 1].startsWith("-"))
 			throw new IllegalArgumentException(
 					"Action " + action + " must be followed by an option: " + Arrays.asList(args));
 
 		Map<String, List<String>> options = new HashMap<>();
 		String currentOption = null;
-		List<String> currentOptionValues = null;
 		for (int i = actionIndex + 1; i < args.length; i++) {
 			if (args[i].startsWith("-")) {
-				if (currentOption != null) {
-					assert currentOptionValues != null;
-					if (!options.containsKey(currentOption))
-						options.put(currentOption, new ArrayList<>());
-					options.get(currentOption).addAll(currentOptionValues);
-				}
 				currentOption = args[i];
-				currentOptionValues = new ArrayList<>();
+				if (!options.containsKey(currentOption))
+					options.put(currentOption, new ArrayList<>());
+
 			} else {
-				currentOptionValues.add(args[i]);
+				options.get(currentOption).add(args[i]);
 			}
 		}
-		Make argeoBuild = new Make();
+		
+		Make argeoMake = new Make();
 		switch (action) {
-		case "bundle" -> argeoBuild.bundle(options);
+		case "bundle" -> argeoMake.bundle(options);
 		default -> throw new IllegalArgumentException("Unkown action: " + action);
 		}
 
