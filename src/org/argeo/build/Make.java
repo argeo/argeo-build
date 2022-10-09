@@ -127,7 +127,7 @@ public class Make {
 		// sources
 		for (String bundle : bundles) {
 			StringBuilder sb = new StringBuilder();
-			sb.append(sdkSrcBase.resolve(bundle).resolve("src"));
+			sb.append(execDirectory.resolve(bundle).resolve("src"));
 			sb.append("[-d");
 			compilerArgs.add(sb.toString());
 			sb = new StringBuilder();
@@ -211,7 +211,7 @@ public class Make {
 	 * JAR PACKAGING
 	 */
 	void createBundle(String bundle, String category) throws IOException {
-		Path source = sdkSrcBase.resolve(bundle);
+		Path source = execDirectory.resolve(bundle);
 		Path compiled = buildBase.resolve(bundle);
 		String bundleSymbolicName = source.getFileName().toString();
 
