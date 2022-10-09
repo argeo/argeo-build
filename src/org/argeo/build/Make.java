@@ -3,7 +3,9 @@ package org.argeo.build;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.lang.management.ManagementFactory;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -73,10 +75,27 @@ public class Make {
 	 * ACTIONS
 	 */
 
+	void all(Map<String, List<String>> options) throws IOException {
+//		List<String> a2Bundles = options.get("--a2-bundles");
+//		if (a2Bundles == null)
+//			throw new IllegalArgumentException("--a2-bundles must be specified");
+//		List<String> bundles = new ArrayList<>();
+//		for (String a2Bundle : a2Bundles) {
+//			Path a2BundleP = Paths.get(a2Bundle);
+//			Path bundleP = a2Output.relativize(a2BundleP.getParent().getParent().resolve(a2BundleP.getFileName()));
+//			bundles.add(bundleP.toString());
+//		}
+//		options.put("--bundles", bundles);
+		compile(options);
+		bundle(options);
+	}
+
 	@SuppressWarnings("restriction")
 	void compile(Map<String, List<String>> options) throws IOException {
 		List<String> bundles = options.get("--bundles");
 		Objects.requireNonNull(bundles, "--bundles argument must be set");
+		if (bundles.isEmpty())
+			return;
 
 		List<String> a2Categories = options.getOrDefault("--dep-categories", new ArrayList<>());
 		List<String> a2Bases = options.getOrDefault("--a2-bases", new ArrayList<>());
@@ -119,15 +138,62 @@ public class Make {
 
 		// System.out.println(compilerArgs);
 
+		CompilationProgress compilationProgress = new CompilationProgress() {
+			int totalWork;
+			long currentChunk = 0;
+
+			long chunksCount = 80;
+
+			@Override
+			public void worked(int workIncrement, int remainingWork) {
+				long chunk = ((totalWork - remainingWork) * chunksCount) / totalWork;
+				if (chunk != currentChunk) {
+					currentChunk = chunk;
+					for (long i = 0; i < currentChunk; i++) {
+						System.out.print("#");
+					}
+					for (long i = currentChunk; i < chunksCount; i++) {
+						System.out.print("-");
+					}
+					System.out.print("\r");
+				}
+				if (remainingWork == 0)
+					System.out.print("\n");
+			}
+
+			@Override
+			public void setTaskName(String name) {
+			}
+
+			@Override
+			public boolean isCanceled() {
+				return false;
+			}
+
+			@Override
+			public void done() {
+			}
+
+			@Override
+			public void begin(int remainingWork) {
+				this.totalWork = remainingWork;
+			}
+		};
 		// Use Main instead of BatchCompiler to workaround the fact that
 		// org.eclipse.jdt.core.compiler.batch is not exported
-		org.eclipse.jdt.internal.compiler.batch.Main.compile(compilerArgs.toArray(new String[compilerArgs.size()]),
-				new PrintWriter(System.out), new PrintWriter(System.err), (CompilationProgress) null);
+		boolean success = org.eclipse.jdt.internal.compiler.batch.Main.compile(
+				compilerArgs.toArray(new String[compilerArgs.size()]), new PrintWriter(System.out),
+				new PrintWriter(System.err), (CompilationProgress) compilationProgress);
+		if (!success) {
+			System.exit(1);
+		}
 	}
 
 	void bundle(Map<String, List<String>> options) throws IOException {
 		List<String> bundles = options.get("--bundles");
 		Objects.requireNonNull(bundles, "--bundles argument must be set");
+		if (bundles.isEmpty())
+			return;
 
 		List<String> categories = options.get("--category");
 		Objects.requireNonNull(bundles, "--bundles argument must be set");
@@ -137,16 +203,16 @@ public class Make {
 
 		// create jars
 		for (String bundle : bundles) {
-			Path source = sdkSrcBase.resolve(bundle);
-			Path compiled = buildBase.resolve(bundle);
-			createBundle(source, compiled, category);
+			createBundle(bundle, category);
 		}
 	}
 
 	/*
 	 * JAR PACKAGING
 	 */
-	void createBundle(Path source, Path compiled, String category) throws IOException {
+	void createBundle(String bundle, String category) throws IOException {
+		Path source = sdkSrcBase.resolve(bundle);
+		Path compiled = buildBase.resolve(bundle);
 		String bundleSymbolicName = source.getFileName().toString();
 
 		// Metadata
@@ -191,11 +257,11 @@ public class Make {
 		Objects.requireNonNull(minor, "MINOR must be set");
 
 		// Write manifest
-//		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
-//		Files.createDirectories(manifestP.getParent());
-//		try (OutputStream out = Files.newOutputStream(manifestP)) {
-//			manifest.write(out);
-//		}
+		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
+		Files.createDirectories(manifestP.getParent());
+		try (OutputStream out = Files.newOutputStream(manifestP)) {
+			manifest.write(out);
+		}
 //		
 //		// Load manifest
 //		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
@@ -216,7 +282,10 @@ public class Make {
 			excludes.add(pathMatcher);
 		}
 
-		Path jarP = a2Output.resolve(category).resolve(compiled.getFileName() + "." + major + "." + minor + ".jar");
+		Path bundleParent = Paths.get(bundle).getParent();
+		Path a2JarDirectory = bundleParent != null ? a2Output.resolve(bundleParent).resolve(category)
+				: a2Output.resolve(category);
+		Path jarP = a2JarDirectory.resolve(compiled.getFileName() + "." + major + "." + minor + ".jar");
 		Files.createDirectories(jarP.getParent());
 
 		try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(jarP), manifest)) {
@@ -288,38 +357,43 @@ public class Make {
 
 	}
 
-	public static void main(String... args) throws IOException {
-		if (args.length == 0)
-			throw new IllegalArgumentException("At least an action must be provided");
-		int actionIndex = 0;
-		String action = args[actionIndex];
-		if (args.length > actionIndex + 1 && !args[actionIndex + 1].startsWith("-"))
-			throw new IllegalArgumentException(
-					"Action " + action + " must be followed by an option: " + Arrays.asList(args));
+	public static void main(String... args) {
+		try {
+			if (args.length == 0)
+				throw new IllegalArgumentException("At least an action must be provided");
+			int actionIndex = 0;
+			String action = args[actionIndex];
+			if (args.length > actionIndex + 1 && !args[actionIndex + 1].startsWith("-"))
+				throw new IllegalArgumentException(
+						"Action " + action + " must be followed by an option: " + Arrays.asList(args));
 
-		Map<String, List<String>> options = new HashMap<>();
-		String currentOption = null;
-		for (int i = actionIndex + 1; i < args.length; i++) {
-			if (args[i].startsWith("-")) {
-				currentOption = args[i];
-				if (!options.containsKey(currentOption))
-					options.put(currentOption, new ArrayList<>());
+			Map<String, List<String>> options = new HashMap<>();
+			String currentOption = null;
+			for (int i = actionIndex + 1; i < args.length; i++) {
+				if (args[i].startsWith("-")) {
+					currentOption = args[i];
+					if (!options.containsKey(currentOption))
+						options.put(currentOption, new ArrayList<>());
 
-			} else {
-				options.get(currentOption).add(args[i]);
+				} else {
+					options.get(currentOption).add(args[i]);
+				}
 			}
-		}
 
-		Make argeoMake = new Make();
-		switch (action) {
-		case "compile" -> argeoMake.compile(options);
-		case "bundle" -> argeoMake.bundle(options);
-		case "all" -> {
-			argeoMake.compile(options);
-			argeoMake.bundle(options);
-		}
-		default -> throw new IllegalArgumentException("Unkown action: " + action);
-		}
+			Make argeoMake = new Make();
+			switch (action) {
+			case "compile" -> argeoMake.compile(options);
+			case "bundle" -> argeoMake.bundle(options);
+			case "all" -> argeoMake.all(options);
 
+			default -> throw new IllegalArgumentException("Unkown action: " + action);
+			}
+
+			long jvmUptime = ManagementFactory.getRuntimeMXBean().getUptime();
+			System.out.println("Completed after " + jvmUptime + " ms");
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
 	}
 }
