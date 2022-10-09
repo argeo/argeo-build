@@ -237,6 +237,8 @@ public class Make {
 
 		// Calculate MANIFEST
 		Path binP = compiled.resolve("bin");
+		if (!Files.exists(binP))
+			Files.createDirectories(binP);
 		Manifest manifest;
 		try (Analyzer bndAnalyzer = new Analyzer()) {
 			bndAnalyzer.setProperties(properties);
