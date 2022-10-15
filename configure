@@ -3,14 +3,7 @@
 # We build where we are
 SDK_BUILD_BASE=$(pwd -P)/output
 
-# Source are located where this script is
-SDK_SRC_BASE="$(cd "$(dirname "$0")"; pwd -P)"
-
 SDK_MK=$SDK_SRC_BASE/sdk.mk
-
-#echo SDK_BUILD_BASE=$SDK_BUILD_BASE
-#echo SDK_SRC_BASE=$SDK_SRC_BASE
-#echo SDK_MK=$SDK_MK
 
 if [ -f "$SDK_MK" ]; 
 then
