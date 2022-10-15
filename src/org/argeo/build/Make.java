@@ -1,10 +1,15 @@
 package org.argeo.build;
 
+import static java.lang.System.Logger.Level.ERROR;
+import static java.lang.System.Logger.Level.INFO;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.lang.management.ManagementFactory;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -41,6 +46,8 @@ import aQute.bnd.osgi.Jar;
  * <code>java -cp "/path/to/ECJ jar:/path/to/bndlib jar:/path/to/SLF4J jar" /path/to/cloned/argeo-build/src/org/argeo/build/Make.java action --option1 argument1 argument2 --option2 argument3 </code>
  */
 public class Make {
+	private final static Logger logger = System.getLogger(Make.class.getName());
+
 	/** Name of the local-specific Makefile (sdk.mk). */
 	final static String SDK_MK = "sdk.mk";
 
@@ -153,7 +160,7 @@ public class Make {
 				compilerArgs.toArray(new String[compilerArgs.size()]), new PrintWriter(System.out),
 				new PrintWriter(System.err), new MakeCompilationProgress());
 		if (!success) // kill the process if compilation failed
-			System.exit(1);
+			throw new IllegalStateException("Compilation failed");
 	}
 
 	/** Package the bundles. */
@@ -313,33 +320,32 @@ public class Make {
 		if (directory.getParent() == null)
 			return null;
 		return findSdkMk(directory.getParent());
-
 	}
 
 	/** Main entry point, interpreting actions and arguments. */
 	public static void main(String... args) {
-		try {
-			if (args.length == 0)
-				throw new IllegalArgumentException("At least an action must be provided");
-			int actionIndex = 0;
-			String action = args[actionIndex];
-			if (args.length > actionIndex + 1 && !args[actionIndex + 1].startsWith("-"))
-				throw new IllegalArgumentException(
-						"Action " + action + " must be followed by an option: " + Arrays.asList(args));
+		if (args.length == 0)
+			throw new IllegalArgumentException("At least an action must be provided");
+		int actionIndex = 0;
+		String action = args[actionIndex];
+		if (args.length > actionIndex + 1 && !args[actionIndex + 1].startsWith("-"))
+			throw new IllegalArgumentException(
+					"Action " + action + " must be followed by an option: " + Arrays.asList(args));
 
-			Map<String, List<String>> options = new HashMap<>();
-			String currentOption = null;
-			for (int i = actionIndex + 1; i < args.length; i++) {
-				if (args[i].startsWith("-")) {
-					currentOption = args[i];
-					if (!options.containsKey(currentOption))
-						options.put(currentOption, new ArrayList<>());
+		Map<String, List<String>> options = new HashMap<>();
+		String currentOption = null;
+		for (int i = actionIndex + 1; i < args.length; i++) {
+			if (args[i].startsWith("-")) {
+				currentOption = args[i];
+				if (!options.containsKey(currentOption))
+					options.put(currentOption, new ArrayList<>());
 
-				} else {
-					options.get(currentOption).add(args[i]);
-				}
+			} else {
+				options.get(currentOption).add(args[i]);
 			}
+		}
 
+		try {
 			Make argeoMake = new Make();
 			switch (action) {
 			case "compile" -> argeoMake.compile(options);
@@ -350,9 +356,13 @@ public class Make {
 			}
 
 			long jvmUptime = ManagementFactory.getRuntimeMXBean().getUptime();
-			System.out.println("Completed after " + jvmUptime + " ms");
+			logger.log(INFO, "Make action '" + action + "' succesfully completed after " + (jvmUptime / 1000) + "."
+					+ (jvmUptime % 1000) + " s");
 		} catch (Exception e) {
-			e.printStackTrace();
+			long jvmUptime = ManagementFactory.getRuntimeMXBean().getUptime();
+			logger.log(ERROR,
+					"Make action '" + action + "' failed after " + (jvmUptime / 1000) + "." + (jvmUptime % 1000) + " s",
+					e);
 			System.exit(1);
 		}
 	}
@@ -360,7 +370,7 @@ public class Make {
 	/**
 	 * An ECJ {@link CompilationProgress} printing a progress bar while compiling.
 	 */
-	class MakeCompilationProgress extends CompilationProgress {
+	static class MakeCompilationProgress extends CompilationProgress {
 		int totalWork;
 		long currentChunk = 0;
 
@@ -368,6 +378,8 @@ public class Make {
 
 		@Override
 		public void worked(int workIncrement, int remainingWork) {
+			if (!logger.isLoggable(Level.INFO)) // progress bar only at INFO level
+				return;
 			long chunk = ((totalWork - remainingWork) * chunksCount) / totalWork;
 			if (chunk != currentChunk) {
 				currentChunk = chunk;
