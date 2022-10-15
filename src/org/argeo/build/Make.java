@@ -115,6 +115,8 @@ public class Make {
 			for (String a2Base : a2Bases) {
 				for (String a2Category : a2Categories) {
 					Path a2Dir = Paths.get(a2Base).resolve(a2Category);
+					if (!Files.exists(a2Dir))
+						Files.createDirectories(a2Dir);
 					for (Path jarP : Files.newDirectoryStream(a2Dir,
 							(p) -> p.getFileName().toString().endsWith(".jar"))) {
 						classPath.add(jarP.toString());
