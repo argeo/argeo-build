@@ -254,7 +254,6 @@ public class Make {
 		try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(jarP), manifest)) {
 			// add all classes first
 			Files.walkFileTree(binP, new SimpleFileVisitor<Path>() {
-
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					jarOut.putNextEntry(new JarEntry(binP.relativize(file).toString()));
@@ -265,7 +264,6 @@ public class Make {
 
 			// add resources
 			Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
-
 				@Override
 				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
 					Path relativeP = source.relativize(dir);
@@ -287,7 +285,6 @@ public class Make {
 					Files.copy(file, jarOut);
 					return FileVisitResult.CONTINUE;
 				}
-
 			});
 
 			// add sources
@@ -295,7 +292,6 @@ public class Make {
 			// repackage
 			Path srcP = source.resolve("src");
 			Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
-
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					jarOut.putNextEntry(new JarEntry("OSGI-OPT/src/" + srcP.relativize(file).toString()));
@@ -303,9 +299,7 @@ public class Make {
 					return FileVisitResult.CONTINUE;
 				}
 			});
-
 		}
-
 	}
 
 	/**
@@ -371,10 +365,9 @@ public class Make {
 	 * An ECJ {@link CompilationProgress} printing a progress bar while compiling.
 	 */
 	static class MakeCompilationProgress extends CompilationProgress {
-		int totalWork;
-		long currentChunk = 0;
-
-		long chunksCount = 80;
+		private int totalWork;
+		private long currentChunk = 0;
+		private long chunksCount = 80;
 
 		@Override
 		public void worked(int workIncrement, int remainingWork) {
@@ -412,7 +405,5 @@ public class Make {
 		public void begin(int remainingWork) {
 			this.totalWork = remainingWork;
 		}
-
 	}
-
 }
