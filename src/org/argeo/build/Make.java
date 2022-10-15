@@ -31,16 +31,36 @@ import org.eclipse.jdt.core.compiler.CompilationProgress;
 import aQute.bnd.osgi.Analyzer;
 import aQute.bnd.osgi.Jar;
 
+/**
+ * Minimalistic OSGi compiler and packager, meant to be used as a single file
+ * without being itself compiled first. It depends on the Eclipse batch compiler
+ * (aka. ECJ) and the BND Libs library for OSGi metadata generation (which
+ * itselfs depends on slf4j).<br/>
+ * <br/>
+ * For example, a typical system call would be:<br/>
+ * <code>java -cp "/path/to/ECJ jar:/path/to/bndlib jar:/path/to/SLF4J jar" /path/to/cloned/argeo-build/src/org/argeo/build/Make.java action --option1 argument1 argument2 --option2 argument3 </code>
+ */
 public class Make {
-	private final static String SDK_MK = "sdk.mk";
+	/** Name of the local-specific Makefile (sdk.mk). */
+	final static String SDK_MK = "sdk.mk";
 
+	/** The execution directory (${user.dir}). */
 	final Path execDirectory;
+	/** Base of the source code, typically the cloned git repository. */
 	final Path sdkSrcBase;
+	/**
+	 * The base of the builder, typically a submodule pointing to the public
+	 * argeo-build directory.
+	 */
 	final Path argeoBuildBase;
+	/** The base of the build for all layers. */
 	final Path sdkBuildBase;
+	/** The base of the build for this layer. */
 	final Path buildBase;
+	/** The base of the a2 output for all layers. */
 	final Path a2Output;
 
+	/** Constructor initialises the base directories. */
 	public Make() throws IOException {
 		execDirectory = Paths.get(System.getProperty("user.dir"));
 		Path sdkMkP = findSdkMk(execDirectory);
@@ -74,22 +94,13 @@ public class Make {
 	/*
 	 * ACTIONS
 	 */
-
+	/** Compile and create the bundles in one go. */
 	void all(Map<String, List<String>> options) throws IOException {
-//		List<String> a2Bundles = options.get("--a2-bundles");
-//		if (a2Bundles == null)
-//			throw new IllegalArgumentException("--a2-bundles must be specified");
-//		List<String> bundles = new ArrayList<>();
-//		for (String a2Bundle : a2Bundles) {
-//			Path a2BundleP = Paths.get(a2Bundle);
-//			Path bundleP = a2Output.relativize(a2BundleP.getParent().getParent().resolve(a2BundleP.getFileName()));
-//			bundles.add(bundleP.toString());
-//		}
-//		options.put("--bundles", bundles);
 		compile(options);
 		bundle(options);
 	}
 
+	/** Compile all the bundles which have been passed via the --bundle argument. */
 	@SuppressWarnings("restriction")
 	void compile(Map<String, List<String>> options) throws IOException {
 		List<String> bundles = options.get("--bundles");
@@ -138,60 +149,16 @@ public class Make {
 			compilerArgs.add(sb.toString());
 		}
 
-		// System.out.println(compilerArgs);
-
-		CompilationProgress compilationProgress = new CompilationProgress() {
-			int totalWork;
-			long currentChunk = 0;
-
-			long chunksCount = 80;
-
-			@Override
-			public void worked(int workIncrement, int remainingWork) {
-				long chunk = ((totalWork - remainingWork) * chunksCount) / totalWork;
-				if (chunk != currentChunk) {
-					currentChunk = chunk;
-					for (long i = 0; i < currentChunk; i++) {
-						System.out.print("#");
-					}
-					for (long i = currentChunk; i < chunksCount; i++) {
-						System.out.print("-");
-					}
-					System.out.print("\r");
-				}
-				if (remainingWork == 0)
-					System.out.print("\n");
-			}
-
-			@Override
-			public void setTaskName(String name) {
-			}
-
-			@Override
-			public boolean isCanceled() {
-				return false;
-			}
-
-			@Override
-			public void done() {
-			}
-
-			@Override
-			public void begin(int remainingWork) {
-				this.totalWork = remainingWork;
-			}
-		};
-		// Use Main instead of BatchCompiler to workaround the fact that
-		// org.eclipse.jdt.core.compiler.batch is not exported
-		boolean success = org.eclipse.jdt.internal.compiler.batch.Main.compile(
+		boolean success = org.eclipse.jdt.core.compiler.batch.BatchCompiler.compile(
 				compilerArgs.toArray(new String[compilerArgs.size()]), new PrintWriter(System.out),
-				new PrintWriter(System.err), (CompilationProgress) compilationProgress);
-		if (!success) {
+				new PrintWriter(System.err), new MakeCompilationProgress());
+		if (!success) // kill the process if compilation failed
 			System.exit(1);
-		}
 	}
 
+	/** Package the bundles. */
 	void bundle(Map<String, List<String>> options) throws IOException {
+		// check arguments
 		List<String> bundles = options.get("--bundles");
 		Objects.requireNonNull(bundles, "--bundles argument must be set");
 		if (bundles.isEmpty())
@@ -204,14 +171,14 @@ public class Make {
 		String category = categories.get(0);
 
 		// create jars
-		for (String bundle : bundles) {
+		for (String bundle : bundles)
 			createBundle(bundle, category);
-		}
 	}
 
 	/*
-	 * JAR PACKAGING
+	 * UTILITIES
 	 */
+	/** Package a single bundle. */
 	void createBundle(String bundle, String category) throws IOException {
 		Path source = execDirectory.resolve(bundle);
 		Path compiled = buildBase.resolve(bundle);
@@ -247,10 +214,6 @@ public class Make {
 			Jar jar = new Jar(bundleSymbolicName, binP.toFile());
 			bndAnalyzer.setJar(jar);
 			manifest = bndAnalyzer.calcManifest();
-
-//			keys: for (Object key : manifest.getMainAttributes().keySet()) {
-//				System.out.println(key + ": " + manifest.getMainAttributes().getValue(key.toString()));
-//			}
 		} catch (Exception e) {
 			throw new RuntimeException("Bnd analysis of " + compiled + " failed", e);
 		}
@@ -266,17 +229,6 @@ public class Make {
 		try (OutputStream out = Files.newOutputStream(manifestP)) {
 			manifest.write(out);
 		}
-//		
-//		// Load manifest
-//		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
-//		if (!Files.exists(manifestP))
-//			throw new IllegalStateException("Manifest " + manifestP + " not found");
-//		Manifest manifest;
-//		try (InputStream in = Files.newInputStream(manifestP)) {
-//			manifest = new Manifest(in);
-//		} catch (IOException e) {
-//			throw new IllegalStateException("Cannot read manifest " + manifestP, e);
-//		}
 
 		// Load excludes
 		List<PathMatcher> excludes = new ArrayList<>();
@@ -294,7 +246,6 @@ public class Make {
 
 		try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(jarP), manifest)) {
 			// add all classes first
-//			Path binP = compiled.resolve("bin");
 			Files.walkFileTree(binP, new SimpleFileVisitor<Path>() {
 
 				@Override
@@ -350,6 +301,10 @@ public class Make {
 
 	}
 
+	/**
+	 * Recursively find the base source directory (which contains the
+	 * <code>{@value #SDK_MK}</code> file).
+	 */
 	private Path findSdkMk(Path directory) {
 		Path sdkMkP = directory.resolve(SDK_MK);
 		if (Files.exists(sdkMkP)) {
@@ -361,6 +316,7 @@ public class Make {
 
 	}
 
+	/** Main entry point, interpreting actions and arguments. */
 	public static void main(String... args) {
 		try {
 			if (args.length == 0)
@@ -400,4 +356,51 @@ public class Make {
 			System.exit(1);
 		}
 	}
+
+	/**
+	 * An ECJ {@link CompilationProgress} printing a progress bar while compiling.
+	 */
+	class MakeCompilationProgress extends CompilationProgress {
+		int totalWork;
+		long currentChunk = 0;
+
+		long chunksCount = 80;
+
+		@Override
+		public void worked(int workIncrement, int remainingWork) {
+			long chunk = ((totalWork - remainingWork) * chunksCount) / totalWork;
+			if (chunk != currentChunk) {
+				currentChunk = chunk;
+				for (long i = 0; i < currentChunk; i++) {
+					System.out.print("#");
+				}
+				for (long i = currentChunk; i < chunksCount; i++) {
+					System.out.print("-");
+				}
+				System.out.print("\r");
+			}
+			if (remainingWork == 0)
+				System.out.print("\n");
+		}
+
+		@Override
+		public void setTaskName(String name) {
+		}
+
+		@Override
+		public boolean isCanceled() {
+			return false;
+		}
+
+		@Override
+		public void done() {
+		}
+
+		@Override
+		public void begin(int remainingWork) {
+			this.totalWork = remainingWork;
+		}
+
+	}
+
 }
