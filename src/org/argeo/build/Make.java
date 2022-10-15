@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.StringTokenizer;
+import java.util.concurrent.CompletableFuture;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
@@ -156,6 +157,9 @@ public class Make {
 			compilerArgs.add(sb.toString());
 		}
 
+		if (logger.isLoggable(INFO))
+			compilerArgs.add("-time");
+
 		boolean success = org.eclipse.jdt.core.compiler.batch.BatchCompiler.compile(
 				compilerArgs.toArray(new String[compilerArgs.size()]), new PrintWriter(System.out),
 				new PrintWriter(System.err), new MakeCompilationProgress());
@@ -164,7 +168,7 @@ public class Make {
 	}
 
 	/** Package the bundles. */
-	void bundle(Map<String, List<String>> options) throws IOException {
+	void bundle(Map<String, List<String>> options) {
 		// check arguments
 		List<String> bundles = options.get("--bundles");
 		Objects.requireNonNull(bundles, "--bundles argument must be set");
@@ -177,9 +181,21 @@ public class Make {
 			throw new IllegalArgumentException("One and only one category must be specified");
 		String category = categories.get(0);
 
-		// create jars
-		for (String bundle : bundles)
-			createBundle(bundle, category);
+		long begin = System.currentTimeMillis();
+		// create jars in parallel
+		List<CompletableFuture<Void>> toDos = new ArrayList<>();
+		for (String bundle : bundles) {
+			toDos.add(CompletableFuture.runAsync(() -> {
+				try {
+					createBundle(bundle, category);
+				} catch (IOException e) {
+					throw new RuntimeException("Packaging of " + bundle + " failed", e);
+				}
+			}));
+		}
+		CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
+		long duration = System.currentTimeMillis() - begin;
+		logger.log(INFO, "Packaging took " + duration + " ms");
 	}
 
 	/*
@@ -350,12 +366,12 @@ public class Make {
 			}
 
 			long jvmUptime = ManagementFactory.getRuntimeMXBean().getUptime();
-			logger.log(INFO, "Make action '" + action + "' succesfully completed after " + (jvmUptime / 1000) + "."
+			logger.log(INFO, "Make.java action '" + action + "' succesfully completed after " + (jvmUptime / 1000) + "."
 					+ (jvmUptime % 1000) + " s");
 		} catch (Exception e) {
 			long jvmUptime = ManagementFactory.getRuntimeMXBean().getUptime();
 			logger.log(ERROR,
-					"Make action '" + action + "' failed after " + (jvmUptime / 1000) + "." + (jvmUptime % 1000) + " s",
+					"Make.java action '" + action + "' failed after " + (jvmUptime / 1000) + "." + (jvmUptime % 1000) + " s",
 					e);
 			System.exit(1);
 		}
