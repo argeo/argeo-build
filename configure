@@ -36,6 +36,7 @@ SDK_BUILD_BASE := $SDK_BUILD_BASE
 JAVA_HOME := $JAVA_HOME
 
 include \$(SDK_SRC_BASE)/branch.mk
+include $(SDK_SRC_BASE)/sdk/branches/$(BRANCH).bnd
 EOF
 
 

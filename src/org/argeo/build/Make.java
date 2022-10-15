@@ -176,10 +176,15 @@ public class Make {
 			return;
 
 		List<String> categories = options.get("--category");
-		Objects.requireNonNull(bundles, "--bundles argument must be set");
+		Objects.requireNonNull(bundles, "--category argument must be set");
 		if (categories.size() != 1)
-			throw new IllegalArgumentException("One and only one category must be specified");
+			throw new IllegalArgumentException("One and only one --category must be specified");
 		String category = categories.get(0);
+
+		List<String> branches = options.get("--branch");
+		if (branches.size() != 1)
+			throw new IllegalArgumentException("One and only one --branch must be specified");
+		String branch = branches.get(0);
 
 		long begin = System.currentTimeMillis();
 		// create jars in parallel
@@ -187,7 +192,7 @@ public class Make {
 		for (String bundle : bundles) {
 			toDos.add(CompletableFuture.runAsync(() -> {
 				try {
-					createBundle(bundle, category);
+					createBundle(branch, bundle, category);
 				} catch (IOException e) {
 					throw new RuntimeException("Packaging of " + bundle + " failed", e);
 				}
@@ -202,7 +207,7 @@ public class Make {
 	 * UTILITIES
 	 */
 	/** Package a single bundle. */
-	void createBundle(String bundle, String category) throws IOException {
+	void createBundle(String branch, String bundle, String category) throws IOException {
 		Path source = execDirectory.resolve(bundle);
 		Path compiled = buildBase.resolve(bundle);
 		String bundleSymbolicName = source.getFileName().toString();
@@ -213,8 +218,8 @@ public class Make {
 		try (InputStream in = Files.newInputStream(argeoBnd)) {
 			properties.load(in);
 		}
-		// FIXME make it configurable
-		Path branchBnd = sdkSrcBase.resolve("cnf/unstable.bnd");
+
+		Path branchBnd = sdkSrcBase.resolve("sdk/branches/" + branch + ".bnd");
 		try (InputStream in = Files.newInputStream(branchBnd)) {
 			properties.load(in);
 		}
@@ -241,10 +246,10 @@ public class Make {
 			throw new RuntimeException("Bnd analysis of " + compiled + " failed", e);
 		}
 
-		String major = properties.getProperty("MAJOR");
-		Objects.requireNonNull(major, "MAJOR must be set");
-		String minor = properties.getProperty("MINOR");
-		Objects.requireNonNull(minor, "MINOR must be set");
+		String major = properties.getProperty("major");
+		Objects.requireNonNull(major, "'major' must be set");
+		String minor = properties.getProperty("minor");
+		Objects.requireNonNull(minor, "'minor' must be set");
 
 		// Write manifest
 		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
@@ -370,9 +375,8 @@ public class Make {
 					+ (jvmUptime % 1000) + " s");
 		} catch (Exception e) {
 			long jvmUptime = ManagementFactory.getRuntimeMXBean().getUptime();
-			logger.log(ERROR,
-					"Make.java action '" + action + "' failed after " + (jvmUptime / 1000) + "." + (jvmUptime % 1000) + " s",
-					e);
+			logger.log(ERROR, "Make.java action '" + action + "' failed after " + (jvmUptime / 1000) + "."
+					+ (jvmUptime % 1000) + " s", e);
 			System.exit(1);
 		}
 	}

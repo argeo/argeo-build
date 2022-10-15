@@ -1,16 +1,8 @@
-# Common
-Bundle-Version: ${MAJOR}.${MINOR}.${MICRO}${qualifier}
-Private-Package: *.internal.*, config.*
-Export-Package: !*.internal.*, !config.*, *
+Bundle-Version: ${major}.${minor}.${micro}${qualifier}
+Export-Package: !*.internal.*, !config.*, !icons.*, !css.*, !swt.*, !rap.*, *
 Bundle-RequiredExecutionEnvironment=JavaSE-17
 
 #-consumer-policy : ${range;[==,=+)}
 -contract: !JavaServlet,*
--savemanifest : META-INF/MANIFEST.MF
--includeresource.default : bin,OSGI-INF/=-OSGI-INF/,e4xmi/=-e4xmi/,icons/=-icons/,img/=-img/
--compression STORE
--source true
 -removeheaders = Bnd-LastModified,Build-Jdk,Built-By,Tool,Created-By
 Automatic-Module-Name: ${bsn}
-SLC-Category=${category}
--groupid=${category}
