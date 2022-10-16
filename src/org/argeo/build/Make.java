@@ -129,26 +129,34 @@ public class Make {
 
 		// classpath
 		if (!a2Categories.isEmpty()) {
-			compilerArgs.add("-cp");
 			StringJoiner classPath = new StringJoiner(File.pathSeparator);
+			StringJoiner modulePath = new StringJoiner(File.pathSeparator);
 			for (String a2Base : a2Bases) {
 				for (String a2Category : a2Categories) {
 					Path a2Dir = Paths.get(a2Base).resolve(a2Category);
 					if (!Files.exists(a2Dir))
 						Files.createDirectories(a2Dir);
+					modulePath.add(a2Dir.toString());
 					for (Path jarP : Files.newDirectoryStream(a2Dir,
 							(p) -> p.getFileName().toString().endsWith(".jar"))) {
 						classPath.add(jarP.toString());
+						System.out.println(jarP);
 					}
 				}
 			}
+			compilerArgs.add("-cp");
 			compilerArgs.add(classPath.toString());
+//			compilerArgs.add("--module-path");
+//			compilerArgs.add(modulePath.toString());
 		}
 
 		// sources
 		for (String bundle : bundles) {
 			StringBuilder sb = new StringBuilder();
-			sb.append(execDirectory.resolve(bundle).resolve("src"));
+			Path bundlePath = execDirectory.resolve(bundle);
+			if (!Files.exists(bundlePath))
+				throw new IllegalArgumentException("Bundle " + bundle + " not found in " + execDirectory);
+			sb.append(bundlePath.resolve("src"));
 			sb.append("[-d");
 			compilerArgs.add(sb.toString());
 			sb = new StringBuilder();
@@ -159,6 +167,9 @@ public class Make {
 
 		if (logger.isLoggable(INFO))
 			compilerArgs.add("-time");
+
+//		for (String arg : compilerArgs)
+//			System.out.println(arg);
 
 		boolean success = org.eclipse.jdt.core.compiler.batch.BatchCompiler.compile(
 				compilerArgs.toArray(new String[compilerArgs.size()]), new PrintWriter(System.out),
@@ -316,7 +327,8 @@ public class Make {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					jarOut.putNextEntry(new JarEntry("OSGI-OPT/src/" + srcP.relativize(file).toString()));
-					Files.copy(file, jarOut);
+					if (!Files.isDirectory(file))
+						Files.copy(file, jarOut);
 					return FileVisitResult.CONTINUE;
 				}
 			});
