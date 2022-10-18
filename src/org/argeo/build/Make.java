@@ -140,7 +140,6 @@ public class Make {
 					for (Path jarP : Files.newDirectoryStream(a2Dir,
 							(p) -> p.getFileName().toString().endsWith(".jar"))) {
 						classPath.add(jarP.toString());
-						System.out.println(jarP);
 					}
 				}
 			}
