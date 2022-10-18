@@ -51,6 +51,8 @@ public class Make {
 
 	/** Name of the local-specific Makefile (sdk.mk). */
 	final static String SDK_MK = "sdk.mk";
+	/** Name of the branch definition Makefile (branch.mk). */
+	final static String BRANCH_MK = "branch.mk";
 
 	/** The execution directory (${user.dir}). */
 	final Path execDirectory;
@@ -74,19 +76,7 @@ public class Make {
 		Path sdkMkP = findSdkMk(execDirectory);
 		Objects.requireNonNull(sdkMkP, "No " + SDK_MK + " found under " + execDirectory);
 
-		Map<String, String> context = new HashMap<>();
-		List<String> sdkMkLines = Files.readAllLines(sdkMkP);
-		lines: for (String line : sdkMkLines) {
-			StringTokenizer st = new StringTokenizer(line, " :=");
-			if (!st.hasMoreTokens())
-				continue lines;
-			String key = st.nextToken();
-			if (!st.hasMoreTokens())
-				continue lines;
-			String value = st.nextToken();
-			context.put(key, value);
-		}
-
+		Map<String, String> context = readeMakefileVariables(sdkMkP);
 		sdkSrcBase = Paths.get(context.computeIfAbsent("SDK_SRC_BASE", (key) -> {
 			throw new IllegalStateException(key + " not found");
 		})).toAbsolutePath();
@@ -178,7 +168,7 @@ public class Make {
 	}
 
 	/** Package the bundles. */
-	void bundle(Map<String, List<String>> options) {
+	void bundle(Map<String, List<String>> options) throws IOException {
 		// check arguments
 		List<String> bundles = options.get("--bundles");
 		Objects.requireNonNull(bundles, "--bundles argument must be set");
@@ -191,10 +181,12 @@ public class Make {
 			throw new IllegalArgumentException("One and only one --category must be specified");
 		String category = categories.get(0);
 
-		List<String> branches = options.get("--branch");
-		if (branches.size() != 1)
-			throw new IllegalArgumentException("One and only one --branch must be specified");
-		String branch = branches.get(0);
+		Path branchMk = sdkSrcBase.resolve(BRANCH_MK);
+		if (!Files.exists(branchMk))
+			throw new IllegalStateException("No " + branchMk + " file available");
+		Map<String, String> branchVariables = readeMakefileVariables(branchMk);
+
+		String branch = branchVariables.get("BRANCH");
 
 		long begin = System.currentTimeMillis();
 		// create jars in parallel
@@ -338,7 +330,7 @@ public class Make {
 	 * Recursively find the base source directory (which contains the
 	 * <code>{@value #SDK_MK}</code> file).
 	 */
-	private Path findSdkMk(Path directory) {
+	Path findSdkMk(Path directory) {
 		Path sdkMkP = directory.resolve(SDK_MK);
 		if (Files.exists(sdkMkP)) {
 			return sdkMkP.toAbsolutePath();
@@ -346,6 +338,28 @@ public class Make {
 		if (directory.getParent() == null)
 			return null;
 		return findSdkMk(directory.getParent());
+	}
+
+	/**
+	 * Reads Makefile variable assignments of the form =, :=, or ?=, ignoring white
+	 * spaces. To be used with very simple included Makefiles only.
+	 */
+	Map<String, String> readeMakefileVariables(Path path) throws IOException {
+		Map<String, String> context = new HashMap<>();
+		List<String> sdkMkLines = Files.readAllLines(path);
+		lines: for (String line : sdkMkLines) {
+			StringTokenizer st = new StringTokenizer(line, " :=?");
+			if (!st.hasMoreTokens())
+				continue lines;
+			String key = st.nextToken();
+			if (!st.hasMoreTokens())
+				continue lines;
+			String value = st.nextToken();
+			if (st.hasMoreTokens()) // probably not a simple variable assignment
+				continue lines;
+			context.put(key, value);
+		}
+		return context;
 	}
 
 	/** Main entry point, interpreting actions and arguments. */
