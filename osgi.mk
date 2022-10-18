@@ -52,7 +52,7 @@ $(BUILD_BASE)/built : $(TODOS)
 $(A2_OUTPUT)/%.$(major).$(minor).jar : $(BUILD_BASE)/$$(subst $(A2_CATEGORY)/,,$$*)/to-build
 	$(ARGEO_MAKE) all --branch $(BRANCH) --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) --category $(A2_CATEGORY) --bundles $(subst $(A2_CATEGORY)/,,$*)
 
-$(BUILD_BASE)/%/to-build : $$(shell find $(SDK_SRC_BASE)/% -type f -not -path 'bin/*' -not -path '*/MANIFEST.MF')
+$(BUILD_BASE)/%/to-build : $$(shell find $(SDK_SRC_BASE)/% -type f -not -path 'bin/*' -not -path '*/MANIFEST.MF' | sed 's/ /\\ /g')
 	@rm -rf $(dir $@)
 	@mkdir -p $(dir $@) 
 	@touch $@
