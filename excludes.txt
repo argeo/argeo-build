@@ -6,3 +6,4 @@ pom.xml
 build.properties
 bin
 generated
+META-INF/MANIFEST.MF
