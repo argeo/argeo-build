@@ -922,7 +922,7 @@ public class Repackage {
 			manifest = new Manifest(in);
 		}
 		try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
-			jarOut.setLevel(Deflater.DEFAULT_COMPRESSION);
+			jarOut.setLevel(Deflater.NO_COMPRESSION);
 			Files.walkFileTree(bundleDir, new SimpleFileVisitor<Path>() {
 
 				@Override
