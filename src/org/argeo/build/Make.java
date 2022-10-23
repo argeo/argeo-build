@@ -276,7 +276,7 @@ public class Make {
 		Files.createDirectories(jarP.getParent());
 
 		try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(jarP), manifest)) {
-			jarOut.setLevel(Deflater.NO_COMPRESSION);
+			jarOut.setLevel(Deflater.DEFAULT_COMPRESSION);
 			// add all classes first
 			Files.walkFileTree(binP, new SimpleFileVisitor<Path>() {
 				@Override
