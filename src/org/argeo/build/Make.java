@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.zip.Deflater;
 
 import org.eclipse.jdt.core.compiler.CompilationProgress;
 
@@ -275,6 +276,7 @@ public class Make {
 		Files.createDirectories(jarP.getParent());
 
 		try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(jarP), manifest)) {
+			jarOut.setLevel(Deflater.NO_COMPRESSION);
 			// add all classes first
 			Files.walkFileTree(binP, new SimpleFileVisitor<Path>() {
 				@Override
