@@ -310,10 +310,24 @@ public class Make {
 				}
 			});
 
+			Path srcP = source.resolve("src");
+			// Add all resources from src/
+			Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					if (file.getFileName().toString().endsWith(".java")
+							|| file.getFileName().toString().endsWith(".class"))
+						return FileVisitResult.CONTINUE;
+					jarOut.putNextEntry(new JarEntry(srcP.relativize(file).toString()));
+					if (!Files.isDirectory(file))
+						Files.copy(file, jarOut);
+					return FileVisitResult.CONTINUE;
+				}
+			});
+
 			// add sources
 			// TODO add effective BND, Eclipse project file, etc., in order to be able to
 			// repackage
-			Path srcP = source.resolve("src");
 			Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -323,6 +337,7 @@ public class Make {
 					return FileVisitResult.CONTINUE;
 				}
 			});
+
 		}
 	}
 
