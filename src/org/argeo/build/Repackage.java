@@ -802,8 +802,9 @@ public class Repackage {
 			Path manifestPath = targetBundleDir.resolve("META-INF/MANIFEST.MF");
 			Files.createDirectories(manifestPath.getParent());
 
-			if (isSingleton) {
-				entries.put(BUNDLE_SYMBOLICNAME.toString(), nameVersion.getName() + "; singleton:=true");
+			if (isSingleton && entries.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
+				entries.put(BUNDLE_SYMBOLICNAME.toString(),
+						entries.get(BUNDLE_SYMBOLICNAME.toString()) + ";singleton:=true");
 			}
 
 			for (String key : entries.keySet()) {
