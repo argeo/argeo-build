@@ -804,7 +804,7 @@ public class Repackage {
 
 			if (isSingleton) {
 				entries.put(BUNDLE_SYMBOLICNAME.toString(),
-						entries.get(BUNDLE_SYMBOLICNAME.toString() + ";singleton:=true"));
+						entries.get(BUNDLE_SYMBOLICNAME.toString()) + ";singleton:=true");
 			}
 
 			for (String key : entries.keySet()) {
