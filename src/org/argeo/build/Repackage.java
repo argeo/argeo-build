@@ -696,6 +696,21 @@ public class Repackage {
 			Manifest sourceManifest = jarIn.getManifest();
 			Manifest manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
 
+			// singleton
+			boolean isSingleton = false;
+			String rawSourceSymbolicName = manifest.getMainAttributes()
+					.getValue(ManifestConstants.BUNDLE_SYMBOLICNAME.toString());
+			if (rawSourceSymbolicName != null) {
+
+				// make sure there is no directive
+				String[] arr = rawSourceSymbolicName.split(";");
+				for (int i = 1; i < arr.length; i++) {
+					if (arr[i].trim().equals("singleton:=true"))
+						isSingleton = true;
+					logger.log(DEBUG, file.getFileName() + " is a singleton");
+				}
+			}
+
 			// remove problematic entries in MANIFEST
 			manifest.getEntries().clear();
 
@@ -786,6 +801,12 @@ public class Repackage {
 			// copy MANIFEST
 			Path manifestPath = targetBundleDir.resolve("META-INF/MANIFEST.MF");
 			Files.createDirectories(manifestPath.getParent());
+
+			if (isSingleton) {
+				entries.put(BUNDLE_SYMBOLICNAME.toString(),
+						entries.get(BUNDLE_SYMBOLICNAME.toString() + ";singleton:=true"));
+			}
+
 			for (String key : entries.keySet()) {
 				String value = entries.get(key);
 				Object previousValue = manifest.getMainAttributes().putValue(key, value);
