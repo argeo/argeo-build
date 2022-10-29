@@ -609,7 +609,7 @@ public class Repackage {
 						if (includeMatcher.matches(file)) {
 							for (PathMatcher excludeMatcher : excludeMatchers) {
 								if (excludeMatcher.matches(file)) {
-									logger.log(Level.WARNING, "Skipping excluded " + file);
+									logger.log(Level.TRACE, "Skipping excluded " + file);
 									return FileVisitResult.CONTINUE;
 								}
 							}
