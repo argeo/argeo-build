@@ -803,8 +803,7 @@ public class Repackage {
 			Files.createDirectories(manifestPath.getParent());
 
 			if (isSingleton) {
-				entries.put(BUNDLE_SYMBOLICNAME.toString(),
-						entries.get(BUNDLE_SYMBOLICNAME.toString()) + ";singleton:=true");
+				entries.put(BUNDLE_SYMBOLICNAME.toString(), nameVersion.getName() + ";singleton:=true");
 			}
 
 			for (String key : entries.keySet()) {
