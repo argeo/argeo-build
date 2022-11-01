@@ -15,6 +15,7 @@ import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -28,6 +29,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -90,6 +92,7 @@ public class Repackage {
 			throw new IllegalArgumentException(this.descriptorsBase + " does not exist");
 		this.includeSources = includeSources;
 
+		// URIs mapping
 		Path urisPath = this.descriptorsBase.resolve("uris.properties");
 		if (Files.exists(urisPath)) {
 			try (InputStream in = Files.newInputStream(urisPath)) {
@@ -99,11 +102,21 @@ public class Repackage {
 			}
 		}
 
-		// TODO make it configurable
+		// Eclipse mirrors
+		Path eclipseMirrorsPath = this.descriptorsBase.resolve("eclipse.mirrors.txt");
 		List<String> eclipseMirrors = new ArrayList<>();
-		eclipseMirrors.add("https://archive.eclipse.org/");
-		eclipseMirrors.add("http://ftp-stud.hs-esslingen.de/Mirrors/eclipse/");
-		eclipseMirrors.add("http://ftp.fau.de/eclipse/");
+		if (Files.exists(eclipseMirrorsPath)) {
+			try {
+				eclipseMirrors = Files.readAllLines(eclipseMirrorsPath, StandardCharsets.UTF_8);
+			} catch (IOException e) {
+				throw new IllegalStateException("Cannot load " + eclipseMirrorsPath, e);
+			}
+			for (Iterator<String> it = eclipseMirrors.iterator(); it.hasNext();) {
+				String value = it.next();
+				if (value.strip().equals(""))
+					it.remove();
+			}
+		}
 
 		mirrors.put("http://www.eclipse.org/downloads", eclipseMirrors);
 	}
