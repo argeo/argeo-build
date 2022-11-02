@@ -22,7 +22,7 @@ JAVADOC_PACKAGES ?=
 A2_BASE ?= $(A2_OUTPUT)
 
 ECJ_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.3.31.jar
-BNDLIB_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/biz.aQute.bndlib.6.3.jar
+BNDLIB_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/biz.aQute.bndlib.5.3.jar
 SLF4J_API_JAR ?= $(A2_BASE)/org.argeo.tp/org.slf4j.api.1.7.jar
 ARGEO_MAKE := $(JVM) -cp $(ECJ_JAR):$(BNDLIB_JAR):$(SLF4J_API_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java
 #ARGEO_MAKE = $(JVM) -cp $(ECJ_JAR):$(BNDLIB_JAR):$(SLF4J_API_JAR):$(BUILD_BASE)/bin org/argeo/build/Make
