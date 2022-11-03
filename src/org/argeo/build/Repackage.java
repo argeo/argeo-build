@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -49,6 +50,8 @@ import aQute.bnd.osgi.Jar;
 public class Repackage {
 	private final static Logger logger = System.getLogger(Repackage.class.getName());
 
+	private final static String ENV_BUILD_SOURCE_BUNDLES = "BUILD_SOURCE_BUNDLES";
+
 	/** Main entry point. */
 	public static void main(String[] args) {
 		if (args.length < 2) {
@@ -57,12 +60,14 @@ public class Repackage {
 		}
 		Path a2Base = Paths.get(args[0]).toAbsolutePath().normalize();
 		Path descriptorsBase = Paths.get(".").toAbsolutePath().normalize();
-		Repackage factory = new Repackage(a2Base, descriptorsBase, true);
+		Repackage factory = new Repackage(a2Base, descriptorsBase);
 
+		List<CompletableFuture<Void>> toDos = new ArrayList<>();
 		for (int i = 1; i < args.length; i++) {
 			Path p = Paths.get(args[i]);
-			factory.processCategory(p);
+			toDos.add(CompletableFuture.runAsync(() -> factory.processCategory(p)));
 		}
+		CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
 	}
 
 	private final static String COMMON_BND = "common.bnd";
@@ -75,12 +80,16 @@ public class Repackage {
 
 	private Properties uris = new Properties();
 
-	private boolean includeSources = true;
-
 	/** key is URI prefix, value list of base URLs */
 	private Map<String, List<String>> mirrors = new HashMap<String, List<String>>();
 
-	public Repackage(Path a2Base, Path descriptorsBase, boolean includeSources) {
+	private final boolean sourceBundles;
+
+	public Repackage(Path a2Base, Path descriptorsBase) {
+		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
+		if (sourceBundles)
+			logger.log(Level.INFO, "Sources will be packaged separately");
+
 		Objects.requireNonNull(a2Base);
 		Objects.requireNonNull(descriptorsBase);
 		this.originBase = Paths.get(System.getProperty("user.home"), ".cache", "argeo/build/origin");
@@ -90,7 +99,6 @@ public class Repackage {
 		this.descriptorsBase = descriptorsBase;
 		if (!Files.exists(this.descriptorsBase))
 			throw new IllegalArgumentException(this.descriptorsBase + " does not exist");
-		this.includeSources = includeSources;
 
 		// URIs mapping
 		Path urisPath = this.descriptorsBase.resolve("uris.properties");
@@ -499,7 +507,7 @@ public class Repackage {
 	/** Download and integrates sources for a single Maven artifact. */
 	protected void downloadAndProcessM2Sources(String repoStr, M2Artifact artifact, Path targetBundleDir)
 			throws IOException {
-		if (!includeSources)
+		if (sourceBundles)
 			return;
 		M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
 		URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
@@ -626,9 +634,11 @@ public class Repackage {
 									return FileVisitResult.CONTINUE;
 								}
 							}
-							if (includeSources && file.getFileName().toString().contains(".source_")) {
-								processEclipseSourceJar(file, targetCategoryBase);
-								logger.log(Level.DEBUG, () -> "Processed source " + file);
+							if (file.getFileName().toString().contains(".source_")) {
+								if (!sourceBundles) {
+									processEclipseSourceJar(file, targetCategoryBase);
+									logger.log(Level.DEBUG, () -> "Processed source " + file);
+								}
 
 							} else {
 								Map<String, String> map = new HashMap<>();

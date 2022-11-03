@@ -50,6 +50,12 @@ import aQute.bnd.osgi.Jar;
 public class Make {
 	private final static Logger logger = System.getLogger(Make.class.getName());
 
+	/**
+	 * Environment properties on whether sources should be packaged separately or
+	 * integrated in the bundles.
+	 */
+	private final static String ENV_BUILD_SOURCE_BUNDLES = "BUILD_SOURCE_BUNDLES";
+
 	/** Name of the local-specific Makefile (sdk.mk). */
 	final static String SDK_MK = "sdk.mk";
 	/** Name of the branch definition Makefile (branch.mk). */
@@ -71,8 +77,15 @@ public class Make {
 	/** The base of the a2 output for all layers. */
 	final Path a2Output;
 
+	/** Whether sources should be packaged separately */
+	final boolean sourceBundles;
+
 	/** Constructor initialises the base directories. */
 	public Make() throws IOException {
+		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
+		if (sourceBundles)
+			logger.log(Level.INFO, "Sources will be packaged separately");
+
 		execDirectory = Paths.get(System.getProperty("user.dir"));
 		Path sdkMkP = findSdkMk(execDirectory);
 		Objects.requireNonNull(sdkMkP, "No " + SDK_MK + " found under " + execDirectory);
@@ -331,16 +344,19 @@ public class Make {
 			// add sources
 			// TODO add effective BND, Eclipse project file, etc., in order to be able to
 			// repackage
-			Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					jarOut.putNextEntry(new JarEntry("OSGI-OPT/src/" + srcP.relativize(file).toString()));
-					if (!Files.isDirectory(file))
-						Files.copy(file, jarOut);
-					return FileVisitResult.CONTINUE;
-				}
-			});
-
+			if (sourceBundles) {
+				// TODO package sources separately
+			} else {
+				Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
+					@Override
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						jarOut.putNextEntry(new JarEntry("OSGI-OPT/src/" + srcP.relativize(file).toString()));
+						if (!Files.isDirectory(file))
+							Files.copy(file, jarOut);
+						return FileVisitResult.CONTINUE;
+					}
+				});
+			}
 		}
 	}
 
