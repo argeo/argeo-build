@@ -366,8 +366,7 @@ public class Repackage {
 							try (OutputStream out = Files.newOutputStream(target, StandardOpenOption.APPEND)) {
 								out.write("\n".getBytes());
 								jarIn.transferTo(out);
-								if (logger.isLoggable(DEBUG))
-									logger.log(DEBUG, artifact.getArtifactId() + " - Appended " + entry.getName());
+								logger.log(Level.WARNING, artifact.getArtifactId() + " - Appended " + entry.getName());
 							}
 						} else if (entry.getName().startsWith("org/apache/batik/")) {
 							logger.log(Level.WARNING, "Skip " + entry.getName());
@@ -392,8 +391,7 @@ public class Repackage {
 						OutputStream out = Files.newOutputStream(target, StandardOpenOption.APPEND);) {
 					out.write("\n".getBytes());
 					in.transferTo(out);
-					if (logger.isLoggable(DEBUG))
-						logger.log(DEBUG, "Appended " + p);
+					logger.log(Level.WARNING, "Appended " + p);
 				}
 			}
 		}
@@ -835,7 +833,8 @@ public class Repackage {
 				Object previousValue = manifest.getMainAttributes().putValue(key, value);
 				if (previousValue != null && !previousValue.equals(value)) {
 					if (ManifestConstants.IMPORT_PACKAGE.toString().equals(key)
-							|| ManifestConstants.EXPORT_PACKAGE.toString().equals(key))
+							|| ManifestConstants.EXPORT_PACKAGE.toString().equals(key)
+							|| ManifestConstants.BUNDLE_LICENSE.toString().equals(key))
 						logger.log(Level.TRACE, file.getFileName() + ": " + key + " was modified");
 					else
 						logger.log(Level.WARNING, file.getFileName() + ": " + key + " was " + previousValue
