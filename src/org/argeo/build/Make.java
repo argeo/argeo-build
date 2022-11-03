@@ -233,7 +233,8 @@ public class Make {
 		}
 
 		// Normalise
-		properties.put("Bundle-SymbolicName", bundleSymbolicName);
+		if (!properties.containsKey("Bundle-SymbolicName"))
+			properties.put("Bundle-SymbolicName", bundleSymbolicName);
 
 		// Calculate MANIFEST
 		Path binP = compiled.resolve("bin");
