@@ -36,7 +36,7 @@ TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build)
 
 ## Needed in order to be able to expand $$ variables
 .SECONDEXPANSION:
-.PHONY: clean-a2 osgi manifests javadoc
+.PHONY: osgi manifests javadoc
 
 osgi: $(BUILD_BASE)/built
 
@@ -56,10 +56,6 @@ $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path
 	@rm -rf $(dir $@)
 	@mkdir -p $(dir $@) 
 	@touch $@
-
-clean-a2 :
-	rm -rf $(TARGET_BUNDLES)
-	rm -rf $(BUILD_BASE)/built
 
 # Local manifests
 manifests : osgi
