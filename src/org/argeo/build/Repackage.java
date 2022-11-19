@@ -507,11 +507,15 @@ public class Repackage {
 			throws IOException {
 		if (sourceBundles)
 			return;
-		M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
-		URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
-		Path sourcesDownloaded = download(sourcesUrl, originBase, artifact, true);
-		processM2SourceJar(sourcesDownloaded, targetBundleDir);
-		logger.log(Level.TRACE, () -> "Processed source " + sourcesDownloaded);
+		try {
+			M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
+			URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
+			Path sourcesDownloaded = download(sourcesUrl, originBase, artifact, true);
+			processM2SourceJar(sourcesDownloaded, targetBundleDir);
+			logger.log(Level.TRACE, () -> "Processed source " + sourcesDownloaded);
+		} catch (Exception e) {
+			logger.log(Level.ERROR, () -> "Cannot download source for  " + artifact);
+		}
 
 	}
 
