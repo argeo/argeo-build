@@ -310,6 +310,10 @@ public class Repackage {
 		mergeProps.put(ManifestConstants.BUNDLE_VERSION.toString(), m2Version);
 
 		String artifactsStr = mergeProps.getProperty(ManifestConstants.SLC_ORIGIN_M2_MERGE.toString());
+		if (artifactsStr == null)
+			throw new IllegalArgumentException(
+					mergeBnd + ": " + ManifestConstants.SLC_ORIGIN_M2_MERGE + " must be set");
+		
 		String repoStr = mergeProps.containsKey(SLC_ORIGIN_M2_REPO.toString())
 				? mergeProps.getProperty(SLC_ORIGIN_M2_REPO.toString())
 				: null;
