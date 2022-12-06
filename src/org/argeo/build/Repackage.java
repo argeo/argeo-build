@@ -15,6 +15,7 @@ import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -28,11 +29,13 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -47,6 +50,8 @@ import aQute.bnd.osgi.Jar;
 public class Repackage {
 	private final static Logger logger = System.getLogger(Repackage.class.getName());
 
+	private final static String ENV_BUILD_SOURCE_BUNDLES = "BUILD_SOURCE_BUNDLES";
+
 	/** Main entry point. */
 	public static void main(String[] args) {
 		if (args.length < 2) {
@@ -55,12 +60,14 @@ public class Repackage {
 		}
 		Path a2Base = Paths.get(args[0]).toAbsolutePath().normalize();
 		Path descriptorsBase = Paths.get(".").toAbsolutePath().normalize();
-		Repackage factory = new Repackage(a2Base, descriptorsBase, true);
+		Repackage factory = new Repackage(a2Base, descriptorsBase);
 
+		List<CompletableFuture<Void>> toDos = new ArrayList<>();
 		for (int i = 1; i < args.length; i++) {
 			Path p = Paths.get(args[i]);
-			factory.processCategory(p);
+			toDos.add(CompletableFuture.runAsync(() -> factory.processCategory(p)));
 		}
+		CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
 	}
 
 	private final static String COMMON_BND = "common.bnd";
@@ -73,12 +80,16 @@ public class Repackage {
 
 	private Properties uris = new Properties();
 
-	private boolean includeSources = true;
-
 	/** key is URI prefix, value list of base URLs */
 	private Map<String, List<String>> mirrors = new HashMap<String, List<String>>();
 
-	public Repackage(Path a2Base, Path descriptorsBase, boolean includeSources) {
+	private final boolean sourceBundles;
+
+	public Repackage(Path a2Base, Path descriptorsBase) {
+		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
+		if (sourceBundles)
+			logger.log(Level.INFO, "Sources will be packaged separately");
+
 		Objects.requireNonNull(a2Base);
 		Objects.requireNonNull(descriptorsBase);
 		this.originBase = Paths.get(System.getProperty("user.home"), ".cache", "argeo/build/origin");
@@ -88,8 +99,8 @@ public class Repackage {
 		this.descriptorsBase = descriptorsBase;
 		if (!Files.exists(this.descriptorsBase))
 			throw new IllegalArgumentException(this.descriptorsBase + " does not exist");
-		this.includeSources = includeSources;
 
+		// URIs mapping
 		Path urisPath = this.descriptorsBase.resolve("uris.properties");
 		if (Files.exists(urisPath)) {
 			try (InputStream in = Files.newInputStream(urisPath)) {
@@ -99,11 +110,21 @@ public class Repackage {
 			}
 		}
 
-		// TODO make it configurable
+		// Eclipse mirrors
+		Path eclipseMirrorsPath = this.descriptorsBase.resolve("eclipse.mirrors.txt");
 		List<String> eclipseMirrors = new ArrayList<>();
-		eclipseMirrors.add("https://archive.eclipse.org/");
-		eclipseMirrors.add("http://ftp-stud.hs-esslingen.de/Mirrors/eclipse/");
-		eclipseMirrors.add("http://ftp.fau.de/eclipse/");
+		if (Files.exists(eclipseMirrorsPath)) {
+			try {
+				eclipseMirrors = Files.readAllLines(eclipseMirrorsPath, StandardCharsets.UTF_8);
+			} catch (IOException e) {
+				throw new IllegalStateException("Cannot load " + eclipseMirrorsPath, e);
+			}
+			for (Iterator<String> it = eclipseMirrors.iterator(); it.hasNext();) {
+				String value = it.next();
+				if (value.strip().equals(""))
+					it.remove();
+			}
+		}
 
 		mirrors.put("http://www.eclipse.org/downloads", eclipseMirrors);
 	}
@@ -289,6 +310,10 @@ public class Repackage {
 		mergeProps.put(ManifestConstants.BUNDLE_VERSION.toString(), m2Version);
 
 		String artifactsStr = mergeProps.getProperty(ManifestConstants.SLC_ORIGIN_M2_MERGE.toString());
+		if (artifactsStr == null)
+			throw new IllegalArgumentException(
+					mergeBnd + ": " + ManifestConstants.SLC_ORIGIN_M2_MERGE + " must be set");
+		
 		String repoStr = mergeProps.containsKey(SLC_ORIGIN_M2_REPO.toString())
 				? mergeProps.getProperty(SLC_ORIGIN_M2_REPO.toString())
 				: null;
@@ -345,8 +370,7 @@ public class Repackage {
 							try (OutputStream out = Files.newOutputStream(target, StandardOpenOption.APPEND)) {
 								out.write("\n".getBytes());
 								jarIn.transferTo(out);
-								if (logger.isLoggable(DEBUG))
-									logger.log(DEBUG, artifact.getArtifactId() + " - Appended " + entry.getName());
+								logger.log(Level.WARNING, artifact.getArtifactId() + " - Appended " + entry.getName());
 							}
 						} else if (entry.getName().startsWith("org/apache/batik/")) {
 							logger.log(Level.WARNING, "Skip " + entry.getName());
@@ -371,8 +395,7 @@ public class Repackage {
 						OutputStream out = Files.newOutputStream(target, StandardOpenOption.APPEND);) {
 					out.write("\n".getBytes());
 					in.transferTo(out);
-					if (logger.isLoggable(DEBUG))
-						logger.log(DEBUG, "Appended " + p);
+					logger.log(Level.WARNING, "Appended " + p);
 				}
 			}
 		}
@@ -486,13 +509,17 @@ public class Repackage {
 	/** Download and integrates sources for a single Maven artifact. */
 	protected void downloadAndProcessM2Sources(String repoStr, M2Artifact artifact, Path targetBundleDir)
 			throws IOException {
-		if (!includeSources)
+		if (sourceBundles)
 			return;
-		M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
-		URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
-		Path sourcesDownloaded = download(sourcesUrl, originBase, artifact, true);
-		processM2SourceJar(sourcesDownloaded, targetBundleDir);
-		logger.log(Level.TRACE, () -> "Processed source " + sourcesDownloaded);
+		try {
+			M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
+			URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
+			Path sourcesDownloaded = download(sourcesUrl, originBase, artifact, true);
+			processM2SourceJar(sourcesDownloaded, targetBundleDir);
+			logger.log(Level.TRACE, () -> "Processed source " + sourcesDownloaded);
+		} catch (Exception e) {
+			logger.log(Level.ERROR, () -> "Cannot download source for  " + artifact);
+		}
 
 	}
 
@@ -609,13 +636,15 @@ public class Repackage {
 						if (includeMatcher.matches(file)) {
 							for (PathMatcher excludeMatcher : excludeMatchers) {
 								if (excludeMatcher.matches(file)) {
-									logger.log(Level.WARNING, "Skipping excluded " + file);
+									logger.log(Level.TRACE, "Skipping excluded " + file);
 									return FileVisitResult.CONTINUE;
 								}
 							}
-							if (includeSources && file.getFileName().toString().contains(".source_")) {
-								processEclipseSourceJar(file, targetCategoryBase);
-								logger.log(Level.DEBUG, () -> "Processed source " + file);
+							if (file.getFileName().toString().contains(".source_")) {
+								if (!sourceBundles) {
+									processEclipseSourceJar(file, targetCategoryBase);
+									logger.log(Level.DEBUG, () -> "Processed source " + file);
+								}
 
 							} else {
 								Map<String, String> map = new HashMap<>();
@@ -695,6 +724,21 @@ public class Repackage {
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
 			Manifest sourceManifest = jarIn.getManifest();
 			Manifest manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
+
+			// singleton
+			boolean isSingleton = false;
+			String rawSourceSymbolicName = manifest.getMainAttributes()
+					.getValue(ManifestConstants.BUNDLE_SYMBOLICNAME.toString());
+			if (rawSourceSymbolicName != null) {
+
+				// make sure there is no directive
+				String[] arr = rawSourceSymbolicName.split(";");
+				for (int i = 1; i < arr.length; i++) {
+					if (arr[i].trim().equals("singleton:=true"))
+						isSingleton = true;
+					logger.log(DEBUG, file.getFileName() + " is a singleton");
+				}
+			}
 
 			// remove problematic entries in MANIFEST
 			manifest.getEntries().clear();
@@ -786,12 +830,19 @@ public class Repackage {
 			// copy MANIFEST
 			Path manifestPath = targetBundleDir.resolve("META-INF/MANIFEST.MF");
 			Files.createDirectories(manifestPath.getParent());
+
+			if (isSingleton && entries.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
+				entries.put(BUNDLE_SYMBOLICNAME.toString(),
+						entries.get(BUNDLE_SYMBOLICNAME.toString()) + ";singleton:=true");
+			}
+
 			for (String key : entries.keySet()) {
 				String value = entries.get(key);
 				Object previousValue = manifest.getMainAttributes().putValue(key, value);
 				if (previousValue != null && !previousValue.equals(value)) {
 					if (ManifestConstants.IMPORT_PACKAGE.toString().equals(key)
-							|| ManifestConstants.EXPORT_PACKAGE.toString().equals(key))
+							|| ManifestConstants.EXPORT_PACKAGE.toString().equals(key)
+							|| ManifestConstants.BUNDLE_LICENSE.toString().equals(key))
 						logger.log(Level.TRACE, file.getFileName() + ": " + key + " was modified");
 					else
 						logger.log(Level.WARNING, file.getFileName() + ": " + key + " was " + previousValue

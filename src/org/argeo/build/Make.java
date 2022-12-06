@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.zip.Deflater;
 
 import org.eclipse.jdt.core.compiler.CompilationProgress;
 
@@ -48,6 +49,12 @@ import aQute.bnd.osgi.Jar;
  */
 public class Make {
 	private final static Logger logger = System.getLogger(Make.class.getName());
+
+	/**
+	 * Environment properties on whether sources should be packaged separately or
+	 * integrated in the bundles.
+	 */
+	private final static String ENV_BUILD_SOURCE_BUNDLES = "BUILD_SOURCE_BUNDLES";
 
 	/** Name of the local-specific Makefile (sdk.mk). */
 	final static String SDK_MK = "sdk.mk";
@@ -70,8 +77,15 @@ public class Make {
 	/** The base of the a2 output for all layers. */
 	final Path a2Output;
 
+	/** Whether sources should be packaged separately */
+	final boolean sourceBundles;
+
 	/** Constructor initialises the base directories. */
 	public Make() throws IOException {
+		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
+		if (sourceBundles)
+			logger.log(Level.INFO, "Sources will be packaged separately");
+
 		execDirectory = Paths.get(System.getProperty("user.dir"));
 		Path sdkMkP = findSdkMk(execDirectory);
 		Objects.requireNonNull(sdkMkP, "No " + SDK_MK + " found under " + execDirectory);
@@ -232,7 +246,8 @@ public class Make {
 		}
 
 		// Normalise
-		properties.put("Bundle-SymbolicName", bundleSymbolicName);
+		if (!properties.containsKey("Bundle-SymbolicName"))
+			properties.put("Bundle-SymbolicName", bundleSymbolicName);
 
 		// Calculate MANIFEST
 		Path binP = compiled.resolve("bin");
@@ -275,6 +290,7 @@ public class Make {
 		Files.createDirectories(jarP.getParent());
 
 		try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(jarP), manifest)) {
+			jarOut.setLevel(Deflater.DEFAULT_COMPRESSION);
 			// add all classes first
 			Files.walkFileTree(binP, new SimpleFileVisitor<Path>() {
 				@Override
@@ -310,19 +326,37 @@ public class Make {
 				}
 			});
 
-			// add sources
-			// TODO add effective BND, Eclipse project file, etc., in order to be able to
-			// repackage
 			Path srcP = source.resolve("src");
+			// Add all resources from src/
 			Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					jarOut.putNextEntry(new JarEntry("OSGI-OPT/src/" + srcP.relativize(file).toString()));
+					if (file.getFileName().toString().endsWith(".java")
+							|| file.getFileName().toString().endsWith(".class"))
+						return FileVisitResult.CONTINUE;
+					jarOut.putNextEntry(new JarEntry(srcP.relativize(file).toString()));
 					if (!Files.isDirectory(file))
 						Files.copy(file, jarOut);
 					return FileVisitResult.CONTINUE;
 				}
 			});
+
+			// add sources
+			// TODO add effective BND, Eclipse project file, etc., in order to be able to
+			// repackage
+			if (sourceBundles) {
+				// TODO package sources separately
+			} else {
+				Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
+					@Override
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						jarOut.putNextEntry(new JarEntry("OSGI-OPT/src/" + srcP.relativize(file).toString()));
+						if (!Files.isDirectory(file))
+							Files.copy(file, jarOut);
+						return FileVisitResult.CONTINUE;
+					}
+				});
+			}
 		}
 	}
 

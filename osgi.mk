@@ -21,7 +21,7 @@ DEP_CATEGORIES ?=
 JAVADOC_PACKAGES ?=
 A2_BASE ?= $(A2_OUTPUT)
 
-ECJ_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.3.29.jar
+ECJ_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.3.31.jar
 BNDLIB_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/biz.aQute.bndlib.5.3.jar
 SLF4J_API_JAR ?= $(A2_BASE)/org.argeo.tp/org.slf4j.api.1.7.jar
 ARGEO_MAKE := $(JVM) -cp $(ECJ_JAR):$(BNDLIB_JAR):$(SLF4J_API_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java
@@ -36,7 +36,7 @@ TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build)
 
 ## Needed in order to be able to expand $$ variables
 .SECONDEXPANSION:
-.PHONY: clean-a2 osgi manifests javadoc
+.PHONY: osgi manifests javadoc
 
 osgi: $(BUILD_BASE)/built
 
@@ -56,10 +56,6 @@ $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path
 	@rm -rf $(dir $@)
 	@mkdir -p $(dir $@) 
 	@touch $@
-
-clean-a2 :
-	rm -rf $(TARGET_BUNDLES)
-	rm -rf $(BUILD_BASE)/built
 
 # Local manifests
 manifests : osgi
