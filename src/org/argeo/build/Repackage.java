@@ -7,6 +7,7 @@ import static org.argeo.build.Repackage.ManifestConstants.EXPORT_PACKAGE;
 import static org.argeo.build.Repackage.ManifestConstants.SLC_ORIGIN_M2;
 import static org.argeo.build.Repackage.ManifestConstants.SLC_ORIGIN_M2_REPO;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -313,7 +314,7 @@ public class Repackage {
 		if (artifactsStr == null)
 			throw new IllegalArgumentException(
 					mergeBnd + ": " + ManifestConstants.SLC_ORIGIN_M2_MERGE + " must be set");
-		
+
 		String repoStr = mergeProps.containsKey(SLC_ORIGIN_M2_REPO.toString())
 				? mergeProps.getProperty(SLC_ORIGIN_M2_REPO.toString())
 				: null;
@@ -980,7 +981,8 @@ public class Repackage {
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					if (file.getFileName().toString().equals("MANIFEST.MF"))
 						return super.visitFile(file, attrs);
-					JarEntry entry = new JarEntry(bundleDir.relativize(file).toString());
+					JarEntry entry = new JarEntry(
+							bundleDir.relativize(file).toString().replace(File.separatorChar, '/'));
 					jarOut.putNextEntry(entry);
 					Files.copy(file, jarOut);
 					return super.visitFile(file, attrs);

@@ -1,0 +1,25 @@
+Argeo Build is a minimalistic Java build system based on GNU make, which is meant to be used as a git submodule of a software layer following Argeo's conventions. It is using Java files directly as scripts, without prior compilation.
+
+It is NOT meant as a generic Java build system.
+
+## Components
+Argeo Build depends on the Eclipse ECJ Java compiler, and on the BND Tools library for OSGi metadata generation (and therefore on SLF4j).
+
+- osgi.mk           is included in the root Makefile of the layer being built
+- configure         configures a build environment
+- Make.java         compiles Java code, creates OSGi bundles based on the bnd.bnd file in each project
+- Repackage.java    downloads and repackages as OSGi bundles Maven artifacts or Eclipse releases (cf. Argeo TP)
+
+## Usage
+For example usage, look at one of the core Argeo layers (typically Argeo Commons) on http://git.argeo.org :
+
+git clone http://git.argeo.org/lgpl/argeo-commons.git --recursive
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64/
+./argeo-commons/configure
+cd argeo-commons
+make clean all manifests
+
+Argeo Build will be installed as a git submodule under ./sdk/argeo-build/.
+
+## Licensing
+This code is in the public domain under the CC0 v1.0 license, so that it can be used in any context by Argeo (or anyone else).
