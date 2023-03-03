@@ -949,8 +949,9 @@ public class Repackage {
 		Path dest;
 		if (name == null) {
 			// We use also use parent directory in case the archive itself has a fixed name
-			name = url.getPath().substring(url.getPath().lastIndexOf('/') + 1)
-					.substring(url.getPath().lastIndexOf('/') + 1);
+			String[] segments = url.getPath().split("/");
+			name = segments.length > 1 ? segments[segments.length - 2] + '-' + segments[segments.length - 1]
+					: segments[segments.length - 1];
 		}
 
 		dest = dir.resolve(name);
