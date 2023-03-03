@@ -185,7 +185,7 @@ public class Repackage {
 				throw new IllegalArgumentException("No M2 coordinates available for " + bndFile);
 			M2Artifact artifact = new M2Artifact(m2Coordinates);
 			URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
-			Path downloaded = download(url, originBase, artifact);
+			Path downloaded = downloadMaven(url, originBase, artifact);
 
 			Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact);
 
@@ -271,7 +271,7 @@ public class Repackage {
 
 				// download
 				URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
-				Path downloaded = download(url, originBase, artifact);
+				Path downloaded = downloadMaven(url, originBase, artifact);
 
 				Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergeProps, artifact);
 //				logger.log(Level.DEBUG, () -> "Processed " + downloaded);
@@ -334,7 +334,7 @@ public class Repackage {
 			if (artifact.getVersion() == null)
 				artifact.setVersion(m2Version);
 			URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
-			Path downloaded = download(url, originBase, artifact);
+			Path downloaded = downloadMaven(url, originBase, artifact);
 			JarEntry entry;
 			try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(downloaded), false)) {
 				entries: while ((entry = jarIn.getNextJarEntry()) != null) {
@@ -515,7 +515,7 @@ public class Repackage {
 		try {
 			M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
 			URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
-			Path sourcesDownloaded = download(sourcesUrl, originBase, artifact, true);
+			Path sourcesDownloaded = downloadMaven(sourcesUrl, originBase, artifact, true);
 			processM2SourceJar(sourcesDownloaded, targetBundleDir);
 			logger.log(Level.TRACE, () -> "Processed source " + sourcesDownloaded);
 		} catch (Exception e) {
@@ -561,12 +561,12 @@ public class Repackage {
 	}
 
 	/** Download a Maven artifact. */
-	protected Path download(URL url, Path dir, M2Artifact artifact) throws IOException {
-		return download(url, dir, artifact, false);
+	protected Path downloadMaven(URL url, Path dir, M2Artifact artifact) throws IOException {
+		return downloadMaven(url, dir, artifact, false);
 	}
 
 	/** Download a Maven artifact. */
-	protected Path download(URL url, Path dir, M2Artifact artifact, boolean sources) throws IOException {
+	protected Path downloadMaven(URL url, Path dir, M2Artifact artifact, boolean sources) throws IOException {
 		return download(url, dir, artifact.getGroupId() + '/' + artifact.getArtifactId() + "-" + artifact.getVersion()
 				+ (sources ? "-sources" : "") + ".jar");
 	}
@@ -579,7 +579,6 @@ public class Repackage {
 	public void processEclipseArchive(Path duDir) {
 		try {
 			Path categoryRelativePath = descriptorsBase.relativize(duDir.getParent());
-			// String category = categoryRelativePath.getFileName().toString();
 			Path targetCategoryBase = a2Base.resolve(categoryRelativePath);
 			Files.createDirectories(targetCategoryBase);
 			// first delete all directories from previous builds
@@ -601,7 +600,7 @@ public class Repackage {
 					throw new IllegalStateException("No url available for " + duDir);
 				commonProps.put(ManifestConstants.SLC_ORIGIN_URI.toString(), url);
 			}
-			Path downloaded = tryDownload(url, originBase);
+			Path downloaded = tryDownloadArchive(url, originBase);
 
 			FileSystem zipFs = FileSystems.newFileSystem(downloaded, (ClassLoader) null);
 
@@ -903,7 +902,7 @@ public class Repackage {
 	}
 
 	/** Try to download from an URI. */
-	protected Path tryDownload(String uri, Path dir) throws IOException {
+	protected Path tryDownloadArchive(String uri, Path dir) throws IOException {
 		// find mirror
 		List<String> urlBases = null;
 		String uriPrefix = null;
@@ -918,7 +917,7 @@ public class Repackage {
 		}
 		if (urlBases == null)
 			try {
-				return download(new URL(uri), dir);
+				return downloadArchive(new URL(uri), dir);
 			} catch (FileNotFoundException e) {
 				throw new FileNotFoundException("Cannot find " + uri);
 			}
@@ -928,7 +927,7 @@ public class Repackage {
 			String relativePath = uri.substring(uriPrefix.length());
 			URL url = new URL(urlBase + relativePath);
 			try {
-				return download(url, dir);
+				return downloadArchive(url, dir);
 			} catch (FileNotFoundException e) {
 				logger.log(Level.WARNING, "Cannot download " + url + ", trying another mirror");
 			}
@@ -936,25 +935,26 @@ public class Repackage {
 		throw new FileNotFoundException("Cannot find " + uri);
 	}
 
-	/** Effectively download. */
-	protected Path download(URL url, Path dir) throws IOException {
+	/**
+	 * Effectively download. Synchronised in order to avoid downloading twice in
+	 * parallel.
+	 */
+	protected synchronized Path downloadArchive(URL url, Path dir) throws IOException {
 		return download(url, dir, (String) null);
 	}
 
-	/**
-	 * Effectively download. Synchronized in order to avoid downloading twice in
-	 * parallel.
-	 */
-	protected synchronized Path download(URL url, Path dir, String name) throws IOException {
+	/** Effectively download. */
+	protected Path download(URL url, Path dir, String name) throws IOException {
 
 		Path dest;
 		if (name == null) {
-			name = url.getPath().substring(url.getPath().lastIndexOf('/') + 1);
+			// We use also use parent directory in case the archive itself has a fixed name
+			name = url.getPath().substring(url.getPath().lastIndexOf('/') + 1)
+					.substring(url.getPath().lastIndexOf('/') + 1);
 		}
 
 		dest = dir.resolve(name);
 		if (Files.exists(dest)) {
-			// FIXME If new archives have the same name (e.g. nebula-latest.zip) they will be skipped
 			logger.log(Level.TRACE, () -> "File " + dest + " already exists for " + url + ", not downloading again");
 			return dest;
 		} else {
