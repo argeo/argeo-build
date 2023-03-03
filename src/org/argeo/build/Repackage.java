@@ -941,8 +941,11 @@ public class Repackage {
 		return download(url, dir, (String) null);
 	}
 
-	/** Effectively download. */
-	protected Path download(URL url, Path dir, String name) throws IOException {
+	/**
+	 * Effectively download. Synchronized in order to avoid downloading twice in
+	 * parallel.
+	 */
+	protected synchronized Path download(URL url, Path dir, String name) throws IOException {
 
 		Path dest;
 		if (name == null) {
@@ -951,6 +954,7 @@ public class Repackage {
 
 		dest = dir.resolve(name);
 		if (Files.exists(dest)) {
+			// FIXME If new archives have the same name (e.g. nebula-latest.zip) they will be skipped
 			logger.log(Level.TRACE, () -> "File " + dest + " already exists for " + url + ", not downloading again");
 			return dest;
 		} else {
