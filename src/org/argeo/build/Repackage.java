@@ -1,6 +1,7 @@
 package org.argeo.build;
 
 import static java.lang.System.Logger.Level.DEBUG;
+import static java.lang.System.Logger.Level.WARNING;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_SYMBOLICNAME;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_VERSION;
 import static org.argeo.build.Repackage.ManifestConstants.EXPORT_PACKAGE;
@@ -53,6 +54,8 @@ public class Repackage {
 
 	private final static String ENV_BUILD_SOURCE_BUNDLES = "BUILD_SOURCE_BUNDLES";
 
+	private final static boolean parallel = true;
+
 	/** Main entry point. */
 	public static void main(String[] args) {
 		if (args.length < 2) {
@@ -66,7 +69,10 @@ public class Repackage {
 		List<CompletableFuture<Void>> toDos = new ArrayList<>();
 		for (int i = 1; i < args.length; i++) {
 			Path p = Paths.get(args[i]);
-			toDos.add(CompletableFuture.runAsync(() -> factory.processCategory(p)));
+			if (parallel)
+				toDos.add(CompletableFuture.runAsync(() -> factory.processCategory(p)));
+			else
+				factory.processCategory(p);
 		}
 		CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
 	}
@@ -87,9 +93,13 @@ public class Repackage {
 	private final boolean sourceBundles;
 
 	public Repackage(Path a2Base, Path descriptorsBase) {
-		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
-		if (sourceBundles)
-			logger.log(Level.INFO, "Sources will be packaged separately");
+		if (System.getenv(ENV_BUILD_SOURCE_BUNDLES) != null) {
+			sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
+			if (sourceBundles)
+				logger.log(Level.INFO, "Sources will be packaged separately");
+		} else {
+			sourceBundles = true;
+		}
 
 		Objects.requireNonNull(a2Base);
 		Objects.requireNonNull(descriptorsBase);
@@ -510,8 +520,8 @@ public class Repackage {
 	/** Download and integrates sources for a single Maven artifact. */
 	protected void downloadAndProcessM2Sources(String repoStr, M2Artifact artifact, Path targetBundleDir)
 			throws IOException {
-		if (sourceBundles)
-			return;
+//		if (sourceBundles)
+//			return;
 		try {
 			M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
 			URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
@@ -527,7 +537,9 @@ public class Repackage {
 	/** Integrate sources from a downloaded jar file. */
 	protected void processM2SourceJar(Path file, Path targetBundleDir) throws IOException {
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
-			Path targetSourceDir = targetBundleDir.resolve("OSGI-OPT/src");
+			Path targetSourceDir = sourceBundles
+					? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
+					: targetBundleDir.resolve("OSGI-OPT/src");
 
 			// TODO make it less dangerous?
 			if (Files.exists(targetSourceDir)) {
@@ -641,10 +653,10 @@ public class Repackage {
 								}
 							}
 							if (file.getFileName().toString().contains(".source_")) {
-								if (!sourceBundles) {
-									processEclipseSourceJar(file, targetCategoryBase);
-									logger.log(Level.DEBUG, () -> "Processed source " + file);
-								}
+//								if (!sourceBundles) {
+								processEclipseSourceJar(file, targetCategoryBase);
+								logger.log(Level.DEBUG, () -> "Processed source " + file);
+//								}
 
 							} else {
 								Map<String, String> map = new HashMap<>();
@@ -660,8 +672,8 @@ public class Repackage {
 				}
 			});
 
-			DirectoryStream<Path> dirs = Files.newDirectoryStream(targetCategoryBase,
-					(p) -> Files.isDirectory(p) && p.getFileName().toString().indexOf('.') >= 0);
+			DirectoryStream<Path> dirs = Files.newDirectoryStream(targetCategoryBase, (p) -> Files.isDirectory(p)
+					&& p.getFileName().toString().indexOf('.') >= 0 && !p.getFileName().toString().endsWith(".src"));
 			for (Path dir : dirs) {
 				createJar(dir);
 			}
@@ -684,7 +696,9 @@ public class Repackage {
 				NameVersion nameVersion = new NameVersion(relatedBundle[0], version);
 				targetBundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
 
-				Path targetSourceDir = targetBundleDir.resolve("OSGI-OPT/src");
+				Path targetSourceDir = sourceBundles
+						? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
+						: targetBundleDir.resolve("OSGI-OPT/src");
 
 				// TODO make it less dangerous?
 				if (Files.exists(targetSourceDir)) {
@@ -996,6 +1010,45 @@ public class Repackage {
 			});
 		}
 		deleteDirectory(bundleDir);
+
+		if (sourceBundles) {
+			Path sourceDir = bundleDir.getParent().resolve(bundleDir.toString() + ".src");
+			if (!Files.exists(sourceDir)) {
+				logger.log(WARNING, sourceDir + " does not exist, skipping...");
+				return jarPath;
+			}
+			Path srcJarP = sourceDir.getParent().resolve(sourceDir.getFileName() + ".jar");
+			String bundleSymbolicName = manifest.getMainAttributes().getValue("Bundle-SymbolicName").toString();
+			// in case there are additional directives
+			bundleSymbolicName = bundleSymbolicName.split(";")[0];
+			Manifest srcManifest = new Manifest();
+			srcManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+			srcManifest.getMainAttributes().putValue("Bundle-SymbolicName", bundleSymbolicName + ".src");
+			srcManifest.getMainAttributes().putValue("Bundle-Version",
+					manifest.getMainAttributes().getValue("Bundle-Version").toString());
+			srcManifest.getMainAttributes().putValue("Eclipse-SourceBundle",
+					bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue("Bundle-Version"));
+
+			try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
+				srcJarOut.setLevel(Deflater.BEST_COMPRESSION);
+				Files.walkFileTree(sourceDir, new SimpleFileVisitor<Path>() {
+
+					@Override
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						if (file.getFileName().toString().equals("MANIFEST.MF"))
+							return super.visitFile(file, attrs);
+						JarEntry entry = new JarEntry(
+								sourceDir.relativize(file).toString().replace(File.separatorChar, '/'));
+						srcJarOut.putNextEntry(entry);
+						Files.copy(file, srcJarOut);
+						return super.visitFile(file, attrs);
+					}
+
+				});
+			}
+			deleteDirectory(sourceDir);
+		}
+
 		return jarPath;
 	}
 

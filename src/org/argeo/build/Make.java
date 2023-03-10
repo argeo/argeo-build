@@ -28,6 +28,7 @@ import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.StringTokenizer;
 import java.util.concurrent.CompletableFuture;
+import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
@@ -82,9 +83,13 @@ public class Make {
 
 	/** Constructor initialises the base directories. */
 	public Make() throws IOException {
-		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
-		if (sourceBundles)
-			logger.log(Level.INFO, "Sources will be packaged separately");
+		if (System.getenv(ENV_BUILD_SOURCE_BUNDLES) != null) {
+			sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
+			if (sourceBundles)
+				logger.log(Level.INFO, "Sources will be packaged separately");
+		} else {
+			sourceBundles = true;
+		}
 
 		execDirectory = Paths.get(System.getProperty("user.dir"));
 		Path sdkMkP = findSdkMk(execDirectory);
@@ -351,19 +356,34 @@ public class Make {
 			// TODO add effective BND, Eclipse project file, etc., in order to be able to
 			// repackage
 			if (sourceBundles) {
-				// TODO package sources separately
+				Path srcJarP = a2JarDirectory.resolve(compiled.getFileName() + "." + major + "." + minor + ".src.jar");
+				Manifest srcManifest = new Manifest();
+				srcManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+				srcManifest.getMainAttributes().putValue("Bundle-SymbolicName", bundleSymbolicName + ".src");
+				srcManifest.getMainAttributes().putValue("Bundle-Version",
+						manifest.getMainAttributes().getValue("Bundle-Version").toString());
+				srcManifest.getMainAttributes().putValue("Eclipse-SourceBundle",
+						bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue("Bundle-Version"));
+
+				try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
+					copySourcesToJar(srcP, srcJarOut, "");
+				}
 			} else {
-				Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
-					@Override
-					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-						jarOut.putNextEntry(new JarEntry("OSGI-OPT/src/" + srcP.relativize(file).toString()));
-						if (!Files.isDirectory(file))
-							Files.copy(file, jarOut);
-						return FileVisitResult.CONTINUE;
-					}
-				});
+				copySourcesToJar(srcP, jarOut, "OSGI-OPT/src/");
 			}
 		}
+	}
+
+	void copySourcesToJar(Path srcP, JarOutputStream srcJarOut, String prefix) throws IOException {
+		Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+				srcJarOut.putNextEntry(new JarEntry(prefix + srcP.relativize(file).toString()));
+				if (!Files.isDirectory(file))
+					Files.copy(file, srcJarOut);
+				return FileVisitResult.CONTINUE;
+			}
+		});
 	}
 
 	/**
