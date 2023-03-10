@@ -1018,6 +1018,7 @@ public class Repackage {
 			Path guessedA2Base = bundleCategoryDir.getParent();
 			Path srcA2Base = guessedA2Base.getParent().resolve(guessedA2Base.getFileName() + ".src");
 			Path srcJarP = srcA2Base.resolve(bundleCategoryDir.getFileName()).resolve(sourceDir.getFileName() + ".jar");
+			Files.createDirectories(srcJarP.getParent());
 
 			String bundleSymbolicName = manifest.getMainAttributes().getValue("Bundle-SymbolicName").toString();
 			// in case there are additional directives
