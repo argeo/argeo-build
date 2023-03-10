@@ -1008,12 +1008,17 @@ public class Repackage {
 		deleteDirectory(bundleDir);
 
 		if (sourceBundles) {
-			Path sourceDir = bundleDir.getParent().resolve(bundleDir.toString() + ".src");
+			Path bundleCategoryDir = bundleDir.getParent();
+			Path sourceDir = bundleCategoryDir.resolve(bundleDir.toString() + ".src");
 			if (!Files.exists(sourceDir)) {
 				logger.log(WARNING, sourceDir + " does not exist, skipping...");
 				return jarPath;
+
 			}
-			Path srcJarP = sourceDir.getParent().resolve(sourceDir.getFileName() + ".jar");
+			Path guessedA2Base = bundleCategoryDir.getParent();
+			Path srcA2Base = guessedA2Base.getParent().resolve(guessedA2Base.getFileName() + ".src");
+			Path srcJarP = srcA2Base.resolve(bundleCategoryDir.getFileName()).resolve(sourceDir.getFileName() + ".jar");
+
 			String bundleSymbolicName = manifest.getMainAttributes().getValue("Bundle-SymbolicName").toString();
 			// in case there are additional directives
 			bundleSymbolicName = bundleSymbolicName.split(";")[0];

@@ -77,6 +77,8 @@ public class Make {
 	final Path buildBase;
 	/** The base of the a2 output for all layers. */
 	final Path a2Output;
+	/** The base of the a2 sources when packages separately. */
+	final Path a2srcOutput;
 
 	/** Whether sources should be packaged separately */
 	final boolean sourceBundles;
@@ -102,6 +104,7 @@ public class Make {
 		})).toAbsolutePath();
 		buildBase = sdkBuildBase.resolve(sdkSrcBase.getFileName());
 		a2Output = sdkBuildBase.resolve("a2");
+		a2srcOutput = sdkBuildBase.resolve("a2.src");
 	}
 
 	/*
@@ -352,7 +355,11 @@ public class Make {
 			// TODO add effective BND, Eclipse project file, etc., in order to be able to
 			// repackage
 			if (sourceBundles) {
-				Path srcJarP = a2JarDirectory.resolve(compiled.getFileName() + "." + major + "." + minor + ".src.jar");
+				Path a2srcJarDirectory = bundleParent != null ? a2srcOutput.resolve(bundleParent).resolve(category)
+						: a2srcOutput.resolve(category);
+				Files.createDirectories(a2srcJarDirectory);
+				Path srcJarP = a2srcJarDirectory
+						.resolve(compiled.getFileName() + "." + major + "." + minor + ".src.jar");
 				Manifest srcManifest = new Manifest();
 				srcManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
 				srcManifest.getMainAttributes().putValue("Bundle-SymbolicName", bundleSymbolicName + ".src");
