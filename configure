@@ -16,8 +16,8 @@ else
 
 if [ -z "$JAVA_HOME" ]
 then
-echo "Environment variable JAVA_HOME must be set"
-exit 1
+JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+echo "Environment variable JAVA_HOME not set, using $JAVA_HOME"
 fi
 
 # Create build directory, so that it can be used right away
@@ -35,8 +35,8 @@ SDK_SRC_BASE := $SDK_SRC_BASE
 SDK_BUILD_BASE := $SDK_BUILD_BASE
 JAVA_HOME := $JAVA_HOME
 
-include \$(SDK_SRC_BASE)/branch.mk
-include \$(SDK_SRC_BASE)/sdk/branches/\$(BRANCH).bnd
+-include \$(SDK_SRC_BASE)/branch.mk
+-include \$(SDK_SRC_BASE)/sdk/branches/\$(BRANCH).bnd
 EOF
 
 
