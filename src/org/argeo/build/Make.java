@@ -83,13 +83,9 @@ public class Make {
 
 	/** Constructor initialises the base directories. */
 	public Make() throws IOException {
-		if (System.getenv(ENV_BUILD_SOURCE_BUNDLES) != null) {
-			sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
-			if (sourceBundles)
-				logger.log(Level.INFO, "Sources will be packaged separately");
-		} else {
-			sourceBundles = true;
-		}
+		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
+		if (sourceBundles)
+			logger.log(Level.INFO, "Sources will be packaged separately");
 
 		execDirectory = Paths.get(System.getProperty("user.dir"));
 		Path sdkMkP = findSdkMk(execDirectory);

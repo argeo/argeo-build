@@ -93,13 +93,9 @@ public class Repackage {
 	private final boolean sourceBundles;
 
 	public Repackage(Path a2Base, Path descriptorsBase) {
-		if (System.getenv(ENV_BUILD_SOURCE_BUNDLES) != null) {
-			sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
-			if (sourceBundles)
-				logger.log(Level.INFO, "Sources will be packaged separately");
-		} else {
-			sourceBundles = true;
-		}
+		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
+		if (sourceBundles)
+			logger.log(Level.INFO, "Sources will be packaged separately");
 
 		Objects.requireNonNull(a2Base);
 		Objects.requireNonNull(descriptorsBase);
