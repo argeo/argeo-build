@@ -195,12 +195,14 @@ public class Make {
 			throw new IllegalArgumentException("One and only one --category must be specified");
 		String category = categories.get(0);
 
+		final String branch;
 		Path branchMk = sdkSrcBase.resolve(BRANCH_MK);
-		if (!Files.exists(branchMk))
-			throw new IllegalStateException("No " + branchMk + " file available");
-		Map<String, String> branchVariables = readeMakefileVariables(branchMk);
-
-		String branch = branchVariables.get("BRANCH");
+		if (Files.exists(branchMk)) {
+			Map<String, String> branchVariables = readeMakefileVariables(branchMk);
+			branch = branchVariables.get("BRANCH");
+		} else {
+			branch = null;
+		}
 
 		long begin = System.currentTimeMillis();
 		// create jars in parallel
@@ -235,15 +237,19 @@ public class Make {
 			properties.load(in);
 		}
 
-		Path branchBnd = sdkSrcBase.resolve("sdk/branches/" + branch + ".bnd");
-		try (InputStream in = Files.newInputStream(branchBnd)) {
-			properties.load(in);
+		if (branch != null) {
+			Path branchBnd = sdkSrcBase.resolve("sdk/branches/" + branch + ".bnd");
+			if (Files.exists(branchBnd))
+				try (InputStream in = Files.newInputStream(branchBnd)) {
+					properties.load(in);
+				}
 		}
 
 		Path bndBnd = source.resolve("bnd.bnd");
-		try (InputStream in = Files.newInputStream(bndBnd)) {
-			properties.load(in);
-		}
+		if (Files.exists(bndBnd))
+			try (InputStream in = Files.newInputStream(bndBnd)) {
+				properties.load(in);
+			}
 
 		// Normalise
 		if (!properties.containsKey("Bundle-SymbolicName"))
