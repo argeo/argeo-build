@@ -81,6 +81,8 @@ public class Repackage {
 	private final static String MERGE_BND = "merge.bnd";
 
 	private Path originBase;
+	private Path mavenBase;
+
 	private Path a2Base;
 	private Path a2SrcBase;
 	private Path a2LibBase;
@@ -101,6 +103,8 @@ public class Repackage {
 		Objects.requireNonNull(a2Base);
 		Objects.requireNonNull(descriptorsBase);
 		this.originBase = Paths.get(System.getProperty("user.home"), ".cache", "argeo/build/origin");
+		this.mavenBase = Paths.get(System.getProperty("user.home"), ".m2", "repository");
+
 		// TODO define and use a build base
 		this.a2Base = a2Base;
 		this.a2SrcBase = a2Base.getParent().resolve(a2Base.getFileName() + ".src");
@@ -193,7 +197,7 @@ public class Repackage {
 				throw new IllegalArgumentException("No M2 coordinates available for " + bndFile);
 			M2Artifact artifact = new M2Artifact(m2Coordinates);
 			URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
-			Path downloaded = downloadMaven(url, originBase, artifact);
+			Path downloaded = downloadMaven(url, artifact);
 
 			Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact);
 
@@ -279,7 +283,7 @@ public class Repackage {
 
 				// download
 				URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
-				Path downloaded = downloadMaven(url, originBase, artifact);
+				Path downloaded = downloadMaven(url, artifact);
 
 				Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergeProps, artifact);
 //				logger.log(Level.DEBUG, () -> "Processed " + downloaded);
@@ -342,7 +346,7 @@ public class Repackage {
 			if (artifact.getVersion() == null)
 				artifact.setVersion(m2Version);
 			URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
-			Path downloaded = downloadMaven(url, originBase, artifact);
+			Path downloaded = downloadMaven(url, artifact);
 			JarEntry entry;
 			try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(downloaded), false)) {
 				entries: while ((entry = jarIn.getNextJarEntry()) != null) {
@@ -523,7 +527,7 @@ public class Repackage {
 		try {
 			M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
 			URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
-			Path sourcesDownloaded = downloadMaven(sourcesUrl, originBase, artifact, true);
+			Path sourcesDownloaded = downloadMaven(sourcesUrl, artifact, true);
 			processM2SourceJar(sourcesDownloaded, targetBundleDir);
 			logger.log(Level.TRACE, () -> "Processed source " + sourcesDownloaded);
 		} catch (Exception e) {
@@ -571,14 +575,15 @@ public class Repackage {
 	}
 
 	/** Download a Maven artifact. */
-	protected Path downloadMaven(URL url, Path dir, M2Artifact artifact) throws IOException {
-		return downloadMaven(url, dir, artifact, false);
+	protected Path downloadMaven(URL url, M2Artifact artifact) throws IOException {
+		return downloadMaven(url, artifact, false);
 	}
 
 	/** Download a Maven artifact. */
-	protected Path downloadMaven(URL url, Path dir, M2Artifact artifact, boolean sources) throws IOException {
-		return download(url, dir, artifact.getGroupId() + '/' + artifact.getArtifactId() + "-" + artifact.getVersion()
-				+ (sources ? "-sources" : "") + ".jar");
+	protected Path downloadMaven(URL url, M2Artifact artifact, boolean sources) throws IOException {
+		return download(url, mavenBase, artifact.getGroupId().replace(".", "/") //
+				+ '/' + artifact.getArtifactId() + '/' + artifact.getVersion() //
+				+ '/' + artifact.getArtifactId() + "-" + artifact.getVersion() + (sources ? "-sources" : "") + ".jar");
 	}
 
 	/*
