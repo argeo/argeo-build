@@ -82,6 +82,7 @@ public class Repackage {
 
 	private Path originBase;
 	private Path a2Base;
+	private Path a2SrcBase;
 	private Path a2LibBase;
 	private Path descriptorsBase;
 
@@ -102,6 +103,7 @@ public class Repackage {
 		this.originBase = Paths.get(System.getProperty("user.home"), ".cache", "argeo/build/origin");
 		// TODO define and use a build base
 		this.a2Base = a2Base;
+		this.a2SrcBase = a2Base.getParent().resolve(a2Base.getFileName() + ".src");
 		this.a2LibBase = a2Base.resolve("lib");
 		this.descriptorsBase = descriptorsBase;
 		if (!Files.exists(this.descriptorsBase))
@@ -1015,9 +1017,10 @@ public class Repackage {
 				return jarPath;
 
 			}
-			Path guessedA2Base = bundleCategoryDir.getParent();
-			Path srcA2Base = guessedA2Base.getParent().resolve(guessedA2Base.getFileName() + ".src");
-			Path srcJarP = srcA2Base.resolve(bundleCategoryDir.getFileName()).resolve(sourceDir.getFileName() + ".jar");
+
+			Path relPath = a2Base.relativize(bundleCategoryDir);
+			Path srcCategoryDir = a2SrcBase.resolve(relPath);
+			Path srcJarP = srcCategoryDir.resolve(sourceDir.getFileName() + ".jar");
 			Files.createDirectories(srcJarP.getParent());
 
 			String bundleSymbolicName = manifest.getMainAttributes().getValue("Bundle-SymbolicName").toString();
