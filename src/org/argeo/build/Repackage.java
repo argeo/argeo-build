@@ -212,7 +212,6 @@ public class Repackage {
 	/** Process multiple Maven artifacts. */
 	public void processM2BasedDistributionUnit(Path duDir) {
 		try {
-			// String category = duDir.getParent().getFileName().toString();
 			Path categoryRelativePath = descriptorsBase.relativize(duDir.getParent());
 			Path targetCategoryBase = a2Base.resolve(categoryRelativePath);
 
@@ -220,7 +219,6 @@ public class Repackage {
 			Path mergeBnd = duDir.resolve(MERGE_BND);
 			if (Files.exists(mergeBnd)) {
 				mergeM2Artifacts(mergeBnd);
-//				return;
 			}
 
 			Path commonBnd = duDir.resolve(COMMON_BND);
@@ -335,7 +333,14 @@ public class Repackage {
 		if (bundleSymbolicName == null)
 			throw new IllegalArgumentException("Bundle-SymbolicName must be set in " + mergeBnd);
 		CategoryNameVersion nameVersion = new M2Artifact(category + ":" + bundleSymbolicName + ":" + m2Version);
+
 		Path targetBundleDir = targetCategoryBase.resolve(bundleSymbolicName + "." + nameVersion.getBranch());
+		if (Files.exists(targetBundleDir)) {
+			logger.log(WARNING, targetBundleDir + " exists, deleting it...");
+			deleteDirectory(targetBundleDir);
+		} else {
+			Files.createDirectories(targetBundleDir);
+		}
 
 		String[] artifacts = artifactsStr.split(",");
 		artifacts: for (String str : artifacts) {
@@ -543,9 +548,9 @@ public class Repackage {
 					? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
 					: targetBundleDir.resolve("OSGI-OPT/src");
 
-			// TODO make it less dangerous?
 			if (Files.exists(targetSourceDir)) {
-//				deleteDirectory(targetSourceDir);
+				logger.log(WARNING, targetSourceDir + " exists, deleting it...");
+				deleteDirectory(targetSourceDir);
 			} else {
 				Files.createDirectories(targetSourceDir);
 			}
@@ -597,9 +602,8 @@ public class Repackage {
 			Path targetCategoryBase = a2Base.resolve(categoryRelativePath);
 			Files.createDirectories(targetCategoryBase);
 			// first delete all directories from previous builds
-			for (Path dir : Files.newDirectoryStream(targetCategoryBase, (p) -> Files.isDirectory(p))) {
+			for (Path dir : Files.newDirectoryStream(targetCategoryBase, (p) -> Files.isDirectory(p)))
 				deleteDirectory(dir);
-			}
 
 			Files.createDirectories(originBase);
 
@@ -703,9 +707,9 @@ public class Repackage {
 						? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
 						: targetBundleDir.resolve("OSGI-OPT/src");
 
-				// TODO make it less dangerous?
 				if (Files.exists(targetSourceDir)) {
-//				deleteDirectory(targetSourceDir);
+					logger.log(WARNING, targetSourceDir + " exists, deleting it...");
+					deleteDirectory(targetSourceDir);
 				} else {
 					Files.createDirectories(targetSourceDir);
 				}
@@ -778,6 +782,12 @@ public class Repackage {
 				}
 			}
 			targetBundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
+			if (Files.exists(targetBundleDir)) {
+				logger.log(WARNING, targetBundleDir + " exists, deleting it...");
+				deleteDirectory(targetBundleDir);
+			} else {
+				Files.createDirectories(targetBundleDir);
+			}
 
 			// force Java 9 module name
 			entries.put(ManifestConstants.AUTOMATIC_MODULE_NAME.toString(), nameVersion.getName());
