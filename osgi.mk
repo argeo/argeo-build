@@ -1,3 +1,4 @@
+include common.mk
 #
 # Common build routines to be included in Makefiles
 #
@@ -21,7 +22,7 @@ DEP_CATEGORIES ?=
 JAVADOC_PACKAGES ?=
 A2_BASE ?= $(A2_OUTPUT)
 
-LOGGER_JAR ?= $(A2_BASE)/org.argeo.tp/org.argeo.tp.syslogger.2.3.jar
+#LOGGER_JAR ?= $(A2_BASE)/org.argeo.tp/org.argeo.tp.syslogger.2.3.jar
 ECJ_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.3.32.jar
 BNDLIB_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/biz.aQute.bndlib.5.3.jar
 ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java
@@ -44,12 +45,13 @@ javadoc: $(BUILD_BASE)/built
 
 # Actual build (compilation + bundle packaging)
 $(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
-$(BUILD_BASE)/built : $(TODOS)
-	$(ARGEO_MAKE) all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
+$(BUILD_BASE)/built : find-build-tp $(TODOS)
+	$(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java \
+	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
 	touch $(BUILD_BASE)/built 
 
-$(A2_OUTPUT)/%.$(major).$(minor).jar : $(BUILD_BASE)/$$(subst $(A2_CATEGORY)/,,$$*)/to-build
-	$(ARGEO_MAKE) all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) --category $(A2_CATEGORY) --bundles $(subst $(A2_CATEGORY)/,,$*)
+#$(A2_OUTPUT)/%.$(major).$(minor).jar : $(BUILD_BASE)/$$(subst $(A2_CATEGORY)/,,$$*)/to-build
+#	$(ARGEO_MAKE) all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) --category $(A2_CATEGORY) --bundles $(subst $(A2_CATEGORY)/,,$*)
 
 $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path '*/MANIFEST.MF' | sed 's/ /\\ /g')
 	@rm -rf $(dir $@)
