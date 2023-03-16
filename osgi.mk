@@ -23,9 +23,11 @@ DEP_CATEGORIES ?=
 JAVADOC_PACKAGES ?=
 A2_BASE ?= $(A2_OUTPUT)
 
-#LOGGER_JAR ?= $(A2_BASE)/org.argeo.tp/org.argeo.tp.syslogger.2.3.jar
-ECJ_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.3.32.jar
-BNDLIB_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/biz.aQute.bndlib.5.3.jar
+LOGGER_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp/org.argeo.tp.syslogger.$(SYSLOGGER_BRANCH).jar)))
+ECJ_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.$(ECJ_BRANCH).jar)))
+#ECJ_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.3.32.jar
+BNDLIB_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.sdk/biz.aQute.bndlib.$(BNDLIB_BRANCH).jar)))
+#BNDLIB_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/biz.aQute.bndlib.5.3.jar
 ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java
 
 JAVADOC_SRCS = $(foreach bundle, $(BUNDLES), $(bundle)/src)
@@ -39,7 +41,7 @@ TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build)
 .SECONDEXPANSION:
 .PHONY: osgi manifests javadoc
 
-osgi: find-build-tp $(BUILD_BASE)/built
+osgi: $(BUILD_BASE)/built
 
 javadoc: $(BUILD_BASE)/built
 	$(JAVADOC) -quiet -Xmaxwarns 1 -d $(BUILD_BASE)/api --source-path $(subst $(space),$(pathsep),$(strip $(JAVADOC_SRCS))) -subpackages $(JAVADOC_PACKAGES)
