@@ -48,9 +48,10 @@ osgi: $(BUILD_BASE)/built $(MANIFESTS)
 # Actual build (compilation + bundle packaging)
 $(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
 $(BUILD_BASE)/built : $(TODOS)
-	$(ARGEO_MAKE) all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) \
+	$(ARGEO_MAKE) \
+	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) \
 	 --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
-	touch $(BUILD_BASE)/built 
+	@touch $(BUILD_BASE)/built 
 
 $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path '*/MANIFEST.MF' | sed 's/ /\\ /g')
 	@rm -rf $(dir $@)
@@ -60,7 +61,7 @@ $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path
 # Local manifests
 %/META-INF/MANIFEST.MF : $(BUILD_BASE)/%/META-INF/MANIFEST.MF
 	@mkdir -p $*
-	cp $< $@
+	@cp $< $@
 
 clean-manifests :
 	@rm -rf $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF);
