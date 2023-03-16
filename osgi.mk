@@ -58,7 +58,7 @@ $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path
 	@touch $@
 
 # Local manifests
-$(bundle)/META-INF/MANIFEST.MF : $(BUILD_BASE)/$(bundle)/META-INF/MANIFEST.MF
+%/META-INF/MANIFEST.MF : $(BUILD_BASE)/%/META-INF/MANIFEST.MF
 	@mkdir@ -p $*
 	cp -v $< $@
 
