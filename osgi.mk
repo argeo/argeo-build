@@ -39,14 +39,14 @@ TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build)
 .SECONDEXPANSION:
 .PHONY: osgi manifests javadoc
 
-osgi: $(BUILD_BASE)/built
+osgi: find-build-tp $(BUILD_BASE)/built
 
 javadoc: $(BUILD_BASE)/built
 	$(JAVADOC) -quiet -Xmaxwarns 1 -d $(BUILD_BASE)/api --source-path $(subst $(space),$(pathsep),$(strip $(JAVADOC_SRCS))) -subpackages $(JAVADOC_PACKAGES)
 
 # Actual build (compilation + bundle packaging)
 $(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
-$(BUILD_BASE)/built : find-build-tp $(TODOS)
+$(BUILD_BASE)/built : $(TODOS)
 	$(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java \
 	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
 	touch $(BUILD_BASE)/built 
