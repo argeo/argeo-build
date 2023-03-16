@@ -325,12 +325,6 @@ public class Repackage {
 		CategoryNameVersion nameVersion = new M2Artifact(category + ":" + bundleSymbolicName + ":" + m2Version);
 
 		Path targetBundleDir = targetCategoryBase.resolve(bundleSymbolicName + "." + nameVersion.getBranch());
-		if (Files.exists(targetBundleDir)) {
-			logger.log(WARNING, targetBundleDir + " exists, deleting it...");
-			deleteDirectory(targetBundleDir);
-		} else {
-			Files.createDirectories(targetBundleDir);
-		}
 
 		String[] artifacts = artifactsStr.split(",");
 		artifacts: for (String str : artifacts) {
@@ -534,14 +528,7 @@ public class Repackage {
 					? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
 					: targetBundleDir.resolve("OSGI-OPT/src");
 
-			if (Files.exists(targetSourceDir) && sourceBundles) {
-				logger.log(WARNING, targetSourceDir + " exists, deleting it...");
-				deleteDirectory(targetSourceDir);
-			} else {
-				Files.createDirectories(targetSourceDir);
-			}
-
-			// copy entries
+			Files.createDirectories(targetSourceDir);
 			JarEntry entry;
 			entries: while ((entry = jarIn.getNextJarEntry()) != null) {
 				if (entry.isDirectory())
@@ -689,14 +676,7 @@ public class Repackage {
 						? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
 						: targetBundleDir.resolve("OSGI-OPT/src");
 
-				if (Files.exists(targetSourceDir) && sourceBundles) {
-					logger.log(WARNING, targetSourceDir + " exists, deleting it...");
-					deleteDirectory(targetSourceDir);
-				} else {
-					Files.createDirectories(targetSourceDir);
-				}
-
-				// copy entries
+				Files.createDirectories(targetSourceDir);
 				JarEntry entry;
 				entries: while ((entry = jarIn.getNextJarEntry()) != null) {
 					if (entry.isDirectory())
@@ -759,12 +739,6 @@ public class Repackage {
 				}
 			}
 			targetBundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
-			if (Files.exists(targetBundleDir)) {
-				logger.log(WARNING, targetBundleDir + " exists, deleting it...");
-				deleteDirectory(targetBundleDir);
-			} else {
-				Files.createDirectories(targetBundleDir);
-			}
 
 			// force Java 9 module name
 			entries.put(ManifestConstants.AUTOMATIC_MODULE_NAME.toString(), nameVersion.getName());
