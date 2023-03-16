@@ -1,4 +1,5 @@
-include common.mk
+SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+include $(SELF_DIR)common.mk
 #
 # Common build routines to be included in Makefiles
 #
