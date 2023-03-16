@@ -1,5 +1,5 @@
-SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
-include $(SELF_DIR)common.mk
+ARGEO_BUILD_BASE := $(dir $(lastword $(MAKEFILE_LIST)))
+include $(ARGEO_BUILD_BASE)common.mk
 #
 # Common repackage routines to be included in Makefiles
 #
@@ -22,21 +22,18 @@ LOGGER_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.arge
 BNDLIB_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.sdk/biz.aQute.bndlib.$(BNDLIB_BRANCH).jar)))
 
 # Internal variables
+ARGEO_REPACKAGE = $(JVM) -cp $(LOGGER_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)/src/org/argeo/build/Repackage.java
 TODOS_REPACKAGE = $(foreach category, $(CATEGORIES),$(BUILD_BASE)/$(category)/to-repackage) 
 BUILD_BASE = $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE))
 
 all: $(BUILD_BASE)/repackaged 
 
 .SECONDEXPANSION:
-
 # We use .SECONDEXPANSION and CATEGORIES_TO_REPACKAGE instead of directly CATEGORIES
 # so that we don't repackage a category if it hasn't changed
 $(BUILD_BASE)/repackaged : CATEGORIES_TO_REPACKAGE = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-repackage,, $?))
 $(BUILD_BASE)/repackaged : $(TODOS_REPACKAGE)
-	$(JVM) \
-	 -cp $(LOGGER_JAR):$(BNDLIB_JAR) \
-	 $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Repackage.java \
-	 $(A2_OUTPUT) $(CATEGORIES_TO_REPACKAGE)
+	$(ARGEO_REPACKAGE) $(A2_OUTPUT) $(CATEGORIES_TO_REPACKAGE)
 	touch $(BUILD_BASE)/repackaged
 
 $(BUILD_BASE)/%/to-repackage : $$(shell find % -type f )

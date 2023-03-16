@@ -1,5 +1,5 @@
-SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
-include $(SELF_DIR)common.mk
+ARGEO_BUILD_BASE := $(dir $(lastword $(MAKEFILE_LIST)))
+include $(ARGEO_BUILD_BASE)common.mk
 #
 # Common build routines to be included in Makefiles
 #
@@ -29,7 +29,7 @@ ECJ_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.t
 BNDLIB_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.sdk/biz.aQute.bndlib.$(BNDLIB_BRANCH).jar)))
 
 # Internal variables
-ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java
+ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)/src/org/argeo/build/Make.java
 JAVADOC_SRCS = $(foreach bundle, $(BUNDLES), $(bundle)/src)
 BUILD_BASE = $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE))
 TARGET_BUNDLES =  $(abspath $(foreach bundle, $(BUNDLES),$(A2_OUTPUT)/$(shell dirname $(bundle))/$(A2_CATEGORY)/$(shell basename $(bundle)).$(major).$(minor).jar))
@@ -44,8 +44,8 @@ osgi: $(BUILD_BASE)/built
 # Actual build (compilation + bundle packaging)
 $(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
 $(BUILD_BASE)/built : $(TODOS)
-	$(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java \
-	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
+	$(ARGEO_MAKE) all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) \
+	 --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
 	touch $(BUILD_BASE)/built 
 
 $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path '*/MANIFEST.MF' | sed 's/ /\\ /g')
