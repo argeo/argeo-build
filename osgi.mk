@@ -11,7 +11,7 @@ JAVADOC ?= $(JAVA_HOME)/bin/javadoc
 
 # The following variables should be declared in the Makefile:
 # BUNDLES			the space-separated list of bundles to be built
-# A2_CATEGORY		the a2 category the bundles will belong to
+# A2_CATEGORY		the (single) a2 category the bundles will belong to
 #
 # The following variables have default values which can be overriden in the Makefile
 # DEP_CATEGORIES	the a2 categories the compilation depends on
@@ -25,7 +25,6 @@ LOGGER_JAR ?= $(A2_BASE)/org.argeo.tp/org.argeo.tp.syslogger.2.3.jar
 ECJ_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.3.32.jar
 BNDLIB_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/biz.aQute.bndlib.5.3.jar
 ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java
-#ARGEO_MAKE = $(JVM) -cp $(ECJ_JAR):$(BNDLIB_JAR):$(SLF4J_API_JAR):$(BUILD_BASE)/bin org/argeo/build/Make
 
 JAVADOC_SRCS = $(foreach bundle, $(BUNDLES), $(bundle)/src)
 
@@ -61,12 +60,6 @@ $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path
 manifests : osgi
 	@mkdir -p $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/);
 	@$(foreach bundle, $(BUNDLES), cp -v $(BUILD_BASE)/$(bundle)/META-INF/MANIFEST.MF  $(bundle)/META-INF/MANIFEST.MF;)
-
-# Local build of the builder, not used as the performance gain is negligible	
-builder: $(BUILD_BASE)/bin/org/argeo/build/Make.class
-
-$(BUILD_BASE)/bin/org/argeo/build/Make.class : $(SDK_SRC_BASE)/sdk/argeo-build/java/org/argeo/build/Make.java
-	$(JVM) -jar $(ECJ_JAR) -cp $(ECJ_JAR):$(BNDLIB_JAR):$(SLF4J_API_JAR) @$(SDK_SRC_BASE)/sdk/argeo-build/ecj.args $(SDK_SRC_BASE)/sdk/argeo-build/src[-d $(BUILD_BASE)/bin]
 
 # Make variables used to replace spaces by a separator, typically in order to generate classpaths
 # for example: CLASSPATH = $(subst $(space),$(pathsep),$(strip $(JARS)))
