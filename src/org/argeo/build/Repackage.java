@@ -548,7 +548,7 @@ public class Repackage {
 					? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
 					: targetBundleDir.resolve("OSGI-OPT/src");
 
-			if (Files.exists(targetSourceDir)) {
+			if (Files.exists(targetSourceDir) && sourceBundles) {
 				logger.log(WARNING, targetSourceDir + " exists, deleting it...");
 				deleteDirectory(targetSourceDir);
 			} else {
@@ -707,7 +707,7 @@ public class Repackage {
 						? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
 						: targetBundleDir.resolve("OSGI-OPT/src");
 
-				if (Files.exists(targetSourceDir)) {
+				if (Files.exists(targetSourceDir) && sourceBundles) {
 					logger.log(WARNING, targetSourceDir + " exists, deleting it...");
 					deleteDirectory(targetSourceDir);
 				} else {
