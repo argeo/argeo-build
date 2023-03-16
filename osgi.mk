@@ -31,6 +31,7 @@ BNDLIB_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.arge
 # Internal variables
 ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)/src/org/argeo/build/Make.java
 JAVADOC_SRCS = $(foreach bundle, $(BUNDLES), $(bundle)/src)
+MANIFESTS = $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF)
 BUILD_BASE = $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE))
 TARGET_BUNDLES =  $(abspath $(foreach bundle, $(BUNDLES),$(A2_OUTPUT)/$(shell dirname $(bundle))/$(A2_CATEGORY)/$(shell basename $(bundle)).$(major).$(minor).jar))
 TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build) 
@@ -39,10 +40,10 @@ TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build)
 .SECONDEXPANSION:
 .PHONY: osgi manifests javadoc
 
-osgi: $(BUILD_BASE)/built
+osgi: $(BUILD_BASE)/built $(MANIFESTS)
 # copy MANIFESTs to sources
-	@mkdir -p $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/);
-	@$(foreach bundle, $(BUNDLES), cp -v $(BUILD_BASE)/$(bundle)/META-INF/MANIFEST.MF  $(bundle)/META-INF/MANIFEST.MF;)
+#	@mkdir -p $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/);
+#	@$(foreach bundle, $(BUNDLES), cp -v $(BUILD_BASE)/$(bundle)/META-INF/MANIFEST.MF  $(bundle)/META-INF/MANIFEST.MF;)
 
 # Actual build (compilation + bundle packaging)
 $(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
@@ -57,6 +58,10 @@ $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path
 	@touch $@
 
 # Local manifests
+$(bundle)/META-INF/MANIFEST.MF : $(BUILD_BASE)/$(bundle)/META-INF/MANIFEST.MF
+	@mkdir@ -p $*
+	cp -v $< $@
+
 clean-manifests :
 	@rm -rf $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF);
 
