@@ -5,7 +5,7 @@
 # SDK_SRC_BASE		the base of the source code, typically the root of the cloned git repository
 # SDK_BUILD_BASE	the base of the output
 # JAVA_HOME			the base of the JDK used to build
-A2_OUTPUT := $(SDK_BUILD_BASE)/a2
+A2_OUTPUT = $(SDK_BUILD_BASE)/a2
 JVM ?= $(JAVA_HOME)/bin/java
 JAVADOC ?= $(JAVA_HOME)/bin/javadoc
 
@@ -24,7 +24,7 @@ A2_BASE ?= $(A2_OUTPUT)
 LOGGER_JAR ?= $(A2_BASE)/org.argeo.tp/org.argeo.tp.syslogger.2.3.jar
 ECJ_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.3.32.jar
 BNDLIB_JAR ?= $(A2_BASE)/org.argeo.tp.sdk/biz.aQute.bndlib.5.3.jar
-ARGEO_MAKE := $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java
+ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(SDK_SRC_BASE)/sdk/argeo-build/src/org/argeo/build/Make.java
 #ARGEO_MAKE = $(JVM) -cp $(ECJ_JAR):$(BNDLIB_JAR):$(SLF4J_API_JAR):$(BUILD_BASE)/bin org/argeo/build/Make
 
 JAVADOC_SRCS = $(foreach bundle, $(BUNDLES), $(bundle)/src)
