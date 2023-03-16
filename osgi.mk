@@ -53,6 +53,11 @@ $(BUILD_BASE)/built : $(TODOS)
 	 --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
 	@touch $(BUILD_BASE)/built 
 
+$(A2_OUTPUT)/%.$(major).$(minor).jar : $(BUILD_BASE)/$$(subst $(A2_CATEGORY)/,,$$*)/to-build
+	$(ARGEO_MAKE) \
+	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) \
+	 --category $(A2_CATEGORY) --bundles $(subst $(A2_CATEGORY)/,,$*)
+
 $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path '*/MANIFEST.MF' | sed 's/ /\\ /g')
 	@rm -rf $(dir $@)
 	@mkdir -p $(dir $@) 
