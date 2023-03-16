@@ -1,5 +1,5 @@
 A2_OUTPUT = $(SDK_BUILD_BASE)/a2
-A2_BASE ?= $(A2_OUTPUT) 
+A2_BASE ?= $(A2_OUTPUT)
 
 TODOS_REPACKAGE = $(foreach category, $(CATEGORIES),$(BUILD_BASE)/$(category)/to-repackage) 
 
