@@ -40,6 +40,9 @@ TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build)
 .PHONY: osgi manifests javadoc
 
 osgi: $(BUILD_BASE)/built
+# copy MANIFESTs to sources
+	@mkdir -p $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/);
+	@$(foreach bundle, $(BUNDLES), cp -v $(BUILD_BASE)/$(bundle)/META-INF/MANIFEST.MF  $(bundle)/META-INF/MANIFEST.MF;)
 
 # Actual build (compilation + bundle packaging)
 $(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
@@ -54,9 +57,8 @@ $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path
 	@touch $@
 
 # Local manifests
-manifests : osgi
-	@mkdir -p $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/);
-	@$(foreach bundle, $(BUNDLES), cp -v $(BUILD_BASE)/$(bundle)/META-INF/MANIFEST.MF  $(bundle)/META-INF/MANIFEST.MF;)
+clean-manifests :
+	@rm -rf $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF);
 
 # Javadoc generation
 javadoc: $(BUILD_BASE)/built
