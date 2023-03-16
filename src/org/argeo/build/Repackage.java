@@ -1,7 +1,11 @@
 package org.argeo.build;
 
 import static java.lang.System.Logger.Level.DEBUG;
+import static java.lang.System.Logger.Level.ERROR;
+import static java.lang.System.Logger.Level.INFO;
+import static java.lang.System.Logger.Level.TRACE;
 import static java.lang.System.Logger.Level.WARNING;
+import static java.nio.file.FileVisitResult.CONTINUE;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_SYMBOLICNAME;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_VERSION;
 import static org.argeo.build.Repackage.ManifestConstants.EXPORT_PACKAGE;
@@ -14,7 +18,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -98,7 +101,7 @@ public class Repackage {
 	public Repackage(Path a2Base, Path descriptorsBase) {
 		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
 		if (sourceBundles)
-			logger.log(Level.INFO, "Sources will be packaged separately");
+			logger.log(INFO, "Sources will be packaged separately");
 
 		Objects.requireNonNull(a2Base);
 		Objects.requireNonNull(descriptorsBase);
@@ -138,14 +141,12 @@ public class Repackage {
 					it.remove();
 			}
 		}
-
 		mirrors.put("http://www.eclipse.org/downloads", eclipseMirrors);
 	}
 
 	/*
 	 * MAVEN ORIGIN
 	 */
-
 	/** Process a whole category/group id. */
 	public void processCategory(Path categoryRelativePath) {
 		try {
@@ -173,7 +174,6 @@ public class Repackage {
 	/** Process a standalone Maven artifact. */
 	public void processSingleM2ArtifactDistributionUnit(Path bndFile) {
 		try {
-//			String category = bndFile.getParent().getFileName().toString();
 			Path categoryRelativePath = descriptorsBase.relativize(bndFile.getParent());
 			Path targetCategoryBase = a2Base.resolve(categoryRelativePath);
 
@@ -200,7 +200,6 @@ public class Repackage {
 			Path downloaded = downloadMaven(url, artifact);
 
 			Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact);
-
 			downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir);
 
 			createJar(targetBundleDir);
@@ -215,16 +214,14 @@ public class Repackage {
 			Path categoryRelativePath = descriptorsBase.relativize(duDir.getParent());
 			Path targetCategoryBase = a2Base.resolve(categoryRelativePath);
 
-			// merge
 			Path mergeBnd = duDir.resolve(MERGE_BND);
-			if (Files.exists(mergeBnd)) {
+			if (Files.exists(mergeBnd)) // merge
 				mergeM2Artifacts(mergeBnd);
-			}
 
 			Path commonBnd = duDir.resolve(COMMON_BND);
-			if (!Files.exists(commonBnd)) {
+			if (!Files.exists(commonBnd))
 				return;
-			}
+
 			Properties commonProps = new Properties();
 			try (InputStream in = Files.newInputStream(commonBnd)) {
 				commonProps.load(in);
@@ -232,7 +229,7 @@ public class Repackage {
 
 			String m2Version = commonProps.getProperty(SLC_ORIGIN_M2.toString());
 			if (m2Version == null) {
-				logger.log(Level.WARNING, "Ignoring " + duDir + " as it is not an M2-based distribution unit");
+				logger.log(WARNING, "Ignoring " + duDir + " as it is not an M2-based distribution unit");
 				return;// ignore, this is probably an Eclipse archive
 			}
 			if (!m2Version.startsWith(":")) {
@@ -250,7 +247,6 @@ public class Repackage {
 				}
 				String m2Coordinates = fileProps.getProperty(SLC_ORIGIN_M2.toString());
 				M2Artifact artifact = new M2Artifact(m2Coordinates);
-
 				artifact.setVersion(m2Version);
 
 				// prepare manifest entries
@@ -263,7 +259,7 @@ public class Repackage {
 					String value = fileProps.getProperty(key.toString());
 					Object previousValue = mergeProps.put(key.toString(), value);
 					if (previousValue != null) {
-						logger.log(Level.WARNING,
+						logger.log(WARNING,
 								commonBnd + ": " + key + " was " + previousValue + ", overridden with " + value);
 					}
 				}
@@ -284,17 +280,12 @@ public class Repackage {
 				Path downloaded = downloadMaven(url, artifact);
 
 				Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergeProps, artifact);
-//				logger.log(Level.DEBUG, () -> "Processed " + downloaded);
-
-				// sources
 				downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir);
-
 				createJar(targetBundleDir);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot process " + duDir, e);
 		}
-
 	}
 
 	/** Merge multiple Maven artifacts. */
@@ -308,10 +299,9 @@ public class Repackage {
 			mergeProps.load(in);
 		}
 
-		// Version
 		String m2Version = mergeProps.getProperty(SLC_ORIGIN_M2.toString());
 		if (m2Version == null) {
-			logger.log(Level.WARNING, "Ignoring " + duDir + " as it is not an M2-based distribution unit");
+			logger.log(WARNING, "Ignoring " + duDir + " as it is not an M2-based distribution unit");
 			return;// ignore, this is probably an Eclipse archive
 		}
 		if (!m2Version.startsWith(":")) {
@@ -388,16 +378,16 @@ public class Repackage {
 							try (OutputStream out = Files.newOutputStream(target, StandardOpenOption.APPEND)) {
 								out.write("\n".getBytes());
 								jarIn.transferTo(out);
-								logger.log(Level.WARNING, artifact.getArtifactId() + " - Appended " + entry.getName());
+								logger.log(DEBUG, artifact.getArtifactId() + " - Appended " + entry.getName());
 							}
 						} else if (entry.getName().startsWith("org/apache/batik/")) {
-							logger.log(Level.WARNING, "Skip " + entry.getName());
+							logger.log(TRACE, "Skip " + entry.getName());
 							continue entries;
 						} else {
 							throw new IllegalStateException("File " + target + " from " + artifact + " already exists");
 						}
 					}
-					logger.log(Level.TRACE, () -> "Copied " + target);
+					logger.log(TRACE, () -> "Copied " + target);
 				}
 
 			}
@@ -413,7 +403,7 @@ public class Repackage {
 						OutputStream out = Files.newOutputStream(target, StandardOpenOption.APPEND);) {
 					out.write("\n".getBytes());
 					in.transferTo(out);
-					logger.log(Level.WARNING, "Appended " + p);
+					logger.log(DEBUG, "Appended " + p);
 				}
 			}
 		}
@@ -438,8 +428,6 @@ public class Repackage {
 						&& value.toString().equals("osgi.ee;filter:=\"(&(osgi.ee=JavaSE)(version=1.1))\""))
 					continue keys;// hack for very old classes
 				entries.put(key.toString(), value.toString());
-				// logger.log(DEBUG, () -> key + "=" + value);
-
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot process " + mergeBnd, e);
@@ -516,7 +504,7 @@ public class Repackage {
 				}
 			}
 			Path targetBundleDir = processBundleJar(downloaded, targetCategoryBase, additionalEntries);
-			logger.log(Level.DEBUG, () -> "Processed " + downloaded);
+			logger.log(DEBUG, () -> "Processed " + downloaded);
 			return targetBundleDir;
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot BND process " + downloaded, e);
@@ -527,16 +515,14 @@ public class Repackage {
 	/** Download and integrates sources for a single Maven artifact. */
 	protected void downloadAndProcessM2Sources(String repoStr, M2Artifact artifact, Path targetBundleDir)
 			throws IOException {
-//		if (sourceBundles)
-//			return;
 		try {
 			M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
 			URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
 			Path sourcesDownloaded = downloadMaven(sourcesUrl, artifact, true);
 			processM2SourceJar(sourcesDownloaded, targetBundleDir);
-			logger.log(Level.TRACE, () -> "Processed source " + sourcesDownloaded);
+			logger.log(TRACE, () -> "Processed source " + sourcesDownloaded);
 		} catch (Exception e) {
-			logger.log(Level.ERROR, () -> "Cannot download source for  " + artifact);
+			logger.log(ERROR, () -> "Cannot download source for  " + artifact);
 		}
 
 	}
@@ -570,9 +556,9 @@ public class Repackage {
 				Files.createDirectories(target.getParent());
 				if (!Files.exists(target)) {
 					Files.copy(jarIn, target);
-					logger.log(Level.TRACE, () -> "Copied source " + target);
+					logger.log(TRACE, () -> "Copied source " + target);
 				} else {
-					logger.log(Level.WARNING, () -> target + " already exists, skipping...");
+					logger.log(TRACE, () -> target + " already exists, skipping...");
 				}
 			}
 		}
@@ -594,7 +580,6 @@ public class Repackage {
 	/*
 	 * ECLIPSE ORIGIN
 	 */
-
 	/** Process an archive in Eclipse format. */
 	public void processEclipseArchive(Path duDir) {
 		try {
@@ -655,22 +640,19 @@ public class Repackage {
 						if (includeMatcher.matches(file)) {
 							for (PathMatcher excludeMatcher : excludeMatchers) {
 								if (excludeMatcher.matches(file)) {
-									logger.log(Level.TRACE, "Skipping excluded " + file);
+									logger.log(TRACE, "Skipping excluded " + file);
 									return FileVisitResult.CONTINUE;
 								}
 							}
 							if (file.getFileName().toString().contains(".source_")) {
-//								if (!sourceBundles) {
 								processEclipseSourceJar(file, targetCategoryBase);
-								logger.log(Level.DEBUG, () -> "Processed source " + file);
-//								}
-
+								logger.log(DEBUG, () -> "Processed source " + file);
 							} else {
 								Map<String, String> map = new HashMap<>();
 								for (Object key : commonProps.keySet())
 									map.put(key.toString(), commonProps.getProperty(key.toString()));
 								processBundleJar(file, targetCategoryBase, map);
-								logger.log(Level.DEBUG, () -> "Processed " + file);
+								logger.log(DEBUG, () -> "Processed " + file);
 							}
 							break includeMatchers;
 						}
@@ -724,15 +706,12 @@ public class Repackage {
 					Path target = targetSourceDir.resolve(entry.getName());
 					Files.createDirectories(target.getParent());
 					Files.copy(jarIn, target);
-					logger.log(Level.TRACE, () -> "Copied source " + target);
+					logger.log(TRACE, () -> "Copied source " + target);
 				}
-
-				// copy MANIFEST
 			}
 		} catch (IOException e) {
 			throw new IllegalStateException("Cannot process " + file, e);
 		}
-
 	}
 
 	/*
@@ -751,7 +730,6 @@ public class Repackage {
 			String rawSourceSymbolicName = manifest.getMainAttributes()
 					.getValue(ManifestConstants.BUNDLE_SYMBOLICNAME.toString());
 			if (rawSourceSymbolicName != null) {
-
 				// make sure there is no directive
 				String[] arr = rawSourceSymbolicName.split(";");
 				for (int i = 1; i < arr.length; i++) {
@@ -760,7 +738,6 @@ public class Repackage {
 					logger.log(DEBUG, file.getFileName() + " is a singleton");
 				}
 			}
-
 			// remove problematic entries in MANIFEST
 			manifest.getEntries().clear();
 
@@ -772,7 +749,7 @@ public class Repackage {
 			} else {
 				nameVersion = nameVersionFromManifest(manifest);
 				if (ourVersion != null && !nameVersion.getVersion().equals(ourVersion)) {
-					logger.log(Level.WARNING,
+					logger.log(WARNING,
 							"Original version is " + nameVersion.getVersion() + " while new version is " + ourVersion);
 					entries.put(BUNDLE_VERSION.toString(), ourVersion);
 				}
@@ -826,9 +803,6 @@ public class Repackage {
 				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
 						|| entry.getName().endsWith(".jnilib"))) {
 					Path categoryDir = targetBundleDir.getParent();
-//					String[] segments = categoryDir.getFileName().toString().split("\\.");
-//					String arch = segments[segments.length - 1];
-//					String os = segments[segments.length - 2];
 					boolean copyDll = false;
 					Path targetDll = categoryDir.resolve(targetBundleDir.relativize(target));
 					if (nameVersion.getName().equals("com.sun.jna")) {
@@ -851,7 +825,7 @@ public class Repackage {
 					}
 					Files.delete(target);
 				}
-				logger.log(Level.TRACE, () -> "Copied " + target);
+				logger.log(TRACE, () -> "Copied " + target);
 			}
 
 			// copy MANIFEST
@@ -870,9 +844,9 @@ public class Repackage {
 					if (ManifestConstants.IMPORT_PACKAGE.toString().equals(key)
 							|| ManifestConstants.EXPORT_PACKAGE.toString().equals(key)
 							|| ManifestConstants.BUNDLE_LICENSE.toString().equals(key))
-						logger.log(Level.TRACE, file.getFileName() + ": " + key + " was modified");
+						logger.log(TRACE, file.getFileName() + ": " + key + " was modified");
 					else
-						logger.log(Level.WARNING, file.getFileName() + ": " + key + " was " + previousValue
+						logger.log(WARNING, file.getFileName() + ": " + key + " was " + previousValue
 								+ ", overridden with " + value);
 				}
 
@@ -892,7 +866,6 @@ public class Repackage {
 	/*
 	 * UTILITIES
 	 */
-
 	/** Recursively deletes a directory. */
 	private static void deleteDirectory(Path path) throws IOException {
 		if (!Files.exists(path))
@@ -903,13 +876,13 @@ public class Repackage {
 				if (e != null)
 					throw e;
 				Files.delete(directory);
-				return FileVisitResult.CONTINUE;
+				return CONTINUE;
 			}
 
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 				Files.delete(file);
-				return FileVisitResult.CONTINUE;
+				return CONTINUE;
 			}
 		});
 	}
@@ -956,7 +929,7 @@ public class Repackage {
 			try {
 				return downloadArchive(url, dir);
 			} catch (FileNotFoundException e) {
-				logger.log(Level.WARNING, "Cannot download " + url + ", trying another mirror");
+				logger.log(WARNING, "Cannot download " + url + ", trying another mirror");
 			}
 		}
 		throw new FileNotFoundException("Cannot find " + uri);
@@ -983,7 +956,7 @@ public class Repackage {
 
 		dest = dir.resolve(name);
 		if (Files.exists(dest)) {
-			logger.log(Level.TRACE, () -> "File " + dest + " already exists for " + url + ", not downloading again");
+			logger.log(TRACE, () -> "File " + dest + " already exists for " + url + ", not downloading again");
 			return dest;
 		} else {
 			Files.createDirectories(dest.getParent());
@@ -991,7 +964,7 @@ public class Repackage {
 
 		try (InputStream in = url.openStream()) {
 			Files.copy(in, dest);
-			logger.log(Level.DEBUG, () -> "Downloaded " + dest + " from " + url);
+			logger.log(DEBUG, () -> "Downloaded " + dest + " from " + url);
 		}
 		return dest;
 	}
@@ -1072,6 +1045,7 @@ public class Repackage {
 		return jarPath;
 	}
 
+	/** MANIFEST headers. */
 	enum ManifestConstants {
 		// OSGi
 		BUNDLE_SYMBOLICNAME("Bundle-SymbolicName"), //
@@ -1087,7 +1061,7 @@ public class Repackage {
 		SLC_ORIGIN_M2_MERGE("SLC-Origin-M2-Merge"), //
 		SLC_ORIGIN_M2_REPO("SLC-Origin-M2-Repo"), //
 		SLC_ORIGIN_MANIFEST_NOT_MODIFIED("SLC-Origin-ManifestNotModified"), //
-		SLC_ORIGIN_URI("SLC-Origin-URI"),//
+		SLC_ORIGIN_URI("SLC-Origin-URI"), //
 		;
 
 		final String value;
@@ -1100,9 +1074,7 @@ public class Repackage {
 		public String toString() {
 			return value;
 		}
-
 	}
-
 }
 
 /** Simple representation of an M2 artifact. */
@@ -1194,6 +1166,7 @@ class M2ConventionsUtils {
 	}
 }
 
+/** Combination of a category, a name and a version. */
 class CategoryNameVersion extends NameVersion {
 	private String category;
 
@@ -1225,6 +1198,7 @@ class CategoryNameVersion extends NameVersion {
 
 }
 
+/** Combination of a name and a version. */
 class NameVersion implements Comparable<NameVersion> {
 	private String name;
 	private String version;
