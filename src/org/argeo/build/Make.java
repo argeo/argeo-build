@@ -140,10 +140,10 @@ public class Make {
 			StringJoiner classPath = new StringJoiner(File.pathSeparator);
 			StringJoiner modulePath = new StringJoiner(File.pathSeparator);
 			for (String a2Base : a2Bases) {
-				for (String a2Category : a2Categories) {
+				categories: for (String a2Category : a2Categories) {
 					Path a2Dir = Paths.get(a2Base).resolve(a2Category);
 					if (!Files.exists(a2Dir))
-						Files.createDirectories(a2Dir);
+						continue categories;
 					modulePath.add(a2Dir.toString());
 					for (Path jarP : Files.newDirectoryStream(a2Dir,
 							(p) -> p.getFileName().toString().endsWith(".jar"))) {
