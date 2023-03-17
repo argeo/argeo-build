@@ -55,7 +55,7 @@ public class Make {
 	 * Environment properties on whether sources should be packaged separately or
 	 * integrated in the bundles.
 	 */
-	private final static String ENV_BUILD_SOURCE_BUNDLES = "BUILD_SOURCE_BUNDLES";
+	private final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
 
 	/** Name of the local-specific Makefile (sdk.mk). */
 	final static String SDK_MK = "sdk.mk";
@@ -85,7 +85,7 @@ public class Make {
 
 	/** Constructor initialises the base directories. */
 	public Make() throws IOException {
-		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
+		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_SOURCE_BUNDLES));
 		if (sourceBundles)
 			logger.log(Level.INFO, "Sources will be packaged separately");
 

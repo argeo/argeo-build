@@ -51,12 +51,20 @@ import java.util.zip.Deflater;
 import aQute.bnd.osgi.Analyzer;
 import aQute.bnd.osgi.Jar;
 
-/** The central class for A2 packaging. */
+/**
+ * Simple tool repackaging existing jar files into OSGi bundles in an A2
+ * repository.
+ */
 public class Repackage {
 	private final static Logger logger = System.getLogger(Repackage.class.getName());
 
-	private final static String ENV_BUILD_SOURCE_BUNDLES = "BUILD_SOURCE_BUNDLES";
+	/**
+	 * Environment properties on whether sources should be packaged separately or
+	 * integrated in the bundles.
+	 */
+	private final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
 
+	/** Whethere repackaging should run in parallel or sequentially. */
 	private final static boolean parallel = true;
 
 	/** Main entry point. */
@@ -83,23 +91,30 @@ public class Repackage {
 	private final static String COMMON_BND = "common.bnd";
 	private final static String MERGE_BND = "merge.bnd";
 
+	/** Directory where to download archives */
 	private Path originBase;
+	/** Directory where to download Maven artifacts */
 	private Path mavenBase;
 
+	/** A2 repository base for binary bundles */
 	private Path a2Base;
+	/** A2 repository base for source bundles */
 	private Path a2SrcBase;
+	/** A2 base for native components */
 	private Path a2LibBase;
+	/** Location of the descriptors driving the packaging */
 	private Path descriptorsBase;
-
+	/** URIs of archives to download */
 	private Properties uris = new Properties();
-
-	/** key is URI prefix, value list of base URLs */
+	/** Mirrors for archive download. Key is URI prefix, value list of base URLs */
 	private Map<String, List<String>> mirrors = new HashMap<String, List<String>>();
 
+	/** Whether sources should be packaged separately */
 	private final boolean sourceBundles;
 
+	/** Constructor initialises the various variables */
 	public Repackage(Path a2Base, Path descriptorsBase) {
-		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_BUILD_SOURCE_BUNDLES));
+		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_SOURCE_BUNDLES));
 		if (sourceBundles)
 			logger.log(INFO, "Sources will be packaged separately");
 

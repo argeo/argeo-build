@@ -15,6 +15,10 @@ JAVADOC ?= $(JAVA_HOME)/bin/javadoc
 # BUNDLES			the space-separated list of bundles to build
 # A2_CATEGORY		the (single) a2 category the bundles will belong to
 
+# The following environment variables can change the behaviour of the build
+# SOURCE_BUNDLES	sources will be packaged separately in Eclipse-compatible source bundles
+# NO_MANIFEST_COPY	generated MANIFESTs won't be copied to the source tree
+
 # The following variables have default values which can be overriden
 # DEP_CATEGORIES	the a2 categories the compilation depends on
 # JAVADOC_PACKAGES	the space-separated list of packages for which javadoc will be generated
@@ -41,9 +45,6 @@ TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build)
 .PHONY: osgi manifests javadoc
 
 osgi: $(BUILD_BASE)/built $(MANIFESTS)
-# copy MANIFESTs to sources
-#	@mkdir -p $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/);
-#	@$(foreach bundle, $(BUNDLES), cp -v $(BUILD_BASE)/$(bundle)/META-INF/MANIFEST.MF  $(bundle)/META-INF/MANIFEST.MF;)
 
 # Actual build (compilation + bundle packaging)
 $(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
@@ -65,8 +66,10 @@ $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path
 
 # Local manifests
 %/META-INF/MANIFEST.MF : $(BUILD_BASE)/%/META-INF/MANIFEST.MF
-	@mkdir -p $*
+ifneq($(NO_MANIFEST_COPY),"true")
+	@mkdir -p $*/META-INF
 	@cp $< $@
+endif
 
 clean-manifests :
 	@rm -rf $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF);
