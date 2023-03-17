@@ -21,12 +21,14 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.StringTokenizer;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -126,7 +128,7 @@ public class Make {
 
 		List<String> a2Categories = options.getOrDefault("--dep-categories", new ArrayList<>());
 		List<String> a2Bases = options.getOrDefault("--a2-bases", new ArrayList<>());
-		if (a2Bases.isEmpty()) {
+		if (a2Bases.isEmpty() || !a2Bases.contains(a2Output.toString())) {
 			a2Bases.add(a2Output.toString());
 		}
 
@@ -137,7 +139,10 @@ public class Make {
 
 		// classpath
 		if (!a2Categories.isEmpty()) {
-			StringJoiner classPath = new StringJoiner(File.pathSeparator);
+			// We will keep only the highest major.minor
+			// and order by bundle name, for predictability
+			Map<String, A2Jar> a2Jars = new TreeMap<>();
+
 			StringJoiner modulePath = new StringJoiner(File.pathSeparator);
 			for (String a2Base : a2Bases) {
 				categories: for (String a2Category : a2Categories) {
@@ -147,10 +152,27 @@ public class Make {
 					modulePath.add(a2Dir.toString());
 					for (Path jarP : Files.newDirectoryStream(a2Dir,
 							(p) -> p.getFileName().toString().endsWith(".jar"))) {
-						classPath.add(jarP.toString());
+						// classPath.add(jarP.toString());
+						A2Jar a2Jar = new A2Jar(jarP);
+						if (a2Jars.containsKey(a2Jar.name)) {
+							A2Jar current = a2Jars.get(a2Jar.name);
+							if (a2Jar.major > current.major)
+								a2Jars.put(a2Jar.name, a2Jar);
+							else if (a2Jar.major == current.major //
+									// if minor equals, we take the last one
+									&& a2Jar.minor >= current.minor)
+								a2Jars.put(a2Jar.name, a2Jar);
+						} else {
+							a2Jars.put(a2Jar.name, a2Jar);
+						}
 					}
 				}
 			}
+
+			StringJoiner classPath = new StringJoiner(File.pathSeparator);
+			for (Iterator<A2Jar> it = a2Jars.values().iterator(); it.hasNext();)
+				classPath.add(it.next().path.toString());
+
 			compilerArgs.add("-cp");
 			compilerArgs.add(classPath.toString());
 //			compilerArgs.add("--module-path");
@@ -466,6 +488,23 @@ public class Make {
 			logger.log(ERROR, "Make.java action '" + action + "' failed after " + (jvmUptime / 1000) + "."
 					+ (jvmUptime % 1000) + " s", e);
 			System.exit(1);
+		}
+	}
+
+	static class A2Jar {
+		final Path path;
+		final String name;
+		final int major;
+		final int minor;
+
+		A2Jar(Path path) {
+			this.path = path;
+			String fileName = path.getFileName().toString();
+			fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+			minor = Integer.parseInt(fileName.substring(fileName.lastIndexOf('.') + 1));
+			fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+			major = Integer.parseInt(fileName.substring(fileName.lastIndexOf('.') + 1));
+			name = fileName.substring(0, fileName.lastIndexOf('.'));
 		}
 	}
 
