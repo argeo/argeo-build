@@ -66,7 +66,7 @@ $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path
 
 # Local manifests
 %/META-INF/MANIFEST.MF : $(BUILD_BASE)/%/META-INF/MANIFEST.MF
-ifneq($(NO_MANIFEST_COPY),true)
+ifneq ($(NO_MANIFEST_COPY),true)
 	@mkdir -p $*/META-INF
 	@cp $< $@
 endif
