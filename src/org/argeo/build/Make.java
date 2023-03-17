@@ -1,5 +1,6 @@
 package org.argeo.build;
 
+import static java.lang.System.Logger.Level.DEBUG;
 import static java.lang.System.Logger.Level.ERROR;
 import static java.lang.System.Logger.Level.INFO;
 
@@ -143,16 +144,15 @@ public class Make {
 			// and order by bundle name, for predictability
 			Map<String, A2Jar> a2Jars = new TreeMap<>();
 
-			StringJoiner modulePath = new StringJoiner(File.pathSeparator);
+//			StringJoiner modulePath = new StringJoiner(File.pathSeparator);
 			for (String a2Base : a2Bases) {
 				categories: for (String a2Category : a2Categories) {
 					Path a2Dir = Paths.get(a2Base).resolve(a2Category);
 					if (!Files.exists(a2Dir))
 						continue categories;
-					modulePath.add(a2Dir.toString());
+//					modulePath.add(a2Dir.toString());
 					for (Path jarP : Files.newDirectoryStream(a2Dir,
 							(p) -> p.getFileName().toString().endsWith(".jar"))) {
-						// classPath.add(jarP.toString());
 						A2Jar a2Jar = new A2Jar(jarP);
 						if (a2Jars.containsKey(a2Jar.name)) {
 							A2Jar current = a2Jars.get(a2Jar.name);
@@ -197,8 +197,11 @@ public class Make {
 		if (logger.isLoggable(INFO))
 			compilerArgs.add("-time");
 
-//		for (String arg : compilerArgs)
-//			System.out.println(arg);
+		if (logger.isLoggable(DEBUG)) {
+			logger.log(DEBUG, "Compiler arguments:");
+			for (String arg : compilerArgs)
+				logger.log(DEBUG, arg);
+		}
 
 		boolean success = org.eclipse.jdt.core.compiler.batch.BatchCompiler.compile(
 				compilerArgs.toArray(new String[compilerArgs.size()]), new PrintWriter(System.out),
