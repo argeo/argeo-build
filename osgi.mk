@@ -35,7 +35,9 @@ BNDLIB_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.arge
 # Internal variables
 ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)/src/org/argeo/build/Make.java
 JAVADOC_SRCS = $(foreach bundle, $(BUNDLES), $(bundle)/src)
+ifneq ($(NO_MANIFEST_COPY),true)
 MANIFESTS = $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF)
+endif
 BUILD_BASE = $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE))
 TARGET_BUNDLES =  $(abspath $(foreach bundle, $(BUNDLES),$(A2_OUTPUT)/$(shell dirname $(bundle))/$(A2_CATEGORY)/$(shell basename $(bundle)).$(major).$(minor).jar))
 TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build) 
