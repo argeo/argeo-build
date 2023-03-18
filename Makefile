@@ -19,4 +19,7 @@ all: osgi
 	cp org.argeo.build/META-INF/MANIFEST.MF META-INF/MANIFEST.MF
 	rm -rf org.argeo.build 
 
+clean:
+	rm -rf $(BUILD_BASE)
+
 include osgi.mk
