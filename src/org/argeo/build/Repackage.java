@@ -835,8 +835,8 @@ public class Repackage {
 				String value = entries.get(key);
 				String previousValue = manifest.getMainAttributes().getValue(key);
 				boolean wasDifferent = previousValue != null && !previousValue.equals(value);
+				boolean keepPrevious = false;
 				if (wasDifferent) {
-					boolean keepPrevious = false;
 					if (SPDX_LICENSE_IDENTIFIER.toString().equals(key) && previousValue != null)
 						keepPrevious = true;
 					else if (BUNDLE_VERSION.toString().equals(key) && wasDifferent)
@@ -852,7 +852,7 @@ public class Repackage {
 				}
 
 				manifest.getMainAttributes().putValue(key, value);
-				if (wasDifferent) {
+				if (wasDifferent && !keepPrevious) {
 					if (IMPORT_PACKAGE.toString().equals(key) || EXPORT_PACKAGE.toString().equals(key))
 						logger.log(TRACE, () -> file.getFileName() + ": " + key + " was modified");
 					else
