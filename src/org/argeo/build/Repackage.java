@@ -6,11 +6,11 @@ import static java.lang.System.Logger.Level.INFO;
 import static java.lang.System.Logger.Level.TRACE;
 import static java.lang.System.Logger.Level.WARNING;
 import static java.nio.file.FileVisitResult.CONTINUE;
+import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2;
+import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2_REPO;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_SYMBOLICNAME;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_VERSION;
 import static org.argeo.build.Repackage.ManifestConstants.EXPORT_PACKAGE;
-import static org.argeo.build.Repackage.ManifestConstants.SLC_ORIGIN_M2;
-import static org.argeo.build.Repackage.ManifestConstants.SLC_ORIGIN_M2_REPO;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -196,8 +196,8 @@ public class Repackage {
 			try (InputStream in = Files.newInputStream(bndFile)) {
 				fileProps.load(in);
 			}
-			String repoStr = fileProps.containsKey(SLC_ORIGIN_M2_REPO.toString())
-					? fileProps.getProperty(SLC_ORIGIN_M2_REPO.toString())
+			String repoStr = fileProps.containsKey(ARGEO_ORIGIN_M2_REPO.toString())
+					? fileProps.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
 					: null;
 
 			if (!fileProps.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
@@ -207,7 +207,7 @@ public class Repackage {
 				fileProps.put(BUNDLE_SYMBOLICNAME.toString(), symbolicName);
 			}
 
-			String m2Coordinates = fileProps.getProperty(SLC_ORIGIN_M2.toString());
+			String m2Coordinates = fileProps.getProperty(ARGEO_ORIGIN_M2.toString());
 			if (m2Coordinates == null)
 				throw new IllegalArgumentException("No M2 coordinates available for " + bndFile);
 			M2Artifact artifact = new M2Artifact(m2Coordinates);
@@ -242,7 +242,7 @@ public class Repackage {
 				commonProps.load(in);
 			}
 
-			String m2Version = commonProps.getProperty(SLC_ORIGIN_M2.toString());
+			String m2Version = commonProps.getProperty(ARGEO_ORIGIN_M2.toString());
 			if (m2Version == null) {
 				logger.log(WARNING, "Ignoring " + duDir + " as it is not an M2-based distribution unit");
 				return;// ignore, this is probably an Eclipse archive
@@ -260,7 +260,7 @@ public class Repackage {
 				try (InputStream in = Files.newInputStream(p)) {
 					fileProps.load(in);
 				}
-				String m2Coordinates = fileProps.getProperty(SLC_ORIGIN_M2.toString());
+				String m2Coordinates = fileProps.getProperty(ARGEO_ORIGIN_M2.toString());
 				M2Artifact artifact = new M2Artifact(m2Coordinates);
 				artifact.setVersion(m2Version);
 
@@ -269,7 +269,7 @@ public class Repackage {
 				mergeProps.putAll(commonProps);
 
 				fileEntries: for (Object key : fileProps.keySet()) {
-					if (ManifestConstants.SLC_ORIGIN_M2.toString().equals(key))
+					if (ManifestConstants.ARGEO_ORIGIN_M2.toString().equals(key))
 						continue fileEntries;
 					String value = fileProps.getProperty(key.toString());
 					Object previousValue = mergeProps.put(key.toString(), value);
@@ -278,7 +278,7 @@ public class Repackage {
 								commonBnd + ": " + key + " was " + previousValue + ", overridden with " + value);
 					}
 				}
-				mergeProps.put(ManifestConstants.SLC_ORIGIN_M2.toString(), artifact.toM2Coordinates());
+				mergeProps.put(ManifestConstants.ARGEO_ORIGIN_M2.toString(), artifact.toM2Coordinates());
 				if (!mergeProps.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
 					// use file name as symbolic name
 					String symbolicName = p.getFileName().toString();
@@ -286,8 +286,8 @@ public class Repackage {
 					mergeProps.put(BUNDLE_SYMBOLICNAME.toString(), symbolicName);
 				}
 
-				String repoStr = mergeProps.containsKey(SLC_ORIGIN_M2_REPO.toString())
-						? mergeProps.getProperty(SLC_ORIGIN_M2_REPO.toString())
+				String repoStr = mergeProps.containsKey(ARGEO_ORIGIN_M2_REPO.toString())
+						? mergeProps.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
 						: null;
 
 				// download
@@ -314,7 +314,7 @@ public class Repackage {
 			mergeProps.load(in);
 		}
 
-		String m2Version = mergeProps.getProperty(SLC_ORIGIN_M2.toString());
+		String m2Version = mergeProps.getProperty(ARGEO_ORIGIN_M2.toString());
 		if (m2Version == null) {
 			logger.log(WARNING, "Ignoring " + duDir + " as it is not an M2-based distribution unit");
 			return;// ignore, this is probably an Eclipse archive
@@ -325,13 +325,13 @@ public class Repackage {
 		m2Version = m2Version.substring(1);
 		mergeProps.put(ManifestConstants.BUNDLE_VERSION.toString(), m2Version);
 
-		String artifactsStr = mergeProps.getProperty(ManifestConstants.SLC_ORIGIN_M2_MERGE.toString());
+		String artifactsStr = mergeProps.getProperty(ManifestConstants.ARGEO_ORIGIN_M2_MERGE.toString());
 		if (artifactsStr == null)
 			throw new IllegalArgumentException(
-					mergeBnd + ": " + ManifestConstants.SLC_ORIGIN_M2_MERGE + " must be set");
+					mergeBnd + ": " + ManifestConstants.ARGEO_ORIGIN_M2_MERGE + " must be set");
 
-		String repoStr = mergeProps.containsKey(SLC_ORIGIN_M2_REPO.toString())
-				? mergeProps.getProperty(SLC_ORIGIN_M2_REPO.toString())
+		String repoStr = mergeProps.containsKey(ARGEO_ORIGIN_M2_REPO.toString())
+				? mergeProps.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
 				: null;
 
 		String bundleSymbolicName = mergeProps.getProperty(ManifestConstants.BUNDLE_SYMBOLICNAME.toString());
@@ -462,13 +462,13 @@ public class Repackage {
 		try {
 			Map<String, String> additionalEntries = new TreeMap<>();
 			boolean doNotModify = Boolean.parseBoolean(fileProps
-					.getOrDefault(ManifestConstants.SLC_ORIGIN_MANIFEST_NOT_MODIFIED.toString(), "false").toString());
+					.getOrDefault(ManifestConstants.ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED.toString(), "false").toString());
 
 			// we always force the symbolic name
 
 			if (doNotModify) {
 				fileEntries: for (Object key : fileProps.keySet()) {
-					if (ManifestConstants.SLC_ORIGIN_M2.toString().equals(key))
+					if (ManifestConstants.ARGEO_ORIGIN_M2.toString().equals(key))
 						continue fileEntries;
 					String value = fileProps.getProperty(key.toString());
 					additionalEntries.put(key.toString(), value);
@@ -599,12 +599,12 @@ public class Repackage {
 			try (InputStream in = Files.newInputStream(commonBnd)) {
 				commonProps.load(in);
 			}
-			String url = commonProps.getProperty(ManifestConstants.SLC_ORIGIN_URI.toString());
+			String url = commonProps.getProperty(ManifestConstants.ARGEO_ORIGIN_URI.toString());
 			if (url == null) {
 				url = uris.getProperty(duDir.getFileName().toString());
 				if (url == null)
 					throw new IllegalStateException("No url available for " + duDir);
-				commonProps.put(ManifestConstants.SLC_ORIGIN_URI.toString(), url);
+				commonProps.put(ManifestConstants.ARGEO_ORIGIN_URI.toString(), url);
 			}
 			Path downloaded = tryDownloadArchive(url, originBase);
 
@@ -831,15 +831,14 @@ public class Repackage {
 				Object previousValue = manifest.getMainAttributes().putValue(key, value);
 				if (previousValue != null && !previousValue.equals(value)) {
 					if (ManifestConstants.IMPORT_PACKAGE.toString().equals(key)
-							|| ManifestConstants.EXPORT_PACKAGE.toString().equals(key)
-							|| ManifestConstants.BUNDLE_LICENSE.toString().equals(key))
+							|| ManifestConstants.EXPORT_PACKAGE.toString().equals(key))
 						logger.log(TRACE, file.getFileName() + ": " + key + " was modified");
 					else
 						logger.log(WARNING, file.getFileName() + ": " + key + " was " + previousValue
 								+ ", overridden with " + value);
 				}
 
-				// hack to remove unresolvable
+				// !! hack to remove unresolvable
 				if (key.equals("Provide-Capability") || key.equals("Require-Capability"))
 					if (nameVersion.getName().equals("osgi.core") || nameVersion.getName().equals("osgi.cmpn")) {
 						manifest.getMainAttributes().remove(key);
@@ -1037,20 +1036,38 @@ public class Repackage {
 	/** MANIFEST headers. */
 	enum ManifestConstants {
 		// OSGi
+		/** OSGi bundle symbolic name. */
 		BUNDLE_SYMBOLICNAME("Bundle-SymbolicName"), //
+		/** OSGi bundle version. */
 		BUNDLE_VERSION("Bundle-Version"), //
-		BUNDLE_LICENSE("Bundle-License"), //
+//		BUNDLE_LICENSE("Bundle-License"), //
+		/** OSGi exported packages list. */
 		EXPORT_PACKAGE("Export-Package"), //
+		/** OSGi imported packages list. */
 		IMPORT_PACKAGE("Import-Package"), //
-		// JAVA
+		// Java
+		/** Java module name. */
 		AUTOMATIC_MODULE_NAME("Automatic-Module-Name"), //
-		// SLC
-//		SLC_CATEGORY("SLC-Category"), //
-		SLC_ORIGIN_M2("SLC-Origin-M2"), //
-		SLC_ORIGIN_M2_MERGE("SLC-Origin-M2-Merge"), //
-		SLC_ORIGIN_M2_REPO("SLC-Origin-M2-Repo"), //
-		SLC_ORIGIN_MANIFEST_NOT_MODIFIED("SLC-Origin-ManifestNotModified"), //
-		SLC_ORIGIN_URI("SLC-Origin-URI"), //
+		// Argeo Origin
+		/**
+		 * Maven coordinates of the origin, possibly partial when using common.bnd or
+		 * merge.bnd.
+		 */
+		ARGEO_ORIGIN_M2("Argeo-Origin-M2"), //
+		/** List of Maven coordinates to merge. */
+		ARGEO_ORIGIN_M2_MERGE("Argeo-Origin-M2-Merge"), //
+		/** Maven repository if not the default one. */
+		ARGEO_ORIGIN_M2_REPO("Argeo-Origin-M2-Repo"), //
+		/**
+		 * Do not perform BND analysis of the origin component. Typically IMport_package
+		 * and Export-Package will be kept untouched.
+		 */
+		ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED("Argeo-Origin-ManifestNotModified"), //
+		/**
+		 * Origin (non-Maven) URI of the component. It may be anything (jar, archive,
+		 * etc.).
+		 */
+		ARGEO_ORIGIN_URI("Argeo-Origin-URI"), //
 		;
 
 		final String value;
