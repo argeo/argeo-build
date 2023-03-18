@@ -3,6 +3,7 @@ package org.argeo.build;
 import static java.lang.System.Logger.Level.DEBUG;
 import static java.lang.System.Logger.Level.ERROR;
 import static java.lang.System.Logger.Level.INFO;
+import static java.lang.System.Logger.Level.WARNING;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,10 +56,17 @@ public class Make {
 	private final static Logger logger = System.getLogger(Make.class.getName());
 
 	/**
-	 * Environment properties on whether sources should be packaged separately or
+	 * Environment variable on whether sources should be packaged separately or
 	 * integrated in the bundles.
 	 */
 	private final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
+
+	/**
+	 * Environment variable to override the default location for the Argeo Build
+	 * configuration files. Typically used if Argeo Build has been compiled and
+	 * packaged separately.
+	 */
+	private final static String ENV_ARGEO_BUILD_CONFIG = "ARGEO_BUILD_CONFIG";
 
 	/** Name of the local-specific Makefile (sdk.mk). */
 	final static String SDK_MK = "sdk.mk";
@@ -100,7 +108,19 @@ public class Make {
 		sdkSrcBase = Paths.get(context.computeIfAbsent("SDK_SRC_BASE", (key) -> {
 			throw new IllegalStateException(key + " not found");
 		})).toAbsolutePath();
-		argeoBuildBase = sdkSrcBase.resolve("sdk/argeo-build");
+
+		Path argeoBuildBaseT = sdkSrcBase.resolve("sdk/argeo-build");
+		if (!Files.exists(argeoBuildBaseT)) {
+			String fromEnv = System.getenv(ENV_ARGEO_BUILD_CONFIG);
+			if (fromEnv != null)
+				argeoBuildBaseT = Paths.get(fromEnv);
+			if (fromEnv == null || !Files.exists(argeoBuildBaseT)) {
+				throw new IllegalStateException(
+						"Argeo Build not found. Did you initialise the git submodules or set the "
+								+ ENV_ARGEO_BUILD_CONFIG + " environment variable?");
+			}
+		}
+		argeoBuildBase = argeoBuildBaseT;
 
 		sdkBuildBase = Paths.get(context.computeIfAbsent("SDK_BUILD_BASE", (key) -> {
 			throw new IllegalStateException(key + " not found");
@@ -183,8 +203,14 @@ public class Make {
 		for (String bundle : bundles) {
 			StringBuilder sb = new StringBuilder();
 			Path bundlePath = execDirectory.resolve(bundle);
-			if (!Files.exists(bundlePath))
-				throw new IllegalArgumentException("Bundle " + bundle + " not found in " + execDirectory);
+			if (!Files.exists(bundlePath)) {
+				if (bundles.size() == 1) {
+					logger.log(WARNING, "Bundle " + bundle + " not found in " + execDirectory
+							+ ", assuming this is this directory, as only one bundle was requested.");
+					bundlePath = execDirectory;
+				} else
+					throw new IllegalArgumentException("Bundle " + bundle + " not found in " + execDirectory);
+			}
 			sb.append(bundlePath.resolve("src"));
 			sb.append("[-d");
 			compilerArgs.add(sb.toString());
@@ -250,12 +276,17 @@ public class Make {
 		logger.log(INFO, "Packaging took " + duration + " ms");
 	}
 
-	/*
-	 * UTILITIES
-	 */
 	/** Package a single bundle. */
 	void createBundle(String branch, String bundle, String category) throws IOException {
-		Path source = execDirectory.resolve(bundle);
+		final Path source;
+		if (!Files.exists(execDirectory.resolve(bundle))) {
+			logger.log(WARNING,
+					"Bundle " + bundle + " not found in " + execDirectory + ", assuming this is this directory.");
+			source = execDirectory;
+		} else {
+			source = execDirectory.resolve(bundle);
+		}
+
 		Path compiled = buildBase.resolve(bundle);
 		String bundleSymbolicName = source.getFileName().toString();
 
@@ -402,6 +433,10 @@ public class Make {
 		}
 	}
 
+	/*
+	 * UTILITIES
+	 */
+	/** Add sources to a jar file */
 	void copySourcesToJar(Path srcP, JarOutputStream srcJarOut, String prefix) throws IOException {
 		Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
 			@Override

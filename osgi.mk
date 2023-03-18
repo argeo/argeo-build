@@ -73,6 +73,9 @@ ifneq ($(NO_MANIFEST_COPY),true)
 	@cp $< $@
 endif
 
+clean:
+	rm -rf $(BUILD_BASE)
+
 clean-manifests :
 	@rm -rf $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF);
 

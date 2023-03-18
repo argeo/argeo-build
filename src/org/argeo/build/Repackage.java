@@ -59,7 +59,7 @@ public class Repackage {
 	private final static Logger logger = System.getLogger(Repackage.class.getName());
 
 	/**
-	 * Environment properties on whether sources should be packaged separately or
+	 * Environment variable on whether sources should be packaged separately or
 	 * integrated in the bundles.
 	 */
 	private final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
@@ -1045,7 +1045,7 @@ public class Repackage {
 		// JAVA
 		AUTOMATIC_MODULE_NAME("Automatic-Module-Name"), //
 		// SLC
-		SLC_CATEGORY("SLC-Category"), //
+//		SLC_CATEGORY("SLC-Category"), //
 		SLC_ORIGIN_M2("SLC-Origin-M2"), //
 		SLC_ORIGIN_M2_MERGE("SLC-Origin-M2-Merge"), //
 		SLC_ORIGIN_M2_REPO("SLC-Origin-M2-Repo"), //

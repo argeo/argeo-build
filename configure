@@ -5,8 +5,12 @@ SDK_BUILD_BASE=$(pwd -P)/output
 
 if [ -z "$SDK_SRC_BASE" ]
 then
-SDK_SRC_BASE=$(pwd -P)
-echo "Script variable SDK_SRC_BASE not set, assuming Argeo Build is building itself and using the local directory"
+echo Script variable SDK_SRC_BASE must be set in the calling \'configure\' script,
+echo to the root location of the sources, typically with such a pattern:
+echo 'SDK_SRC_BASE="$(cd "$(dirname "$0")"; pwd -P)"' 
+echo "(see 'configure.template' from the argeo-build directory)"
+echo In order to build Argeo Build itself, explicitly set SDK_SRC_BASE as an environment variable
+exit 1
 fi
 
 SDK_MK=$SDK_SRC_BASE/sdk.mk
