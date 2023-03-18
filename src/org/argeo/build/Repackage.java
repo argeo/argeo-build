@@ -75,6 +75,7 @@ public class Repackage {
 	final static boolean parallel = true;
 
 	// cache
+	/** Summary of all license seen during the repackaging. */
 	final static Map<String, Set<String>> licensesUsed = new TreeMap<>();
 
 	/** Main entry point. */
@@ -101,7 +102,7 @@ public class Repackage {
 		StringBuilder sb = new StringBuilder();
 		for (String licenseId : licensesUsed.keySet())
 			for (String name : licensesUsed.get(licenseId))
-				sb.append(licenseId + "\t" + name + "\n");
+				sb.append(licenseId + "\t\t\t" + name + "\n");
 		logger.log(INFO, "# License summary:\n" + sb);
 	}
 
@@ -889,7 +890,7 @@ public class Repackage {
 			} else {
 				if (!licensesUsed.containsKey(spdxLicenceId))
 					licensesUsed.put(spdxLicenceId, new TreeSet<>());
-				licensesUsed.get(spdxLicenceId).add(file.getFileName().toString());
+				licensesUsed.get(spdxLicenceId).add(nameVersion.toString());
 			}
 
 			try (OutputStream out = Files.newOutputStream(manifestPath)) {
