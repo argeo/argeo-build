@@ -102,7 +102,7 @@ public class Repackage {
 		StringBuilder sb = new StringBuilder();
 		for (String licenseId : licensesUsed.keySet())
 			for (String name : licensesUsed.get(licenseId))
-				sb.append(licenseId + "\t\t\t" + name + "\n");
+				sb.append((licenseId.equals("") ? "Proprietary" : licenseId) + "\t\t" + name + "\n");
 		logger.log(INFO, "# License summary:\n" + sb);
 	}
 
