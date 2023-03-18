@@ -42,6 +42,5 @@ $(BUILD_BASE)/%/to-repackage : $$(shell find % -type f )
 	@touch $@
 
 clean:
-	$(foreach category, $(CATEGORIES), rm -rf $(A2_OUTPUT)/$(category))
 	$(foreach category, $(CATEGORIES), rm -rf $(BUILD_BASE)/$(category))
 	rm -f $(BUILD_BASE)/repackaged
