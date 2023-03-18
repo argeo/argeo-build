@@ -9,6 +9,7 @@ import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.util.jar.Attributes.Name.MANIFEST_VERSION;
 import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2;
 import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2_REPO;
+import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_LICENSE;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_SYMBOLICNAME;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_VERSION;
 import static org.argeo.build.Repackage.ManifestConstants.ECLIPSE_SOURCE_BUNDLE;
@@ -866,6 +867,14 @@ public class Repackage {
 						manifest.getMainAttributes().remove(key);
 					}
 			}
+
+			// last checks
+			String spdxLicenceId = manifest.getMainAttributes().getValue(SPDX_LICENSE_IDENTIFIER.toString());
+			String bundleLicense = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
+			if (spdxLicenceId == null)
+				logger.log(WARNING, file.getFileName() + ": " + SPDX_LICENSE_IDENTIFIER + " not available, "
+						+ BUNDLE_LICENSE + " is " + bundleLicense);
+
 			try (OutputStream out = Files.newOutputStream(manifestPath)) {
 				manifest.write(out);
 			}
@@ -1062,6 +1071,8 @@ public class Repackage {
 		BUNDLE_SYMBOLICNAME("Bundle-SymbolicName"), //
 		/** OSGi bundle version. */
 		BUNDLE_VERSION("Bundle-Version"), //
+		/** OSGi bundle license. */
+		BUNDLE_LICENSE("Bundle-License"), //
 		/** OSGi exported packages list. */
 		EXPORT_PACKAGE("Export-Package"), //
 		/** OSGi imported packages list. */
@@ -1070,8 +1081,14 @@ public class Repackage {
 		/** Java module name. */
 		AUTOMATIC_MODULE_NAME("Automatic-Module-Name"), //
 		// Eclipse
+		/** Eclipse source bundle. */
 		ECLIPSE_SOURCE_BUNDLE("Eclipse-SourceBundle"), //
 		// SPDX
+		/**
+		 * SPDX license identifier.
+		 * 
+		 * @see https://spdx.org/licenses/
+		 */
 		SPDX_LICENSE_IDENTIFIER("SPDX-License-Identifier"), //
 		// Argeo Origin
 		/**
