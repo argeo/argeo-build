@@ -44,7 +44,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -61,16 +63,19 @@ import aQute.bnd.osgi.Jar;
  * repository.
  */
 public class Repackage {
-	private final static Logger logger = System.getLogger(Repackage.class.getName());
+	final static Logger logger = System.getLogger(Repackage.class.getName());
 
 	/**
 	 * Environment variable on whether sources should be packaged separately or
 	 * integrated in the bundles.
 	 */
-	private final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
+	final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
 
 	/** Whethere repackaging should run in parallel or sequentially. */
-	private final static boolean parallel = true;
+	final static boolean parallel = true;
+
+	// cache
+	final static Map<String, Set<String>> licensesUsed = new TreeMap<>();
 
 	/** Main entry point. */
 	public static void main(String[] args) {
@@ -91,31 +96,36 @@ public class Repackage {
 				factory.processCategory(p);
 		}
 		CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
+
+		logger.log(INFO, "# License summary:");
+		for (String licenseId : licensesUsed.keySet())
+			for (String name : licensesUsed.get(licenseId))
+				logger.log(INFO, licenseId + "\t" + name);
 	}
 
-	private final static String COMMON_BND = "common.bnd";
-	private final static String MERGE_BND = "merge.bnd";
+	final static String COMMON_BND = "common.bnd";
+	final static String MERGE_BND = "merge.bnd";
 
 	/** Directory where to download archives */
-	private Path originBase;
+	Path originBase;
 	/** Directory where to download Maven artifacts */
-	private Path mavenBase;
+	Path mavenBase;
 
 	/** A2 repository base for binary bundles */
-	private Path a2Base;
+	Path a2Base;
 	/** A2 repository base for source bundles */
-	private Path a2SrcBase;
+	Path a2SrcBase;
 	/** A2 base for native components */
-	private Path a2LibBase;
+	Path a2LibBase;
 	/** Location of the descriptors driving the packaging */
-	private Path descriptorsBase;
+	Path descriptorsBase;
 	/** URIs of archives to download */
-	private Properties uris = new Properties();
+	Properties uris = new Properties();
 	/** Mirrors for archive download. Key is URI prefix, value list of base URLs */
-	private Map<String, List<String>> mirrors = new HashMap<String, List<String>>();
+	Map<String, List<String>> mirrors = new HashMap<String, List<String>>();
 
 	/** Whether sources should be packaged separately */
-	private final boolean sourceBundles;
+	final boolean sourceBundles;
 
 	/** Constructor initialises the various variables */
 	public Repackage(Path a2Base, Path descriptorsBase) {
@@ -871,9 +881,14 @@ public class Repackage {
 			// last checks
 			String spdxLicenceId = manifest.getMainAttributes().getValue(SPDX_LICENSE_IDENTIFIER.toString());
 			String bundleLicense = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
-			if (spdxLicenceId == null)
+			if (spdxLicenceId == null) {
 				logger.log(WARNING, file.getFileName() + ": " + SPDX_LICENSE_IDENTIFIER + " not available, "
 						+ BUNDLE_LICENSE + " is " + bundleLicense);
+			} else {
+				if (!licensesUsed.containsKey(spdxLicenceId))
+					licensesUsed.put(spdxLicenceId, new TreeSet<>());
+				licensesUsed.get(spdxLicenceId).add(file.getFileName().toString());
+			}
 
 			try (OutputStream out = Files.newOutputStream(manifestPath)) {
 				manifest.write(out);
