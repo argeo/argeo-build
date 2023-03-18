@@ -6,11 +6,15 @@ import static java.lang.System.Logger.Level.INFO;
 import static java.lang.System.Logger.Level.TRACE;
 import static java.lang.System.Logger.Level.WARNING;
 import static java.nio.file.FileVisitResult.CONTINUE;
+import static java.util.jar.Attributes.Name.MANIFEST_VERSION;
 import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2;
 import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2_REPO;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_SYMBOLICNAME;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_VERSION;
+import static org.argeo.build.Repackage.ManifestConstants.ECLIPSE_SOURCE_BUNDLE;
 import static org.argeo.build.Repackage.ManifestConstants.EXPORT_PACKAGE;
+import static org.argeo.build.Repackage.ManifestConstants.IMPORT_PACKAGE;
+import static org.argeo.build.Repackage.ManifestConstants.SPDX_LICENSE_IDENTIFIER;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -163,7 +167,7 @@ public class Repackage {
 	 * MAVEN ORIGIN
 	 */
 	/** Process a whole category/group id. */
-	public void processCategory(Path categoryRelativePath) {
+	void processCategory(Path categoryRelativePath) {
 		try {
 			Path targetCategoryBase = descriptorsBase.resolve(categoryRelativePath);
 			DirectoryStream<Path> bnds = Files.newDirectoryStream(targetCategoryBase,
@@ -187,7 +191,7 @@ public class Repackage {
 	}
 
 	/** Process a standalone Maven artifact. */
-	public void processSingleM2ArtifactDistributionUnit(Path bndFile) {
+	void processSingleM2ArtifactDistributionUnit(Path bndFile) {
 		try {
 			Path categoryRelativePath = descriptorsBase.relativize(bndFile.getParent());
 			Path targetCategoryBase = a2Base.resolve(categoryRelativePath);
@@ -224,7 +228,7 @@ public class Repackage {
 	}
 
 	/** Process multiple Maven artifacts. */
-	public void processM2BasedDistributionUnit(Path duDir) {
+	void processM2BasedDistributionUnit(Path duDir) {
 		try {
 			Path categoryRelativePath = descriptorsBase.relativize(duDir.getParent());
 			Path targetCategoryBase = a2Base.resolve(categoryRelativePath);
@@ -304,7 +308,7 @@ public class Repackage {
 	}
 
 	/** Merge multiple Maven artifacts. */
-	protected void mergeM2Artifacts(Path mergeBnd) throws IOException {
+	void mergeM2Artifacts(Path mergeBnd) throws IOException {
 		Path duDir = mergeBnd.getParent();
 		String category = duDir.getParent().getFileName().toString();
 		Path targetCategoryBase = a2Base.resolve(category);
@@ -457,7 +461,7 @@ public class Repackage {
 	}
 
 	/** Generate MANIFEST using BND. */
-	protected Path processBndJar(Path downloaded, Path targetCategoryBase, Properties fileProps, M2Artifact artifact) {
+	Path processBndJar(Path downloaded, Path targetCategoryBase, Properties fileProps, M2Artifact artifact) {
 
 		try {
 			Map<String, String> additionalEntries = new TreeMap<>();
@@ -505,10 +509,8 @@ public class Repackage {
 						}
 						if ("Require-Capability".equals(key.toString())
 								&& value.toString().equals("osgi.ee;filter:=\"(&(osgi.ee=JavaSE)(version=1.1))\""))
-							continue keys;// hack for very old classes
+							continue keys;// !! hack for very old classes
 						additionalEntries.put(key.toString(), value.toString());
-						// logger.log(DEBUG, () -> key + "=" + value);
-
 					}
 				}
 			}
@@ -522,8 +524,7 @@ public class Repackage {
 	}
 
 	/** Download and integrates sources for a single Maven artifact. */
-	protected void downloadAndProcessM2Sources(String repoStr, M2Artifact artifact, Path targetBundleDir)
-			throws IOException {
+	void downloadAndProcessM2Sources(String repoStr, M2Artifact artifact, Path targetBundleDir) throws IOException {
 		try {
 			M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
 			URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
@@ -537,7 +538,7 @@ public class Repackage {
 	}
 
 	/** Integrate sources from a downloaded jar file. */
-	protected void processM2SourceJar(Path file, Path targetBundleDir) throws IOException {
+	void processM2SourceJar(Path file, Path targetBundleDir) throws IOException {
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
 			Path targetSourceDir = sourceBundles
 					? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
@@ -568,12 +569,12 @@ public class Repackage {
 	}
 
 	/** Download a Maven artifact. */
-	protected Path downloadMaven(URL url, M2Artifact artifact) throws IOException {
+	Path downloadMaven(URL url, M2Artifact artifact) throws IOException {
 		return downloadMaven(url, artifact, false);
 	}
 
 	/** Download a Maven artifact. */
-	protected Path downloadMaven(URL url, M2Artifact artifact, boolean sources) throws IOException {
+	Path downloadMaven(URL url, M2Artifact artifact, boolean sources) throws IOException {
 		return download(url, mavenBase, artifact.getGroupId().replace(".", "/") //
 				+ '/' + artifact.getArtifactId() + '/' + artifact.getVersion() //
 				+ '/' + artifact.getArtifactId() + "-" + artifact.getVersion() + (sources ? "-sources" : "") + ".jar");
@@ -583,7 +584,7 @@ public class Repackage {
 	 * ECLIPSE ORIGIN
 	 */
 	/** Process an archive in Eclipse format. */
-	public void processEclipseArchive(Path duDir) {
+	void processEclipseArchive(Path duDir) {
 		try {
 			Path categoryRelativePath = descriptorsBase.relativize(duDir.getParent());
 			Path targetCategoryBase = a2Base.resolve(categoryRelativePath);
@@ -675,13 +676,14 @@ public class Repackage {
 	}
 
 	/** Process sources in Eclipse format. */
-	protected void processEclipseSourceJar(Path file, Path targetBase) throws IOException {
+	void processEclipseSourceJar(Path file, Path targetBase) throws IOException {
 		try {
 			Path targetBundleDir;
 			try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
 				Manifest manifest = jarIn.getManifest();
 
-				String[] relatedBundle = manifest.getMainAttributes().getValue("Eclipse-SourceBundle").split(";");
+				String[] relatedBundle = manifest.getMainAttributes().getValue(ECLIPSE_SOURCE_BUNDLE.toString())
+						.split(";");
 				String version = relatedBundle[1].substring("version=\"".length());
 				version = version.substring(0, version.length() - 1);
 				NameVersion nameVersion = new NameVersion(relatedBundle[0], version);
@@ -713,7 +715,7 @@ public class Repackage {
 	 * COMMON PROCESSING
 	 */
 	/** Normalise a bundle. */
-	protected Path processBundleJar(Path file, Path targetBase, Map<String, String> entries) throws IOException {
+	Path processBundleJar(Path file, Path targetBase, Map<String, String> entries) throws IOException {
 		NameVersion nameVersion;
 		Path targetBundleDir;
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
@@ -826,13 +828,33 @@ public class Repackage {
 						entries.get(BUNDLE_SYMBOLICNAME.toString()) + ";singleton:=true");
 			}
 
+			// Final MANIFEST decisions
+			// This also where we check the original OSGi metadata and compare with our
+			// changes
 			for (String key : entries.keySet()) {
 				String value = entries.get(key);
-				Object previousValue = manifest.getMainAttributes().putValue(key, value);
-				if (previousValue != null && !previousValue.equals(value)) {
-					if (ManifestConstants.IMPORT_PACKAGE.toString().equals(key)
-							|| ManifestConstants.EXPORT_PACKAGE.toString().equals(key))
-						logger.log(TRACE, file.getFileName() + ": " + key + " was modified");
+				String previousValue = manifest.getMainAttributes().getValue(key);
+				boolean wasDifferent = previousValue != null && !previousValue.equals(value);
+				if (wasDifferent) {
+					boolean keepPrevious = false;
+					if (SPDX_LICENSE_IDENTIFIER.toString().equals(key) && previousValue != null)
+						keepPrevious = true;
+					else if (BUNDLE_VERSION.toString().equals(key) && wasDifferent)
+						if (previousValue.equals(value + ".0")) // typically a Maven first release
+							keepPrevious = true;
+
+					if (keepPrevious) {
+						if (logger.isLoggable(TRACE))
+							logger.log(TRACE, file.getFileName() + ": " + key + " was NOT modified, value kept is "
+									+ previousValue + ", not overriden with " + value);
+						value = previousValue;
+					}
+				}
+
+				manifest.getMainAttributes().putValue(key, value);
+				if (wasDifferent) {
+					if (IMPORT_PACKAGE.toString().equals(key) || EXPORT_PACKAGE.toString().equals(key))
+						logger.log(TRACE, () -> file.getFileName() + ": " + key + " was modified");
 					else
 						logger.log(WARNING, file.getFileName() + ": " + key + " was " + previousValue
 								+ ", overridden with " + value);
@@ -855,7 +877,7 @@ public class Repackage {
 	 * UTILITIES
 	 */
 	/** Recursively deletes a directory. */
-	private static void deleteDirectory(Path path) throws IOException {
+	static void deleteDirectory(Path path) throws IOException {
 		if (!Files.exists(path))
 			return;
 		Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
@@ -876,7 +898,7 @@ public class Repackage {
 	}
 
 	/** Extract name/version from a MANIFEST. */
-	protected NameVersion nameVersionFromManifest(Manifest manifest) {
+	NameVersion nameVersionFromManifest(Manifest manifest) {
 		Attributes attrs = manifest.getMainAttributes();
 		// symbolic name
 		String symbolicName = attrs.getValue(ManifestConstants.BUNDLE_SYMBOLICNAME.toString());
@@ -890,7 +912,7 @@ public class Repackage {
 	}
 
 	/** Try to download from an URI. */
-	protected Path tryDownloadArchive(String uri, Path dir) throws IOException {
+	Path tryDownloadArchive(String uri, Path dir) throws IOException {
 		// find mirror
 		List<String> urlBases = null;
 		String uriPrefix = null;
@@ -927,12 +949,12 @@ public class Repackage {
 	 * Effectively download. Synchronised in order to avoid downloading twice in
 	 * parallel.
 	 */
-	protected synchronized Path downloadArchive(URL url, Path dir) throws IOException {
+	synchronized Path downloadArchive(URL url, Path dir) throws IOException {
 		return download(url, dir, (String) null);
 	}
 
 	/** Effectively download. */
-	protected Path download(URL url, Path dir, String name) throws IOException {
+	Path download(URL url, Path dir, String name) throws IOException {
 
 		Path dest;
 		if (name == null) {
@@ -958,7 +980,7 @@ public class Repackage {
 	}
 
 	/** Create a JAR file from a directory. */
-	protected Path createJar(Path bundleDir) throws IOException {
+	Path createJar(Path bundleDir) throws IOException {
 		// Create the jar
 		Path jarPath = bundleDir.getParent().resolve(bundleDir.getFileName() + ".jar");
 		Path manifestPath = bundleDir.resolve("META-INF/MANIFEST.MF");
@@ -1003,12 +1025,12 @@ public class Repackage {
 			// in case there are additional directives
 			bundleSymbolicName = bundleSymbolicName.split(";")[0];
 			Manifest srcManifest = new Manifest();
-			srcManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-			srcManifest.getMainAttributes().putValue("Bundle-SymbolicName", bundleSymbolicName + ".src");
-			srcManifest.getMainAttributes().putValue("Bundle-Version",
-					manifest.getMainAttributes().getValue("Bundle-Version").toString());
-			srcManifest.getMainAttributes().putValue("Eclipse-SourceBundle",
-					bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue("Bundle-Version"));
+			srcManifest.getMainAttributes().put(MANIFEST_VERSION, "1.0");
+			srcManifest.getMainAttributes().putValue(BUNDLE_SYMBOLICNAME.toString(), bundleSymbolicName + ".src");
+			srcManifest.getMainAttributes().putValue(BUNDLE_VERSION.toString(),
+					manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()).toString());
+			srcManifest.getMainAttributes().putValue(ECLIPSE_SOURCE_BUNDLE.toString(), bundleSymbolicName
+					+ ";version=\"" + manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()));
 
 			try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
 				srcJarOut.setLevel(Deflater.BEST_COMPRESSION);
@@ -1040,7 +1062,6 @@ public class Repackage {
 		BUNDLE_SYMBOLICNAME("Bundle-SymbolicName"), //
 		/** OSGi bundle version. */
 		BUNDLE_VERSION("Bundle-Version"), //
-//		BUNDLE_LICENSE("Bundle-License"), //
 		/** OSGi exported packages list. */
 		EXPORT_PACKAGE("Export-Package"), //
 		/** OSGi imported packages list. */
@@ -1048,6 +1069,10 @@ public class Repackage {
 		// Java
 		/** Java module name. */
 		AUTOMATIC_MODULE_NAME("Automatic-Module-Name"), //
+		// Eclipse
+		ECLIPSE_SOURCE_BUNDLE("Eclipse-SourceBundle"), //
+		// SPDX
+		SPDX_LICENSE_IDENTIFIER("SPDX-License-Identifier"), //
 		// Argeo Origin
 		/**
 		 * Maven coordinates of the origin, possibly partial when using common.bnd or

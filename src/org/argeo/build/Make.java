@@ -140,7 +140,6 @@ public class Make {
 	}
 
 	/** Compile all the bundles which have been passed via the --bundle argument. */
-	@SuppressWarnings("restriction")
 	void compile(Map<String, List<String>> options) throws IOException {
 		List<String> bundles = options.get("--bundles");
 		Objects.requireNonNull(bundles, "--bundles argument must be set");
