@@ -97,10 +97,12 @@ public class Repackage {
 		}
 		CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
 
-		logger.log(INFO, "# License summary:");
+		// Summary
+		StringBuilder sb = new StringBuilder();
 		for (String licenseId : licensesUsed.keySet())
 			for (String name : licensesUsed.get(licenseId))
-				logger.log(INFO, licenseId + "\t" + name);
+				sb.append(licenseId + "\t" + name + "\n");
+		logger.log(INFO, "# License summary:\n" + sb);
 	}
 
 	final static String COMMON_BND = "common.bnd";
@@ -882,7 +884,7 @@ public class Repackage {
 			String spdxLicenceId = manifest.getMainAttributes().getValue(SPDX_LICENSE_IDENTIFIER.toString());
 			String bundleLicense = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
 			if (spdxLicenceId == null) {
-				logger.log(WARNING, file.getFileName() + ": " + SPDX_LICENSE_IDENTIFIER + " not available, "
+				logger.log(ERROR, file.getFileName() + ": " + SPDX_LICENSE_IDENTIFIER + " not available, "
 						+ BUNDLE_LICENSE + " is " + bundleLicense);
 			} else {
 				if (!licensesUsed.containsKey(spdxLicenceId))
