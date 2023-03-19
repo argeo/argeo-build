@@ -1018,15 +1018,17 @@ public class Repackage {
 		}
 
 		// de-pollute MANIFEST
-		for (Object header : manifest.getMainAttributes().keySet()) {
-			switch (header.toString()) {
+		for (Iterator<Map.Entry<Object, Object>> manifestEntries = manifest.getMainAttributes().entrySet()
+				.iterator(); manifestEntries.hasNext();) {
+			Map.Entry<Object, Object> manifestEntry = manifestEntries.next();
+			switch (manifestEntry.getKey().toString()) {
 			case "Archiver-Version":
 			case "Build-By":
 			case "Created-By":
 			case "Originally-Created-By":
 			case "Tool":
 			case "Bnd-LastModified":
-				manifest.getMainAttributes().remove(header);
+				manifestEntries.remove();
 				break;
 			default: // do nothing
 			}
