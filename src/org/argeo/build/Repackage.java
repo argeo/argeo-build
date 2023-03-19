@@ -19,6 +19,7 @@ import static org.argeo.build.Repackage.ManifestConstants.EXPORT_PACKAGE;
 import static org.argeo.build.Repackage.ManifestConstants.IMPORT_PACKAGE;
 import static org.argeo.build.Repackage.ManifestConstants.SPDX_LICENSE_IDENTIFIER;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -73,7 +74,7 @@ public class Repackage {
 	 */
 	final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
 
-	/** Whethere repackaging should run in parallel or sequentially. */
+	/** Whether repackaging should run in parallel or sequentially. */
 	final static boolean parallel = true;
 
 	// cache
@@ -108,8 +109,15 @@ public class Repackage {
 		logger.log(INFO, "# License summary:\n" + sb);
 	}
 
+	/** Name of the file centralising information for multiple M2 artifacts. */
 	final static String COMMON_BND = "common.bnd";
+	/** Name of the file centralising information for mergin M2 artifacts. */
 	final static String MERGE_BND = "merge.bnd";
+	/**
+	 * Subdirectory of the jar file where origin informations (changes, legal
+	 * notices etc. are stored)
+	 */
+	final static String A2_ORIGIN = "A2-ORIGIN";
 
 	/** Directory where to download archives */
 	Path originBase;
@@ -234,16 +242,21 @@ public class Repackage {
 			URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
 			Path downloaded = downloadMaven(url, artifact);
 
-			Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact);
+			A2Origin origin = new A2Origin();
+			Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact, origin);
 			downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir);
 
-			createJar(targetBundleDir);
+			createJar(targetBundleDir, origin);
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot process " + bndFile, e);
 		}
 	}
 
-	/** Process multiple Maven artifacts. */
+	/**
+	 * Process multiple Maven artifacts coming from a same project and therefore
+	 * with information in common (typically the version), generating single bundles
+	 * or merging them if necessary.
+	 */
 	void processM2BasedDistributionUnit(Path duDir) {
 		try {
 			Path categoryRelativePath = descriptorsBase.relativize(duDir.getParent());
@@ -314,9 +327,10 @@ public class Repackage {
 				URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
 				Path downloaded = downloadMaven(url, artifact);
 
-				Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergeProps, artifact);
+				A2Origin origin = new A2Origin();
+				Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergeProps, artifact, origin);
 				downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir);
-				createJar(targetBundleDir);
+				createJar(targetBundleDir, origin);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot process " + duDir, e);
@@ -358,7 +372,8 @@ public class Repackage {
 			throw new IllegalArgumentException("Bundle-SymbolicName must be set in " + mergeBnd);
 		CategoryNameVersion nameVersion = new M2Artifact(category + ":" + bundleSymbolicName + ":" + m2Version);
 
-		Path targetBundleDir = targetCategoryBase.resolve(bundleSymbolicName + "." + nameVersion.getBranch());
+		A2Origin origin = new A2Origin();
+		Path bundleDir = targetCategoryBase.resolve(bundleSymbolicName + "." + nameVersion.getBranch());
 
 		String[] artifacts = artifactsStr.split(",");
 		artifacts: for (String str : artifacts) {
@@ -375,29 +390,44 @@ public class Repackage {
 				entries: while ((entry = jarIn.getNextJarEntry()) != null) {
 					if (entry.isDirectory())
 						continue entries;
-					else if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".SF"))
+					if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".SF")) {
+						origin.deleted.add("cryptographic signatures from " + artifact);
 						continue entries;
-					else if (entry.getName().startsWith("META-INF/versions/"))
+					}
+					if (entry.getName().endsWith("module-info.class")) { // skip Java 9 module info
+						origin.deleted.add("Java module information (module-info.class) from " + artifact);
 						continue entries;
-					else if (entry.getName().startsWith("META-INF/maven/"))
+					}
+					if (entry.getName().startsWith("META-INF/versions/")) { // skip multi-version
+						origin.deleted.add("additional Java versions (META-INF/versions) from " + artifact);
 						continue entries;
-					else if (entry.getName().equals("module-info.class"))
+					}
+					if (entry.getName().equals("META-INF/DEPENDENCIES")) {
+						origin.deleted.add("dependency list (META-INF/DEPENDENCIES) from " + artifact);
 						continue entries;
-					else if (entry.getName().equals("META-INF/NOTICE"))
+					}
+					if (entry.getName().startsWith("META-INF/maven/")) {
+						origin.deleted.add("Maven information (META-INF/maven) from " + artifact);
 						continue entries;
-					else if (entry.getName().equals("META-INF/NOTICE.txt"))
+					}
+					if (entry.getName().startsWith(".cache/")) { // Apache SSHD
+						origin.deleted.add("cache directory (.cache) from " + artifact);
 						continue entries;
-					else if (entry.getName().equals("META-INF/LICENSE"))
+					}
+
+					if (entry.getName().endsWith("NOTICE") || entry.getName().endsWith("NOTICE.txt")
+							|| entry.getName().endsWith("LICENSE") || entry.getName().endsWith("LICENSE.md")
+							|| entry.getName().endsWith("LICENSE-notice.md") || entry.getName().endsWith("COPYING")
+							|| entry.getName().endsWith("COPYING.LESSER")) {
+						Path artifactOriginDir = bundleDir.resolve(A2_ORIGIN).resolve(artifact.getGroupId())
+								.resolve(artifact.getArtifactId());
+						Path target = artifactOriginDir.resolve(entry.getName());
+						Files.createDirectories(target.getParent());
+						Files.copy(jarIn, target);
+						origin.moved.add(entry.getName() + " in " + artifact + " to " + bundleDir.relativize(target));
 						continue entries;
-					else if (entry.getName().equals("META-INF/LICENSE.md"))
-						continue entries;
-					else if (entry.getName().equals("META-INF/LICENSE-notice.md"))
-						continue entries;
-					else if (entry.getName().equals("META-INF/DEPENDENCIES"))
-						continue entries;
-					if (entry.getName().startsWith(".cache/")) // Apache SSHD
-						continue entries;
-					Path target = targetBundleDir.resolve(entry.getName());
+					}
+					Path target = bundleDir.resolve(entry.getName());
 					Files.createDirectories(target.getParent());
 					if (!Files.exists(target)) {
 						Files.copy(jarIn, target);
@@ -408,6 +438,7 @@ public class Repackage {
 								jarIn.transferTo(out);
 								logger.log(DEBUG, artifact.getArtifactId() + " - Appended " + entry.getName());
 							}
+							origin.modified.add(" " + entry.getName() + ", merging from " + artifact);
 						} else if (entry.getName().startsWith("org/apache/batik/")) {
 							logger.log(TRACE, "Skip " + entry.getName());
 							continue entries;
@@ -417,16 +448,16 @@ public class Repackage {
 					}
 					logger.log(TRACE, () -> "Copied " + target);
 				}
-
 			}
-			downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir);
+			origin.added.add("binary content of " + artifact);
+			downloadAndProcessM2Sources(repoStr, artifact, bundleDir);
 		}
 
 		// additional service files
 		Path servicesDir = duDir.resolve("services");
 		if (Files.exists(servicesDir)) {
 			for (Path p : Files.newDirectoryStream(servicesDir)) {
-				Path target = targetBundleDir.resolve("META-INF/services/").resolve(p.getFileName());
+				Path target = bundleDir.resolve("META-INF/services/").resolve(p.getFileName());
 				try (InputStream in = Files.newInputStream(p);
 						OutputStream out = Files.newOutputStream(target, StandardOpenOption.APPEND);) {
 					out.write("\n".getBytes());
@@ -439,7 +470,7 @@ public class Repackage {
 		Map<String, String> entries = new TreeMap<>();
 		try (Analyzer bndAnalyzer = new Analyzer()) {
 			bndAnalyzer.setProperties(mergeProps);
-			Jar jar = new Jar(targetBundleDir.toFile());
+			Jar jar = new Jar(bundleDir.toFile());
 			bndAnalyzer.setJar(jar);
 			Manifest manifest = bndAnalyzer.calcManifest();
 
@@ -462,7 +493,7 @@ public class Repackage {
 		}
 
 		Manifest manifest = new Manifest();
-		Path manifestPath = targetBundleDir.resolve("META-INF/MANIFEST.MF");
+		Path manifestPath = bundleDir.resolve("META-INF/MANIFEST.MF");
 		Files.createDirectories(manifestPath.getParent());
 		for (String key : entries.keySet()) {
 			String value = entries.get(key);
@@ -472,19 +503,19 @@ public class Repackage {
 		try (OutputStream out = Files.newOutputStream(manifestPath)) {
 			manifest.write(out);
 		}
-		createJar(targetBundleDir);
+		createJar(bundleDir, origin);
 	}
 
 	/** Generate MANIFEST using BND. */
-	Path processBndJar(Path downloaded, Path targetCategoryBase, Properties fileProps, M2Artifact artifact) {
+	Path processBndJar(Path downloaded, Path targetCategoryBase, Properties fileProps, M2Artifact artifact,
+			A2Origin origin) {
 
 		try {
 			Map<String, String> additionalEntries = new TreeMap<>();
 			boolean doNotModify = Boolean.parseBoolean(fileProps
 					.getOrDefault(ManifestConstants.ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED.toString(), "false").toString());
 
-			// we always force the symbolic name
-
+			// Note: we always force the symbolic name
 			if (doNotModify) {
 				fileEntries: for (Object key : fileProps.keySet()) {
 					if (ManifestConstants.ARGEO_ORIGIN_M2.toString().equals(key))
@@ -529,7 +560,7 @@ public class Repackage {
 					}
 				}
 			}
-			Path targetBundleDir = processBundleJar(downloaded, targetCategoryBase, additionalEntries);
+			Path targetBundleDir = processBundleJar(downloaded, targetCategoryBase, additionalEntries, origin);
 			logger.log(DEBUG, () -> "Processed " + downloaded);
 			return targetBundleDir;
 		} catch (Exception e) {
@@ -553,24 +584,32 @@ public class Repackage {
 	}
 
 	/** Integrate sources from a downloaded jar file. */
-	void processM2SourceJar(Path file, Path targetBundleDir) throws IOException {
+	void processM2SourceJar(Path file, Path bundleDir) throws IOException {
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
-			Path targetSourceDir = sourceBundles
-					? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
-					: targetBundleDir.resolve("OSGI-OPT/src");
+			A2Origin origin = new A2Origin();
+			Path sourceDir = sourceBundles ? bundleDir.getParent().resolve(bundleDir.toString() + ".src")
+					: bundleDir.resolve("OSGI-OPT/src");
 
-			Files.createDirectories(targetSourceDir);
+			Files.createDirectories(sourceDir);
 			JarEntry entry;
 			entries: while ((entry = jarIn.getNextJarEntry()) != null) {
 				if (entry.isDirectory())
 					continue entries;
-				if (entry.getName().startsWith("META-INF"))// skip META-INF entries
+				if (entry.getName().startsWith("META-INF")) {// skip META-INF entries
+					origin.deleted.add("META-INF directory from the sources");
 					continue entries;
-				if (entry.getName().startsWith("module-info.java"))// skip META-INF entries
+				}
+				if (entry.getName().startsWith("module-info.java")) {// skip Java module information
+					origin.deleted.add("Java module information from the sources (module-info.java)");
 					continue entries;
-				if (entry.getName().startsWith("/")) // absolute paths
+				}
+				if (entry.getName().startsWith("/")) { // absolute paths
+					// TODO does it really happen?
+					logger.log(WARNING, entry.getName() + " has an absolute path");
+					origin.deleted.add(entry.getName() + " from the sources");
 					continue entries;
-				Path target = targetSourceDir.resolve(entry.getName());
+				}
+				Path target = sourceDir.resolve(entry.getName());
 				Files.createDirectories(target.getParent());
 				if (!Files.exists(target)) {
 					Files.copy(jarIn, target);
@@ -578,6 +617,13 @@ public class Repackage {
 				} else {
 					logger.log(TRACE, () -> target + " already exists, skipping...");
 				}
+			}
+			// write the changes
+			if (sourceBundles) {
+				origin.appendChanges(sourceDir);
+			} else {
+				origin.added.add("source code under OSGI-OPT/src");
+				origin.appendChanges(bundleDir);
 			}
 		}
 
@@ -650,6 +696,8 @@ public class Repackage {
 				}
 			}
 
+			// keys are the bundle directories
+			Map<Path, A2Origin> origins = new HashMap<>();
 			Files.walkFileTree(zipFs.getRootDirectories().iterator().next(), new SimpleFileVisitor<Path>() {
 
 				@Override
@@ -669,7 +717,9 @@ public class Repackage {
 								Map<String, String> map = new HashMap<>();
 								for (Object key : commonProps.keySet())
 									map.put(key.toString(), commonProps.getProperty(key.toString()));
-								processBundleJar(file, targetCategoryBase, map);
+								A2Origin origin = new A2Origin();
+								Path bundleDirectory = processBundleJar(file, targetCategoryBase, map, origin);
+								origins.put(bundleDirectory, origin);
 								logger.log(DEBUG, () -> "Processed " + file);
 							}
 							break includeMatchers;
@@ -682,7 +732,9 @@ public class Repackage {
 			DirectoryStream<Path> dirs = Files.newDirectoryStream(targetCategoryBase, (p) -> Files.isDirectory(p)
 					&& p.getFileName().toString().indexOf('.') >= 0 && !p.getFileName().toString().endsWith(".src"));
 			for (Path dir : dirs) {
-				createJar(dir);
+				A2Origin origin = origins.get(dir);
+				Objects.requireNonNull(origin, "No A2 origin found for " + dir);
+				createJar(dir, origin);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot process " + duDir, e);
@@ -730,9 +782,9 @@ public class Repackage {
 	 * COMMON PROCESSING
 	 */
 	/** Normalise a bundle. */
-	Path processBundleJar(Path file, Path targetBase, Map<String, String> entries) throws IOException {
+	Path processBundleJar(Path file, Path targetBase, Map<String, String> entries, A2Origin origin) throws IOException {
 		NameVersion nameVersion;
-		Path targetBundleDir;
+		Path bundleDir;
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
 			Manifest sourceManifest = jarIn.getManifest();
 			Manifest manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
@@ -769,7 +821,7 @@ public class Repackage {
 					nameVersion.setName(ourSymbolicName);
 				}
 			}
-			targetBundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
+			bundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
 
 			// force Java 9 module name
 			entries.put(ManifestConstants.AUTOMATIC_MODULE_NAME.toString(), nameVersion.getName());
@@ -777,9 +829,9 @@ public class Repackage {
 			boolean isNative = false;
 			String os = null;
 			String arch = null;
-			if (targetBundleDir.startsWith(a2LibBase)) {
+			if (bundleDir.startsWith(a2LibBase)) {
 				isNative = true;
-				Path libRelativePath = a2LibBase.relativize(targetBundleDir);
+				Path libRelativePath = a2LibBase.relativize(bundleDir);
 				os = libRelativePath.getName(0).toString();
 				arch = libRelativePath.getName(1).toString();
 			}
@@ -789,27 +841,38 @@ public class Repackage {
 			entries: while ((entry = jarIn.getNextJarEntry()) != null) {
 				if (entry.isDirectory())
 					continue entries;
-				if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".SF"))
+				if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".SF")) {
+					origin.deleted.add("cryptographic signatures");
 					continue entries;
-				if (entry.getName().endsWith("module-info.class")) // skip Java 9 module info
+				}
+				if (entry.getName().endsWith("module-info.class")) { // skip Java 9 module info
+					origin.deleted.add("Java module information (module-info.class)");
 					continue entries;
-				if (entry.getName().startsWith("META-INF/versions/")) // skip multi-version
+				}
+				if (entry.getName().startsWith("META-INF/versions/")) { // skip multi-version
+					origin.deleted.add("additional Java versions (META-INF/versions)");
 					continue entries;
+				}
 				// skip file system providers as they cause issues with native image
-				if (entry.getName().startsWith("META-INF/services/java.nio.file.spi.FileSystemProvider"))
+				if (entry.getName().startsWith("META-INF/services/java.nio.file.spi.FileSystemProvider")) {
+					origin.deleted
+							.add("file system providers (META-INF/services/java.nio.file.spi.FileSystemProvider)");
 					continue entries;
-				if (entry.getName().startsWith("OSGI-OPT/src/")) // skip embedded sources
+				}
+				if (entry.getName().startsWith("OSGI-OPT/src/")) { // skip embedded sources
+					origin.deleted.add("embedded sources");
 					continue entries;
-				Path target = targetBundleDir.resolve(entry.getName());
+				}
+				Path target = bundleDir.resolve(entry.getName());
 				Files.createDirectories(target.getParent());
 				Files.copy(jarIn, target);
 
 				// native libraries
 				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
 						|| entry.getName().endsWith(".jnilib"))) {
-					Path categoryDir = targetBundleDir.getParent();
+					Path categoryDir = bundleDir.getParent();
 					boolean copyDll = false;
-					Path targetDll = categoryDir.resolve(targetBundleDir.relativize(target));
+					Path targetDll = categoryDir.resolve(bundleDir.relativize(target));
 					if (nameVersion.getName().equals("com.sun.jna")) {
 						if (arch.equals("x86_64"))
 							arch = "x86-64";
@@ -834,7 +897,7 @@ public class Repackage {
 			}
 
 			// copy MANIFEST
-			Path manifestPath = targetBundleDir.resolve("META-INF/MANIFEST.MF");
+			Path manifestPath = bundleDir.resolve("META-INF/MANIFEST.MF");
 			Files.createDirectories(manifestPath.getParent());
 
 			if (isSingleton && entries.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
@@ -898,7 +961,8 @@ public class Repackage {
 				manifest.write(out);
 			}
 		}
-		return targetBundleDir;
+		origin.modified.add("jar MANIFEST (META-INF/MANIFEST.MF");
+		return bundleDir;
 	}
 
 	/*
@@ -1008,7 +1072,9 @@ public class Repackage {
 	}
 
 	/** Create a JAR file from a directory. */
-	Path createJar(Path bundleDir) throws IOException {
+	Path createJar(Path bundleDir, A2Origin origin) throws IOException {
+		// write changes
+		origin.appendChanges(bundleDir);
 		// Create the jar
 		Path jarPath = bundleDir.getParent().resolve(bundleDir.getFileName() + ".jar");
 		Path manifestPath = bundleDir.resolve("META-INF/MANIFEST.MF");
@@ -1117,7 +1183,7 @@ public class Repackage {
 		ARGEO_ORIGIN_M2("Argeo-Origin-M2"), //
 		/** List of Maven coordinates to merge. */
 		ARGEO_ORIGIN_M2_MERGE("Argeo-Origin-M2-Merge"), //
-		/** Maven repository if not the default one. */
+		/** Maven repository, if not the default one. */
 		ARGEO_ORIGIN_M2_REPO("Argeo-Origin-M2-Repo"), //
 		/**
 		 * Do not perform BND analysis of the origin component. Typically IMport_package
@@ -1140,6 +1206,33 @@ public class Repackage {
 		@Override
 		public String toString() {
 			return value;
+		}
+	}
+}
+
+/**
+ * Gathers modifications performed on the original binaries and sources,
+ * especially in order to comply with their license requirements.
+ */
+class A2Origin {
+	Set<String> modified = new TreeSet<>();
+	Set<String> deleted = new TreeSet<>();
+	Set<String> added = new TreeSet<>();
+	Set<String> moved = new TreeSet<>();
+
+	void appendChanges(Path baseDirectory) throws IOException {
+		Path changesFile = baseDirectory.resolve("A2-ORIGIN/changes");
+		Files.createDirectories(changesFile.getParent());
+		try (BufferedWriter writer = Files.newBufferedWriter(changesFile, StandardOpenOption.APPEND,
+				StandardOpenOption.CREATE)) {
+			for (String msg : modified)
+				writer.write("- Modified " + msg + ".");
+			for (String msg : added)
+				writer.write("- Added " + msg + ".");
+			for (String msg : deleted)
+				writer.write("- Deleted " + msg + ".");
+			for (String msg : moved)
+				writer.write("- moved " + msg + ".");
 		}
 	}
 }
