@@ -122,22 +122,22 @@ public class Repackage {
 	final static String A2_ORIGIN = "A2-ORIGIN";
 
 	/** Directory where to download archives */
-	Path originBase;
+	final Path originBase;
 	/** Directory where to download Maven artifacts */
-	Path mavenBase;
+	final Path mavenBase;
 
 	/** A2 repository base for binary bundles */
-	Path a2Base;
+	final Path a2Base;
 	/** A2 repository base for source bundles */
-	Path a2SrcBase;
+	final Path a2SrcBase;
 	/** A2 base for native components */
-	Path a2LibBase;
+	final Path a2LibBase;
 	/** Location of the descriptors driving the packaging */
-	Path descriptorsBase;
+	final Path descriptorsBase;
 	/** URIs of archives to download */
-	Properties uris = new Properties();
+	final Properties uris = new Properties();
 	/** Mirrors for archive download. Key is URI prefix, value list of base URLs */
-	Map<String, List<String>> mirrors = new HashMap<String, List<String>>();
+	final Map<String, List<String>> mirrors = new HashMap<String, List<String>>();
 
 	/** Whether sources should be packaged separately */
 	final boolean sourceBundles;
@@ -243,6 +243,16 @@ public class Repackage {
 			M2Artifact artifact = new M2Artifact(m2Coordinates);
 			URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
 			Path downloaded = downloadMaven(url, artifact);
+
+			// some proprietary artifacts do not allow any modification
+			boolean doNotModify = Boolean.parseBoolean(
+					fileProps.getOrDefault(ManifestConstants.ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
+			if (doNotModify) {
+				Path unmodifiedTarget = targetCategoryBase.resolve(
+						fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch() + ".jar");
+				Files.copy(downloaded, unmodifiedTarget);
+				return;
+			}
 
 			A2Origin origin = new A2Origin();
 			Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact, origin);
@@ -526,14 +536,13 @@ public class Repackage {
 	/** Generate MANIFEST using BND. */
 	Path processBndJar(Path downloaded, Path targetCategoryBase, Properties fileProps, M2Artifact artifact,
 			A2Origin origin) {
-
 		try {
 			Map<String, String> additionalEntries = new TreeMap<>();
-			boolean doNotModify = Boolean.parseBoolean(
+			boolean doNotModifyManifest = Boolean.parseBoolean(
 					fileProps.getOrDefault(ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED.toString(), "false").toString());
 
 			// Note: we always force the symbolic name
-			if (doNotModify) {
+			if (doNotModifyManifest) {
 				fileEntries: for (Object key : fileProps.keySet()) {
 					if (ARGEO_ORIGIN_M2.toString().equals(key))
 						continue fileEntries;
@@ -1262,6 +1271,11 @@ public class Repackage {
 		 * proprietary licenses, such as JCR Day License).
 		 */
 		ARGEO_ORIGIN_EMBED("Argeo-Origin-Embed"), //
+		/**
+		 * Do not modify original jar (may be required by some proprietary licenses,
+		 * such as JCR Day License).
+		 */
+		ARGEO_DO_NOT_MODIFY("Argeo-Origin-Do-Not-Modify"), //
 		/**
 		 * Origin (non-Maven) URI of the component. It may be anything (jar, archive,
 		 * etc.).
