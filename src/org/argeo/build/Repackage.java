@@ -246,15 +246,21 @@ public class Repackage {
 			Path downloaded = downloadMaven(url, artifact);
 
 			// some proprietary artifacts do not allow any modification
+			// when releasing (with separate sources) we just copy it
 			boolean doNotModify = Boolean.parseBoolean(
 					fileProps.getOrDefault(ManifestConstants.ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
-			if (doNotModify) {
+			if (doNotModify && sourceBundles) {
 				Path unmodifiedTarget = targetCategoryBase.resolve(
 						fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch() + ".jar");
 				Files.copy(downloaded, unmodifiedTarget, StandardCopyOption.REPLACE_EXISTING);
+				downloadAndProcessM2Sources(repoStr, artifact,
+						targetCategoryBase.resolve(
+								fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch()),
+						false);
 				return;
 			}
-
+			
+			// normal processing
 			A2Origin origin = new A2Origin();
 			Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact, origin);
 
