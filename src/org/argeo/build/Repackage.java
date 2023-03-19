@@ -1218,8 +1218,8 @@ public class Repackage {
 		srcManifest.getMainAttributes().putValue(BUNDLE_SYMBOLICNAME.toString(), bundleSymbolicName + ".src");
 		srcManifest.getMainAttributes().putValue(BUNDLE_VERSION.toString(),
 				manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()).toString());
-		srcManifest.getMainAttributes().putValue(ECLIPSE_SOURCE_BUNDLE.toString(),
-				bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()));
+		srcManifest.getMainAttributes().putValue(ECLIPSE_SOURCE_BUNDLE.toString(), bundleSymbolicName + ";version=\""
+				+ manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()) + "\"");
 
 		try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
 			srcJarOut.setLevel(Deflater.BEST_COMPRESSION);
