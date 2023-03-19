@@ -1220,19 +1220,20 @@ class A2Origin {
 	Set<String> added = new TreeSet<>();
 	Set<String> moved = new TreeSet<>();
 
+	/** Append changes to the A2-ORIGIN/changes file. */
 	void appendChanges(Path baseDirectory) throws IOException {
 		Path changesFile = baseDirectory.resolve("A2-ORIGIN/changes");
 		Files.createDirectories(changesFile.getParent());
 		try (BufferedWriter writer = Files.newBufferedWriter(changesFile, StandardOpenOption.APPEND,
 				StandardOpenOption.CREATE)) {
 			for (String msg : modified)
-				writer.write("- Modified " + msg + ".");
+				writer.write("- Modified " + msg + ".\n");
 			for (String msg : added)
-				writer.write("- Added " + msg + ".");
+				writer.write("- Added " + msg + ".\n");
 			for (String msg : deleted)
-				writer.write("- Deleted " + msg + ".");
+				writer.write("- Deleted " + msg + ".\n");
 			for (String msg : moved)
-				writer.write("- moved " + msg + ".");
+				writer.write("- Moved " + msg + ".\n");
 		}
 	}
 }
