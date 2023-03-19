@@ -8,7 +8,9 @@ import static java.lang.System.Logger.Level.WARNING;
 import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.util.jar.Attributes.Name.MANIFEST_VERSION;
 import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2;
+import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2_MERGE;
 import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2_REPO;
+import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_URI;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_LICENSE;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_SYMBOLICNAME;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_VERSION;
@@ -287,7 +289,7 @@ public class Repackage {
 				mergeProps.putAll(commonProps);
 
 				fileEntries: for (Object key : fileProps.keySet()) {
-					if (ManifestConstants.ARGEO_ORIGIN_M2.toString().equals(key))
+					if (ARGEO_ORIGIN_M2.toString().equals(key))
 						continue fileEntries;
 					String value = fileProps.getProperty(key.toString());
 					Object previousValue = mergeProps.put(key.toString(), value);
@@ -296,7 +298,7 @@ public class Repackage {
 								commonBnd + ": " + key + " was " + previousValue + ", overridden with " + value);
 					}
 				}
-				mergeProps.put(ManifestConstants.ARGEO_ORIGIN_M2.toString(), artifact.toM2Coordinates());
+				mergeProps.put(ARGEO_ORIGIN_M2.toString(), artifact.toM2Coordinates());
 				if (!mergeProps.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
 					// use file name as symbolic name
 					String symbolicName = p.getFileName().toString();
@@ -341,18 +343,17 @@ public class Repackage {
 			throw new IllegalStateException("Only the M2 version can be specified: " + m2Version);
 		}
 		m2Version = m2Version.substring(1);
-		mergeProps.put(ManifestConstants.BUNDLE_VERSION.toString(), m2Version);
+		mergeProps.put(BUNDLE_VERSION.toString(), m2Version);
 
-		String artifactsStr = mergeProps.getProperty(ManifestConstants.ARGEO_ORIGIN_M2_MERGE.toString());
+		String artifactsStr = mergeProps.getProperty(ARGEO_ORIGIN_M2_MERGE.toString());
 		if (artifactsStr == null)
-			throw new IllegalArgumentException(
-					mergeBnd + ": " + ManifestConstants.ARGEO_ORIGIN_M2_MERGE + " must be set");
+			throw new IllegalArgumentException(mergeBnd + ": " + ARGEO_ORIGIN_M2_MERGE + " must be set");
 
 		String repoStr = mergeProps.containsKey(ARGEO_ORIGIN_M2_REPO.toString())
 				? mergeProps.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
 				: null;
 
-		String bundleSymbolicName = mergeProps.getProperty(ManifestConstants.BUNDLE_SYMBOLICNAME.toString());
+		String bundleSymbolicName = mergeProps.getProperty(BUNDLE_SYMBOLICNAME.toString());
 		if (bundleSymbolicName == null)
 			throw new IllegalArgumentException("Bundle-SymbolicName must be set in " + mergeBnd);
 		CategoryNameVersion nameVersion = new M2Artifact(category + ":" + bundleSymbolicName + ":" + m2Version);
@@ -614,12 +615,12 @@ public class Repackage {
 			try (InputStream in = Files.newInputStream(commonBnd)) {
 				commonProps.load(in);
 			}
-			String url = commonProps.getProperty(ManifestConstants.ARGEO_ORIGIN_URI.toString());
+			String url = commonProps.getProperty(ARGEO_ORIGIN_URI.toString());
 			if (url == null) {
 				url = uris.getProperty(duDir.getFileName().toString());
 				if (url == null)
 					throw new IllegalStateException("No url available for " + duDir);
-				commonProps.put(ManifestConstants.ARGEO_ORIGIN_URI.toString(), url);
+				commonProps.put(ARGEO_ORIGIN_URI.toString(), url);
 			}
 			Path downloaded = tryDownloadArchive(url, originBase);
 
@@ -738,8 +739,7 @@ public class Repackage {
 
 			// singleton
 			boolean isSingleton = false;
-			String rawSourceSymbolicName = manifest.getMainAttributes()
-					.getValue(ManifestConstants.BUNDLE_SYMBOLICNAME.toString());
+			String rawSourceSymbolicName = manifest.getMainAttributes().getValue(BUNDLE_SYMBOLICNAME.toString());
 			if (rawSourceSymbolicName != null) {
 				// make sure there is no directive
 				String[] arr = rawSourceSymbolicName.split(";");
@@ -858,8 +858,8 @@ public class Repackage {
 							keepPrevious = true;
 
 					if (keepPrevious) {
-						if (logger.isLoggable(TRACE))
-							logger.log(TRACE, file.getFileName() + ": " + key + " was NOT modified, value kept is "
+						if (logger.isLoggable(DEBUG))
+							logger.log(DEBUG, file.getFileName() + ": " + key + " was NOT modified, value kept is "
 									+ previousValue + ", not overriden with " + value);
 						value = previousValue;
 					}
@@ -881,7 +881,7 @@ public class Repackage {
 					}
 			}
 
-			// last checks
+			// license checks
 			String spdxLicenceId = manifest.getMainAttributes().getValue(SPDX_LICENSE_IDENTIFIER.toString());
 			String bundleLicense = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
 			if (spdxLicenceId == null) {
@@ -893,6 +893,7 @@ public class Repackage {
 				licensesUsed.get(spdxLicenceId).add(nameVersion.toString());
 			}
 
+			// write the MANIFEST
 			try (OutputStream out = Files.newOutputStream(manifestPath)) {
 				manifest.write(out);
 			}
