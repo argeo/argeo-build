@@ -854,7 +854,7 @@ public class Repackage {
 				Path originalManifest = bundleDir.resolve(A2_ORIGIN).resolve("MANIFEST.MF");
 				Files.createDirectories(originalManifest.getParent());
 				try (OutputStream out = Files.newOutputStream(originalManifest)) {
-					sourceManifest.write(null);
+					sourceManifest.write(out);
 				}
 				origin.added.add("original MANIFEST (" + bundleDir.relativize(originalManifest) + ")");
 			}
