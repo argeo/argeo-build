@@ -260,7 +260,7 @@ public class Repackage {
 				try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(unmodifiedTarget))) {
 					manifest = jarIn.getManifest();
 				}
-				createSourceJar(unmodifiedTarget, manifest);
+				createSourceJar(bundleDir, manifest);
 				return;
 			}
 
@@ -1010,24 +1010,26 @@ public class Repackage {
 							file.getFileName() + ": " + key + " was " + previousValue + ", overridden with " + value);
 			}
 
-			// de-pollute MANIFEST
-			switch (key) {
+			// !! hack to remove unresolvable
+			if (key.equals("Provide-Capability") || key.equals("Require-Capability"))
+				if (nameVersion.getName().equals("osgi.core") || nameVersion.getName().equals("osgi.cmpn")) {
+					manifest.getMainAttributes().remove(key);
+				}
+		}
+
+		// de-pollute MANIFEST
+		for (Object header : manifest.getMainAttributes().keySet()) {
+			switch (header.toString()) {
 			case "Archiver-Version":
 			case "Build-By":
 			case "Created-By":
 			case "Originally-Created-By":
 			case "Tool":
 			case "Bnd-LastModified":
-				manifest.getMainAttributes().remove(key);
+				manifest.getMainAttributes().remove(header);
 				break;
 			default: // do nothing
 			}
-
-			// !! hack to remove unresolvable
-			if (key.equals("Provide-Capability") || key.equals("Require-Capability"))
-				if (nameVersion.getName().equals("osgi.core") || nameVersion.getName().equals("osgi.cmpn")) {
-					manifest.getMainAttributes().remove(key);
-				}
 		}
 
 		// license checks
