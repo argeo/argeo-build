@@ -7,9 +7,11 @@ import static java.lang.System.Logger.Level.TRACE;
 import static java.lang.System.Logger.Level.WARNING;
 import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.util.jar.Attributes.Name.MANIFEST_VERSION;
+import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_EMBED;
 import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2;
 import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2_MERGE;
 import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2_REPO;
+import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED;
 import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_URI;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_LICENSE;
 import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_SYMBOLICNAME;
@@ -516,13 +518,13 @@ public class Repackage {
 
 		try {
 			Map<String, String> additionalEntries = new TreeMap<>();
-			boolean doNotModify = Boolean.parseBoolean(fileProps
-					.getOrDefault(ManifestConstants.ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED.toString(), "false").toString());
+			boolean doNotModify = Boolean.parseBoolean(
+					fileProps.getOrDefault(ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED.toString(), "false").toString());
 
 			// Note: we always force the symbolic name
 			if (doNotModify) {
 				fileEntries: for (Object key : fileProps.keySet()) {
-					if (ManifestConstants.ARGEO_ORIGIN_M2.toString().equals(key))
+					if (ARGEO_ORIGIN_M2.toString().equals(key))
 						continue fileEntries;
 					String value = fileProps.getProperty(key.toString());
 					additionalEntries.put(key.toString(), value);
@@ -799,14 +801,16 @@ public class Repackage {
 	 */
 	/** Normalise a bundle. */
 	Path processBundleJar(Path file, Path targetBase, Map<String, String> entries, A2Origin origin) throws IOException {
+		boolean embed = Boolean.parseBoolean(entries.getOrDefault(ARGEO_ORIGIN_EMBED.toString(), "false").toString());
 		NameVersion nameVersion;
 		Path bundleDir;
+		// singleton
+		boolean isSingleton = false;
+		Manifest manifest;
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
 			Manifest sourceManifest = jarIn.getManifest();
-			Manifest manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
+			manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
 
-			// singleton
-			boolean isSingleton = false;
 			String rawSourceSymbolicName = manifest.getMainAttributes().getValue(BUNDLE_SYMBOLICNAME.toString());
 			if (rawSourceSymbolicName != null) {
 				// make sure there is no directive
@@ -839,6 +843,14 @@ public class Repackage {
 			}
 			bundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
 
+			if (sourceManifest != null) {
+				Path originalManifest = bundleDir.resolve(A2_ORIGIN).resolve("MANIFEST.MF");
+				try (OutputStream out = Files.newOutputStream(originalManifest)) {
+					sourceManifest.write(null);
+				}
+				origin.added.add("original MANIFEST (" + bundleDir.relativize(originalManifest) + ")");
+			}
+
 			// force Java 9 module name
 			entries.put(ManifestConstants.AUTOMATIC_MODULE_NAME.toString(), nameVersion.getName());
 
@@ -852,131 +864,156 @@ public class Repackage {
 				arch = libRelativePath.getName(1).toString();
 			}
 
-			// copy entries
-			JarEntry entry;
-			entries: while ((entry = jarIn.getNextJarEntry()) != null) {
-				if (entry.isDirectory())
-					continue entries;
-				if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".SF")) {
-					origin.deleted.add("cryptographic signatures");
-					continue entries;
-				}
-				if (entry.getName().endsWith("module-info.class")) { // skip Java 9 module info
-					origin.deleted.add("Java module information (module-info.class)");
-					continue entries;
-				}
-				if (entry.getName().startsWith("META-INF/versions/")) { // skip multi-version
-					origin.deleted.add("additional Java versions (META-INF/versions)");
-					continue entries;
-				}
-				// skip file system providers as they cause issues with native image
-				if (entry.getName().startsWith("META-INF/services/java.nio.file.spi.FileSystemProvider")) {
-					origin.deleted
-							.add("file system providers (META-INF/services/java.nio.file.spi.FileSystemProvider)");
-					continue entries;
-				}
-				if (entry.getName().startsWith("OSGI-OPT/src/")) { // skip embedded sources
-					origin.deleted.add("embedded sources");
-					continue entries;
-				}
-				Path target = bundleDir.resolve(entry.getName());
-				Files.createDirectories(target.getParent());
-				Files.copy(jarIn, target);
+			if (!embed) {
+				// copy entries
+				JarEntry entry;
+				entries: while ((entry = jarIn.getNextJarEntry()) != null) {
+					if (entry.isDirectory())
+						continue entries;
+					if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".SF")) {
+						origin.deleted.add("cryptographic signatures");
+						continue entries;
+					}
+					if (entry.getName().endsWith("module-info.class")) { // skip Java 9 module info
+						origin.deleted.add("Java module information (module-info.class)");
+						continue entries;
+					}
+					if (entry.getName().startsWith("META-INF/versions/")) { // skip multi-version
+						origin.deleted.add("additional Java versions (META-INF/versions)");
+						continue entries;
+					}
+					if (entry.getName().startsWith("META-INF/maven/")) {
+						origin.deleted.add("Maven information (META-INF/maven)");
+						continue entries;
+					}
+					// skip file system providers as they cause issues with native image
+					if (entry.getName().startsWith("META-INF/services/java.nio.file.spi.FileSystemProvider")) {
+						origin.deleted
+								.add("file system providers (META-INF/services/java.nio.file.spi.FileSystemProvider)");
+						continue entries;
+					}
+					if (entry.getName().startsWith("OSGI-OPT/src/")) { // skip embedded sources
+						origin.deleted.add("embedded sources");
+						continue entries;
+					}
+					Path target = bundleDir.resolve(entry.getName());
+					Files.createDirectories(target.getParent());
+					Files.copy(jarIn, target);
 
-				// native libraries
-				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
-						|| entry.getName().endsWith(".jnilib"))) {
-					Path categoryDir = bundleDir.getParent();
-					boolean copyDll = false;
-					Path targetDll = categoryDir.resolve(bundleDir.relativize(target));
-					if (nameVersion.getName().equals("com.sun.jna")) {
-						if (arch.equals("x86_64"))
-							arch = "x86-64";
-						if (os.equals("macosx"))
-							os = "darwin";
-						if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
+					// native libraries
+					if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
+							|| entry.getName().endsWith(".jnilib"))) {
+						Path categoryDir = bundleDir.getParent();
+						boolean copyDll = false;
+						Path targetDll = categoryDir.resolve(bundleDir.relativize(target));
+						if (nameVersion.getName().equals("com.sun.jna")) {
+							if (arch.equals("x86_64"))
+								arch = "x86-64";
+							if (os.equals("macosx"))
+								os = "darwin";
+							if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
+								copyDll = true;
+							}
+							targetDll = categoryDir.resolve(target.getFileName());
+						} else {
 							copyDll = true;
 						}
-						targetDll = categoryDir.resolve(target.getFileName());
-					} else {
-						copyDll = true;
+						if (copyDll) {
+							Files.createDirectories(targetDll.getParent());
+							if (Files.exists(targetDll))
+								Files.delete(targetDll);
+							Files.copy(target, targetDll);
+						}
+						Files.delete(target);
+						origin.deleted.add(bundleDir.relativize(target).toString());
 					}
-					if (copyDll) {
-						Files.createDirectories(targetDll.getParent());
-						if (Files.exists(targetDll))
-							Files.delete(targetDll);
-						Files.copy(target, targetDll);
-					}
-					Files.delete(target);
+					logger.log(TRACE, () -> "Copied " + target);
 				}
-				logger.log(TRACE, () -> "Copied " + target);
 			}
+		}
 
-			// copy MANIFEST
-			Path manifestPath = bundleDir.resolve("META-INF/MANIFEST.MF");
-			Files.createDirectories(manifestPath.getParent());
+		// copy MANIFEST
+		Path manifestPath = bundleDir.resolve("META-INF/MANIFEST.MF");
+		Files.createDirectories(manifestPath.getParent());
 
-			if (isSingleton && entries.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
-				entries.put(BUNDLE_SYMBOLICNAME.toString(),
-						entries.get(BUNDLE_SYMBOLICNAME.toString()) + ";singleton:=true");
-			}
+		if (isSingleton && entries.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
+			entries.put(BUNDLE_SYMBOLICNAME.toString(),
+					entries.get(BUNDLE_SYMBOLICNAME.toString()) + ";singleton:=true");
+		}
 
-			// Final MANIFEST decisions
-			// This also where we check the original OSGi metadata and compare with our
-			// changes
-			for (String key : entries.keySet()) {
-				String value = entries.get(key);
-				String previousValue = manifest.getMainAttributes().getValue(key);
-				boolean wasDifferent = previousValue != null && !previousValue.equals(value);
-				boolean keepPrevious = false;
-				if (wasDifferent) {
-					if (SPDX_LICENSE_IDENTIFIER.toString().equals(key) && previousValue != null)
+		if (embed) {// copy embedded jar
+			Files.copy(file, bundleDir.resolve(file.getFileName()));
+			entries.put(ManifestConstants.BUNDLE_CLASSPATH.toString(), file.getFileName().toString());
+		}
+
+		// Final MANIFEST decisions
+		// This also where we check the original OSGi metadata and compare with our
+		// changes
+		for (String key : entries.keySet()) {
+			String value = entries.get(key);
+			String previousValue = manifest.getMainAttributes().getValue(key);
+			boolean wasDifferent = previousValue != null && !previousValue.equals(value);
+			boolean keepPrevious = false;
+			if (wasDifferent) {
+				if (SPDX_LICENSE_IDENTIFIER.toString().equals(key) && previousValue != null)
+					keepPrevious = true;
+				else if (BUNDLE_VERSION.toString().equals(key) && wasDifferent)
+					if (previousValue.equals(value + ".0")) // typically a Maven first release
 						keepPrevious = true;
-					else if (BUNDLE_VERSION.toString().equals(key) && wasDifferent)
-						if (previousValue.equals(value + ".0")) // typically a Maven first release
-							keepPrevious = true;
 
-					if (keepPrevious) {
-						if (logger.isLoggable(DEBUG))
-							logger.log(DEBUG, file.getFileName() + ": " + key + " was NOT modified, value kept is "
-									+ previousValue + ", not overriden with " + value);
-						value = previousValue;
-					}
+				if (keepPrevious) {
+					if (logger.isLoggable(DEBUG))
+						logger.log(DEBUG, file.getFileName() + ": " + key + " was NOT modified, value kept is "
+								+ previousValue + ", not overriden with " + value);
+					value = previousValue;
 				}
+			}
 
-				manifest.getMainAttributes().putValue(key, value);
-				if (wasDifferent && !keepPrevious) {
-					if (IMPORT_PACKAGE.toString().equals(key) || EXPORT_PACKAGE.toString().equals(key))
-						logger.log(TRACE, () -> file.getFileName() + ": " + key + " was modified");
-					else
-						logger.log(WARNING, file.getFileName() + ": " + key + " was " + previousValue
-								+ ", overridden with " + value);
+			manifest.getMainAttributes().putValue(key, value);
+			if (wasDifferent && !keepPrevious) {
+				if (IMPORT_PACKAGE.toString().equals(key) || EXPORT_PACKAGE.toString().equals(key))
+					logger.log(TRACE, () -> file.getFileName() + ": " + key + " was modified");
+				else
+					logger.log(WARNING,
+							file.getFileName() + ": " + key + " was " + previousValue + ", overridden with " + value);
+			}
+
+			// de-pollute MANIFEST
+			switch (key) {
+			case "Archiver-Version":
+			case "Build-By":
+			case "Created-By":
+			case "Originally-Created-By":
+			case "Tool":
+			case "Bnd-LastModified":
+				manifest.getMainAttributes().remove(key);
+				break;
+			default: // do nothing
+			}
+
+			// !! hack to remove unresolvable
+			if (key.equals("Provide-Capability") || key.equals("Require-Capability"))
+				if (nameVersion.getName().equals("osgi.core") || nameVersion.getName().equals("osgi.cmpn")) {
+					manifest.getMainAttributes().remove(key);
 				}
+		}
 
-				// !! hack to remove unresolvable
-				if (key.equals("Provide-Capability") || key.equals("Require-Capability"))
-					if (nameVersion.getName().equals("osgi.core") || nameVersion.getName().equals("osgi.cmpn")) {
-						manifest.getMainAttributes().remove(key);
-					}
-			}
+		// license checks
+		String spdxLicenceId = manifest.getMainAttributes().getValue(SPDX_LICENSE_IDENTIFIER.toString());
+		String bundleLicense = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
+		if (spdxLicenceId == null) {
+			logger.log(ERROR, file.getFileName() + ": " + SPDX_LICENSE_IDENTIFIER + " not available, " + BUNDLE_LICENSE
+					+ " is " + bundleLicense);
+		} else {
+			if (!licensesUsed.containsKey(spdxLicenceId))
+				licensesUsed.put(spdxLicenceId, new TreeSet<>());
+			licensesUsed.get(spdxLicenceId).add(nameVersion.toString());
+		}
 
-			// license checks
-			String spdxLicenceId = manifest.getMainAttributes().getValue(SPDX_LICENSE_IDENTIFIER.toString());
-			String bundleLicense = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
-			if (spdxLicenceId == null) {
-				logger.log(ERROR, file.getFileName() + ": " + SPDX_LICENSE_IDENTIFIER + " not available, "
-						+ BUNDLE_LICENSE + " is " + bundleLicense);
-			} else {
-				if (!licensesUsed.containsKey(spdxLicenceId))
-					licensesUsed.put(spdxLicenceId, new TreeSet<>());
-				licensesUsed.get(spdxLicenceId).add(nameVersion.toString());
-			}
-
-			origin.modified.add("jar MANIFEST (META-INF/MANIFEST.MF)");
-			// write the MANIFEST
-			try (OutputStream out = Files.newOutputStream(manifestPath)) {
-				manifest.write(out);
-			}
+		origin.modified.add("jar MANIFEST (META-INF/MANIFEST.MF)");
+		// write the MANIFEST
+		try (OutputStream out = Files.newOutputStream(manifestPath)) {
+			manifest.write(out);
 		}
 		return bundleDir;
 	}
@@ -1178,6 +1215,8 @@ public class Repackage {
 		EXPORT_PACKAGE("Export-Package"), //
 		/** OSGi imported packages list. */
 		IMPORT_PACKAGE("Import-Package"), //
+		/** OSGi path to embedded jar. */
+		BUNDLE_CLASSPATH("Bundle-Classpath"), //
 		// Java
 		/** Java module name. */
 		AUTOMATIC_MODULE_NAME("Automatic-Module-Name"), //
@@ -1206,6 +1245,11 @@ public class Repackage {
 		 * and Export-Package will be kept untouched.
 		 */
 		ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED("Argeo-Origin-ManifestNotModified"), //
+		/**
+		 * Embed the original jar without modifying it (may be required by some
+		 * proprietary licenses, such as JCR Day License).
+		 */
+		ARGEO_ORIGIN_EMBED("Argeo-Origin-Embed"), //
 		/**
 		 * Origin (non-Maven) URI of the component. It may be anything (jar, archive,
 		 * etc.).
@@ -1250,7 +1294,6 @@ class A2Origin {
 				writer.write("- Moved " + msg + ".\n");
 			for (String msg : deleted)
 				writer.write("- Deleted " + msg + ".\n");
-			writer.flush();
 		}
 	}
 }
