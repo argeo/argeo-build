@@ -412,7 +412,8 @@ public class Repackage {
 				entries: while ((entry = jarIn.getNextJarEntry()) != null) {
 					if (entry.isDirectory())
 						continue entries;
-					if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".SF")) {
+					if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".DSA")
+							|| entry.getName().endsWith(".SF")) {
 						origin.deleted.add("cryptographic signatures from " + artifact);
 						continue entries;
 					}
