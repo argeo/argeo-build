@@ -40,6 +40,7 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
@@ -250,7 +251,7 @@ public class Repackage {
 			if (doNotModify) {
 				Path unmodifiedTarget = targetCategoryBase.resolve(
 						fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch() + ".jar");
-				Files.copy(downloaded, unmodifiedTarget);
+				Files.copy(downloaded, unmodifiedTarget, StandardCopyOption.REPLACE_EXISTING);
 				return;
 			}
 
