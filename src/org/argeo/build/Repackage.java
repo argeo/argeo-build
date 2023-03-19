@@ -405,16 +405,23 @@ public class Repackage {
 						origin.deleted.add("additional Java versions (META-INF/versions) from " + artifact);
 						continue entries;
 					}
-					if (entry.getName().equals("META-INF/DEPENDENCIES")) {
-						origin.deleted.add("dependency list (META-INF/DEPENDENCIES) from " + artifact);
-						continue entries;
-					}
 					if (entry.getName().startsWith("META-INF/maven/")) {
 						origin.deleted.add("Maven information (META-INF/maven) from " + artifact);
 						continue entries;
 					}
 					if (entry.getName().startsWith(".cache/")) { // Apache SSHD
 						origin.deleted.add("cache directory (.cache) from " + artifact);
+						continue entries;
+					}
+					if (entry.getName().equals("META-INF/MANIFEST.MF")) {
+						Path originalManifest = bundleDir.resolve(A2_ORIGIN).resolve(artifact.getGroupId())
+								.resolve(artifact.getArtifactId()).resolve("MANIFEST.MF");
+						Files.createDirectories(originalManifest.getParent());
+						try (OutputStream out = Files.newOutputStream(originalManifest)) {
+							Files.copy(jarIn, originalManifest);
+						}
+						origin.added.add(
+								"original MANIFEST (" + bundleDir.relativize(originalManifest) + ") from " + artifact);
 						continue entries;
 					}
 
@@ -843,8 +850,9 @@ public class Repackage {
 			}
 			bundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
 
-			if (sourceManifest != null) {
+			if (sourceManifest != null) {// copy original MANIFEST
 				Path originalManifest = bundleDir.resolve(A2_ORIGIN).resolve("MANIFEST.MF");
+				Files.createDirectories(originalManifest.getParent());
 				try (OutputStream out = Files.newOutputStream(originalManifest)) {
 					sourceManifest.write(null);
 				}
