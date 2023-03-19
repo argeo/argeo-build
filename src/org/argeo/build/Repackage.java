@@ -413,6 +413,10 @@ public class Repackage {
 						origin.deleted.add("cache directory (.cache) from " + artifact);
 						continue entries;
 					}
+					if (entry.getName().equals("META-INF/DEPENDENCIES")) {
+						origin.deleted.add("Dependencies (META-INF/DEPENDENCIES) from " + artifact);
+						continue entries;
+					}
 					if (entry.getName().equals("META-INF/MANIFEST.MF")) {
 						Path originalManifest = bundleDir.resolve(A2_ORIGIN).resolve(artifact.getGroupId())
 								.resolve(artifact.getArtifactId()).resolve("MANIFEST.MF");
