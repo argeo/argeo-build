@@ -1250,6 +1250,7 @@ class A2Origin {
 				writer.write("- Moved " + msg + ".\n");
 			for (String msg : deleted)
 				writer.write("- Deleted " + msg + ".\n");
+			writer.flush();
 		}
 	}
 }
