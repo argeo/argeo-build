@@ -244,7 +244,8 @@ public class Repackage {
 
 			A2Origin origin = new A2Origin();
 			Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact, origin);
-			downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir);
+
+			downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir, false);
 
 			createJar(targetBundleDir, origin);
 		} catch (Exception e) {
@@ -329,7 +330,7 @@ public class Repackage {
 
 				A2Origin origin = new A2Origin();
 				Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergeProps, artifact, origin);
-				downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir);
+				downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir, false);
 				createJar(targetBundleDir, origin);
 			}
 		} catch (IOException e) {
@@ -438,7 +439,7 @@ public class Repackage {
 								jarIn.transferTo(out);
 								logger.log(DEBUG, artifact.getArtifactId() + " - Appended " + entry.getName());
 							}
-							origin.modified.add(" " + entry.getName() + ", merging from " + artifact);
+							origin.modified.add(entry.getName() + ", merging from " + artifact);
 						} else if (entry.getName().startsWith("org/apache/batik/")) {
 							logger.log(TRACE, "Skip " + entry.getName());
 							continue entries;
@@ -450,7 +451,9 @@ public class Repackage {
 				}
 			}
 			origin.added.add("binary content of " + artifact);
-			downloadAndProcessM2Sources(repoStr, artifact, bundleDir);
+
+			// process sources
+			downloadAndProcessM2Sources(repoStr, artifact, bundleDir, true);
 		}
 
 		// additional service files
@@ -464,6 +467,7 @@ public class Repackage {
 					in.transferTo(out);
 					logger.log(DEBUG, "Appended " + p);
 				}
+				origin.added.add(bundleDir.relativize(target).toString());
 			}
 		}
 
@@ -570,12 +574,13 @@ public class Repackage {
 	}
 
 	/** Download and integrates sources for a single Maven artifact. */
-	void downloadAndProcessM2Sources(String repoStr, M2Artifact artifact, Path targetBundleDir) throws IOException {
+	void downloadAndProcessM2Sources(String repoStr, M2Artifact artifact, Path targetBundleDir, boolean merging)
+			throws IOException {
 		try {
 			M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
 			URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
 			Path sourcesDownloaded = downloadMaven(sourcesUrl, artifact, true);
-			processM2SourceJar(sourcesDownloaded, targetBundleDir);
+			processM2SourceJar(sourcesDownloaded, targetBundleDir, merging ? artifact : null);
 			logger.log(TRACE, () -> "Processed source " + sourcesDownloaded);
 		} catch (Exception e) {
 			logger.log(ERROR, () -> "Cannot download source for  " + artifact);
@@ -584,11 +589,15 @@ public class Repackage {
 	}
 
 	/** Integrate sources from a downloaded jar file. */
-	void processM2SourceJar(Path file, Path bundleDir) throws IOException {
+	void processM2SourceJar(Path file, Path bundleDir, M2Artifact mergingFrom) throws IOException {
+		A2Origin origin = new A2Origin();
+		Path sourceDir = sourceBundles ? bundleDir.getParent().resolve(bundleDir.toString() + ".src")
+				: bundleDir.resolve("OSGI-OPT/src");
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
-			A2Origin origin = new A2Origin();
-			Path sourceDir = sourceBundles ? bundleDir.getParent().resolve(bundleDir.toString() + ".src")
-					: bundleDir.resolve("OSGI-OPT/src");
+
+			String mergingMsg = "";
+			if (mergingFrom != null)
+				mergingMsg = " of " + mergingFrom;
 
 			Files.createDirectories(sourceDir);
 			JarEntry entry;
@@ -596,17 +605,17 @@ public class Repackage {
 				if (entry.isDirectory())
 					continue entries;
 				if (entry.getName().startsWith("META-INF")) {// skip META-INF entries
-					origin.deleted.add("META-INF directory from the sources");
+					origin.deleted.add("META-INF directory from the sources" + mergingMsg);
 					continue entries;
 				}
 				if (entry.getName().startsWith("module-info.java")) {// skip Java module information
-					origin.deleted.add("Java module information from the sources (module-info.java)");
+					origin.deleted.add("Java module information from the sources (module-info.java)" + mergingMsg);
 					continue entries;
 				}
 				if (entry.getName().startsWith("/")) { // absolute paths
 					// TODO does it really happen?
 					logger.log(WARNING, entry.getName() + " has an absolute path");
-					origin.deleted.add(entry.getName() + " from the sources");
+					origin.deleted.add(entry.getName() + " from the sources" + mergingMsg);
 					continue entries;
 				}
 				Path target = sourceDir.resolve(entry.getName());
@@ -618,15 +627,14 @@ public class Repackage {
 					logger.log(TRACE, () -> target + " already exists, skipping...");
 				}
 			}
-			// write the changes
-			if (sourceBundles) {
-				origin.appendChanges(sourceDir);
-			} else {
-				origin.added.add("source code under OSGI-OPT/src");
-				origin.appendChanges(bundleDir);
-			}
 		}
-
+		// write the changes
+		if (sourceBundles) {
+			origin.appendChanges(sourceDir);
+		} else {
+			origin.added.add("source code under OSGI-OPT/src");
+			origin.appendChanges(bundleDir);
+		}
 	}
 
 	/** Download a Maven artifact. */
@@ -718,8 +726,8 @@ public class Repackage {
 								for (Object key : commonProps.keySet())
 									map.put(key.toString(), commonProps.getProperty(key.toString()));
 								A2Origin origin = new A2Origin();
-								Path bundleDirectory = processBundleJar(file, targetCategoryBase, map, origin);
-								origins.put(bundleDirectory, origin);
+								Path bundleDir = processBundleJar(file, targetCategoryBase, map, origin);
+								origins.put(bundleDir, origin);
 								logger.log(DEBUG, () -> "Processed " + file);
 							}
 							break includeMatchers;
@@ -731,10 +739,10 @@ public class Repackage {
 
 			DirectoryStream<Path> dirs = Files.newDirectoryStream(targetCategoryBase, (p) -> Files.isDirectory(p)
 					&& p.getFileName().toString().indexOf('.') >= 0 && !p.getFileName().toString().endsWith(".src"));
-			for (Path dir : dirs) {
-				A2Origin origin = origins.get(dir);
-				Objects.requireNonNull(origin, "No A2 origin found for " + dir);
-				createJar(dir, origin);
+			for (Path bundleDir : dirs) {
+				A2Origin origin = origins.get(bundleDir);
+				Objects.requireNonNull(origin, "No A2 origin found for " + bundleDir);
+				createJar(bundleDir, origin);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot process " + duDir, e);
@@ -745,7 +753,8 @@ public class Repackage {
 	/** Process sources in Eclipse format. */
 	void processEclipseSourceJar(Path file, Path targetBase) throws IOException {
 		try {
-			Path targetBundleDir;
+			A2Origin origin = new A2Origin();
+			Path bundleDir;
 			try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
 				Manifest manifest = jarIn.getManifest();
 
@@ -754,23 +763,30 @@ public class Repackage {
 				String version = relatedBundle[1].substring("version=\"".length());
 				version = version.substring(0, version.length() - 1);
 				NameVersion nameVersion = new NameVersion(relatedBundle[0], version);
-				targetBundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
+				bundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
 
-				Path targetSourceDir = sourceBundles
-						? targetBundleDir.getParent().resolve(targetBundleDir.toString() + ".src")
-						: targetBundleDir.resolve("OSGI-OPT/src");
+				Path sourceDir = sourceBundles ? bundleDir.getParent().resolve(bundleDir.toString() + ".src")
+						: bundleDir.resolve("OSGI-OPT/src");
 
-				Files.createDirectories(targetSourceDir);
+				Files.createDirectories(sourceDir);
 				JarEntry entry;
 				entries: while ((entry = jarIn.getNextJarEntry()) != null) {
 					if (entry.isDirectory())
 						continue entries;
 					if (entry.getName().startsWith("META-INF"))// skip META-INF entries
 						continue entries;
-					Path target = targetSourceDir.resolve(entry.getName());
+					Path target = sourceDir.resolve(entry.getName());
 					Files.createDirectories(target.getParent());
 					Files.copy(jarIn, target);
 					logger.log(TRACE, () -> "Copied source " + target);
+				}
+
+				// write the changes
+				if (sourceBundles) {
+					origin.appendChanges(sourceDir);
+				} else {
+					origin.added.add("source code under OSGI-OPT/src");
+					origin.appendChanges(bundleDir);
 				}
 			}
 		} catch (IOException e) {
@@ -956,12 +972,12 @@ public class Repackage {
 				licensesUsed.get(spdxLicenceId).add(nameVersion.toString());
 			}
 
+			origin.modified.add("jar MANIFEST (META-INF/MANIFEST.MF)");
 			// write the MANIFEST
 			try (OutputStream out = Files.newOutputStream(manifestPath)) {
 				manifest.write(out);
 			}
 		}
-		origin.modified.add("jar MANIFEST (META-INF/MANIFEST.MF");
 		return bundleDir;
 	}
 
@@ -1226,14 +1242,14 @@ class A2Origin {
 		Files.createDirectories(changesFile.getParent());
 		try (BufferedWriter writer = Files.newBufferedWriter(changesFile, StandardOpenOption.APPEND,
 				StandardOpenOption.CREATE)) {
-			for (String msg : modified)
-				writer.write("- Modified " + msg + ".\n");
 			for (String msg : added)
 				writer.write("- Added " + msg + ".\n");
-			for (String msg : deleted)
-				writer.write("- Deleted " + msg + ".\n");
+			for (String msg : modified)
+				writer.write("- Modified " + msg + ".\n");
 			for (String msg : moved)
 				writer.write("- Moved " + msg + ".\n");
+			for (String msg : deleted)
+				writer.write("- Deleted " + msg + ".\n");
 		}
 	}
 }
