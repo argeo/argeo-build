@@ -253,20 +253,22 @@ public class Repackage {
 				Path unmodifiedTarget = targetCategoryBase.resolve(
 						fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch() + ".jar");
 				Files.copy(downloaded, unmodifiedTarget, StandardCopyOption.REPLACE_EXISTING);
-				downloadAndProcessM2Sources(repoStr, artifact,
-						targetCategoryBase.resolve(
-								fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch()),
-						false);
+				Path bundleDir = targetCategoryBase
+						.resolve(fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch());
+				downloadAndProcessM2Sources(repoStr, artifact, bundleDir, false);
+				Manifest manifest;
+				try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(unmodifiedTarget))) {
+					manifest = jarIn.getManifest();
+				}
+				createSourceJar(unmodifiedTarget, manifest);
 				return;
 			}
-			
-			// normal processing
+
+			// regular processing
 			A2Origin origin = new A2Origin();
-			Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact, origin);
-
-			downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir, false);
-
-			createJar(targetBundleDir, origin);
+			Path bundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact, origin);
+			downloadAndProcessM2Sources(repoStr, artifact, bundleDir, false);
+			createJar(bundleDir, origin);
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot process " + bndFile, e);
 		}
@@ -1182,52 +1184,55 @@ public class Repackage {
 		}
 		deleteDirectory(bundleDir);
 
-		if (sourceBundles) {
-			Path bundleCategoryDir = bundleDir.getParent();
-			Path sourceDir = bundleCategoryDir.resolve(bundleDir.toString() + ".src");
-			if (!Files.exists(sourceDir)) {
-				logger.log(WARNING, sourceDir + " does not exist, skipping...");
-				return jarPath;
-
-			}
-
-			Path relPath = a2Base.relativize(bundleCategoryDir);
-			Path srcCategoryDir = a2SrcBase.resolve(relPath);
-			Path srcJarP = srcCategoryDir.resolve(sourceDir.getFileName() + ".jar");
-			Files.createDirectories(srcJarP.getParent());
-
-			String bundleSymbolicName = manifest.getMainAttributes().getValue("Bundle-SymbolicName").toString();
-			// in case there are additional directives
-			bundleSymbolicName = bundleSymbolicName.split(";")[0];
-			Manifest srcManifest = new Manifest();
-			srcManifest.getMainAttributes().put(MANIFEST_VERSION, "1.0");
-			srcManifest.getMainAttributes().putValue(BUNDLE_SYMBOLICNAME.toString(), bundleSymbolicName + ".src");
-			srcManifest.getMainAttributes().putValue(BUNDLE_VERSION.toString(),
-					manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()).toString());
-			srcManifest.getMainAttributes().putValue(ECLIPSE_SOURCE_BUNDLE.toString(), bundleSymbolicName
-					+ ";version=\"" + manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()));
-
-			try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
-				srcJarOut.setLevel(Deflater.BEST_COMPRESSION);
-				Files.walkFileTree(sourceDir, new SimpleFileVisitor<Path>() {
-
-					@Override
-					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-						if (file.getFileName().toString().equals("MANIFEST.MF"))
-							return super.visitFile(file, attrs);
-						JarEntry entry = new JarEntry(
-								sourceDir.relativize(file).toString().replace(File.separatorChar, '/'));
-						srcJarOut.putNextEntry(entry);
-						Files.copy(file, srcJarOut);
-						return super.visitFile(file, attrs);
-					}
-
-				});
-			}
-			deleteDirectory(sourceDir);
-		}
+		if (sourceBundles)
+			createSourceJar(bundleDir, manifest);
 
 		return jarPath;
+	}
+
+	void createSourceJar(Path bundleDir, Manifest manifest) throws IOException {
+		Path bundleCategoryDir = bundleDir.getParent();
+		Path sourceDir = bundleCategoryDir.resolve(bundleDir.toString() + ".src");
+		if (!Files.exists(sourceDir)) {
+			logger.log(WARNING, sourceDir + " does not exist, skipping...");
+			return;
+
+		}
+
+		Path relPath = a2Base.relativize(bundleCategoryDir);
+		Path srcCategoryDir = a2SrcBase.resolve(relPath);
+		Path srcJarP = srcCategoryDir.resolve(sourceDir.getFileName() + ".jar");
+		Files.createDirectories(srcJarP.getParent());
+
+		String bundleSymbolicName = manifest.getMainAttributes().getValue("Bundle-SymbolicName").toString();
+		// in case there are additional directives
+		bundleSymbolicName = bundleSymbolicName.split(";")[0];
+		Manifest srcManifest = new Manifest();
+		srcManifest.getMainAttributes().put(MANIFEST_VERSION, "1.0");
+		srcManifest.getMainAttributes().putValue(BUNDLE_SYMBOLICNAME.toString(), bundleSymbolicName + ".src");
+		srcManifest.getMainAttributes().putValue(BUNDLE_VERSION.toString(),
+				manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()).toString());
+		srcManifest.getMainAttributes().putValue(ECLIPSE_SOURCE_BUNDLE.toString(),
+				bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()));
+
+		try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
+			srcJarOut.setLevel(Deflater.BEST_COMPRESSION);
+			Files.walkFileTree(sourceDir, new SimpleFileVisitor<Path>() {
+
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					if (file.getFileName().toString().equals("MANIFEST.MF"))
+						return super.visitFile(file, attrs);
+					JarEntry entry = new JarEntry(
+							sourceDir.relativize(file).toString().replace(File.separatorChar, '/'));
+					srcJarOut.putNextEntry(entry);
+					Files.copy(file, srcJarOut);
+					return super.visitFile(file, attrs);
+				}
+
+			});
+		}
+		deleteDirectory(sourceDir);
 	}
 
 	/** MANIFEST headers. */
