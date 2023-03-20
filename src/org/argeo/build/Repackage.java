@@ -1131,7 +1131,7 @@ public class Repackage {
 				origin.deleted.add("MANIFEST header " + manifestEntry.getKey());
 				break;
 			default:
-				if (!sourceManifest.getMainAttributes().containsKey(manifestEntry.getKey()))
+				if (sourceManifest != null && !sourceManifest.getMainAttributes().containsKey(manifestEntry.getKey()))
 					origin.added.add("MANIFEST header " + manifestEntry.getKey());
 			}
 		}
