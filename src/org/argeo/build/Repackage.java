@@ -76,12 +76,16 @@ public class Repackage {
 	 * integrated in the bundles.
 	 */
 	final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
+	/** Environment variable on whether operations should be parallelised. */
+	final static String ENV_ARGEO_BUILD_SEQUENTIAL = "ARGEO_BUILD_SEQUENTIAL";
 
-	/** Whether repackaging should run in parallel or sequentially. */
-	final static boolean parallel = true;
+	/** Whether repackaging should run in parallel (default) or sequentially. */
+	final static boolean sequential = Boolean.parseBoolean(System.getenv(ENV_ARGEO_BUILD_SEQUENTIAL));
 
 	/** Main entry point. */
 	public static void main(String[] args) {
+		if (sequential)
+			logger.log(INFO, "Build will be sequential");
 		if (args.length < 2) {
 			System.err.println("Usage: <path to a2 output dir> <category1> <category2> ...");
 			System.exit(1);
@@ -93,12 +97,13 @@ public class Repackage {
 		List<CompletableFuture<Void>> toDos = new ArrayList<>();
 		for (int i = 1; i < args.length; i++) {
 			Path p = Paths.get(args[i]);
-			if (parallel)
-				toDos.add(CompletableFuture.runAsync(() -> factory.processCategory(p)));
-			else
+			if (sequential)
 				factory.processCategory(p);
+			else
+				toDos.add(CompletableFuture.runAsync(() -> factory.processCategory(p)));
 		}
-		CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
+		if (!sequential)
+			CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
 
 		// Summary
 		StringBuilder sb = new StringBuilder();
