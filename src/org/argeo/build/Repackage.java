@@ -13,7 +13,7 @@ import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_EMBED;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_MERGE;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_REPO;
-import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_NO_METADATA_GENERATION;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_URI;
 import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_LICENSE;
 import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_SYMBOLICNAME;
@@ -152,10 +152,10 @@ public class Repackage {
 		/** Maven repository, if not the default one. */
 		ARGEO_ORIGIN_M2_REPO("Argeo-Origin-M2-Repo"), //
 		/**
-		 * Do not perform BND analysis of the origin component. Typically IMport_package
+		 * Do not perform BND analysis of the origin component. Typically Import_package
 		 * and Export-Package will be kept untouched.
 		 */
-		ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED("Argeo-Origin-ManifestNotModified"), //
+		ARGEO_ORIGIN_NO_METADATA_GENERATION("Argeo-Origin-NoMetadataGeneration"), //
 		/**
 		 * Embed the original jar without modifying it (may be required by some
 		 * proprietary licenses, such as JCR Day License).
@@ -643,13 +643,11 @@ public class Repackage {
 		try {
 			Map<String, String> additionalEntries = new TreeMap<>();
 			boolean doNotModifyManifest = Boolean.parseBoolean(
-					fileProps.getOrDefault(ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED.toString(), "false").toString());
+					fileProps.getOrDefault(ARGEO_ORIGIN_NO_METADATA_GENERATION.toString(), "false").toString());
 
 			// Note: we always force the symbolic name
 			if (doNotModifyManifest) {
-				fileEntries: for (Object key : fileProps.keySet()) {
-					if (ARGEO_ORIGIN_M2.toString().equals(key))
-						continue fileEntries;
+				for (Object key : fileProps.keySet()) {
 					String value = fileProps.getProperty(key.toString());
 					additionalEntries.put(key.toString(), value);
 				}
@@ -731,6 +729,7 @@ public class Repackage {
 			Files.createDirectories(sourceDir);
 			JarEntry entry;
 			entries: while ((entry = jarIn.getNextJarEntry()) != null) {
+				String relPath = entry.getName();
 				if (entry.isDirectory())
 					continue entries;
 				if (entry.getName().startsWith("META-INF")) {// skip META-INF entries
@@ -742,12 +741,17 @@ public class Repackage {
 					continue entries;
 				}
 				if (entry.getName().startsWith("/")) { // absolute paths
-					// TODO does it really happen?
-					logger.log(WARNING, entry.getName() + " has an absolute path");
-					origin.deleted.add(entry.getName() + " from the sources" + mergingMsg);
+					int metaInfIndex = entry.getName().indexOf("META-INF");
+					if (metaInfIndex >= 0) {
+						relPath = entry.getName().substring(metaInfIndex);
+						origin.moved.add(" to " + relPath + " entry with absolute path " + entry.getName());
+					} else {
+						logger.log(WARNING, entry.getName() + " has an absolute path");
+						origin.deleted.add(entry.getName() + " from the sources" + mergingMsg);
+					}
 					continue entries;
 				}
-				Path target = sourceDir.resolve(entry.getName());
+				Path target = sourceDir.resolve(relPath);
 				Files.createDirectories(target.getParent());
 				if (!Files.exists(target)) {
 					Files.copy(jarIn, target);
@@ -971,13 +975,14 @@ public class Repackage {
 			}
 			bundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
 
-			if (sourceManifest != null) {// copy original MANIFEST
+			// copy original MANIFEST
+			if (sourceManifest != null) {
 				Path originalManifest = bundleDir.resolve(A2_ORIGIN).resolve("MANIFEST.MF");
 				Files.createDirectories(originalManifest.getParent());
 				try (OutputStream out = Files.newOutputStream(originalManifest)) {
 					sourceManifest.write(out);
 				}
-				origin.moved.add("original MANIFEST (" + bundleDir.relativize(originalManifest) + ")");
+				origin.moved.add("original MANIFEST to " + bundleDir.relativize(originalManifest));
 			}
 
 			// force Java 9 module name
@@ -1138,7 +1143,7 @@ public class Repackage {
 
 		processLicense(bundleDir, manifest);
 
-		origin.modified.add("jar MANIFEST (META-INF/MANIFEST.MF)");
+		origin.modified.add("MANIFEST (META-INF/MANIFEST.MF)");
 		// write the MANIFEST
 		try (OutputStream out = Files.newOutputStream(manifestPath)) {
 			manifest.write(out);
@@ -1384,7 +1389,7 @@ public class Repackage {
 			else
 				logger.log(ERROR, "Cannot find origin information in " + jarDir);
 
-			writer.append("A detailed list of changes is available under " + CHANGES + "\n");
+			writer.append("A detailed list of changes is available under " + CHANGES + ".\n");
 			if (!jarDir.getFileName().endsWith(".src")) {// binary archive
 				if (sourceBundles)
 					writer.append("Corresponding sources are available in the related archive named "
