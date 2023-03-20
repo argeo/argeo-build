@@ -1177,6 +1177,8 @@ public class Repackage {
 				spdxLicenceId = "GPL-2.0-only WITH Classpath-exception-2.0";
 			if (bundleDirName.startsWith("javax.inject."))
 				spdxLicenceId = "Apache-2.0";
+			if (bundleDirName.startsWith("org.osgi."))
+				spdxLicenceId = "Apache-2.0";
 
 			manifest.getMainAttributes().putValue(SPDX_LICENSE_IDENTIFIER.toString(), spdxLicenceId);
 			if (!licensesUsed.containsKey(spdxLicenceId))
