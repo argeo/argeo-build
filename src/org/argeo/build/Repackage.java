@@ -1386,7 +1386,9 @@ public class Repackage {
 						+ " in order to comply with A2 packaging standards.\n");
 
 			// license
-			String spdxLicenseId = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2_REPO.toString());
+			String spdxLicenseId = manifest.getMainAttributes().getValue(SPDX_LICENSE_IDENTIFIER.toString());
+			if (spdxLicenseId == null)
+				throw new IllegalStateException("An SPDX license id must have beend defined at this stage.");
 			writer.append("\nIt is redistributed under the following license:\n\n");
 			writer.append("SPDX-Identifier: " + spdxLicenseId + "\n\n");
 
