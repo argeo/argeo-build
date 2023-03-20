@@ -6,20 +6,22 @@ import static java.lang.System.Logger.Level.INFO;
 import static java.lang.System.Logger.Level.TRACE;
 import static java.lang.System.Logger.Level.WARNING;
 import static java.nio.file.FileVisitResult.CONTINUE;
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.CREATE;
 import static java.util.jar.Attributes.Name.MANIFEST_VERSION;
-import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_EMBED;
-import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2;
-import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2_MERGE;
-import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_M2_REPO;
-import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED;
-import static org.argeo.build.Repackage.ManifestConstants.ARGEO_ORIGIN_URI;
-import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_LICENSE;
-import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_SYMBOLICNAME;
-import static org.argeo.build.Repackage.ManifestConstants.BUNDLE_VERSION;
-import static org.argeo.build.Repackage.ManifestConstants.ECLIPSE_SOURCE_BUNDLE;
-import static org.argeo.build.Repackage.ManifestConstants.EXPORT_PACKAGE;
-import static org.argeo.build.Repackage.ManifestConstants.IMPORT_PACKAGE;
-import static org.argeo.build.Repackage.ManifestConstants.SPDX_LICENSE_IDENTIFIER;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_EMBED;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_MERGE;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_REPO;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_URI;
+import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_LICENSE;
+import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_SYMBOLICNAME;
+import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_VERSION;
+import static org.argeo.build.Repackage.ManifestHeader.ECLIPSE_SOURCE_BUNDLE;
+import static org.argeo.build.Repackage.ManifestHeader.EXPORT_PACKAGE;
+import static org.argeo.build.Repackage.ManifestHeader.IMPORT_PACKAGE;
+import static org.argeo.build.Repackage.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -51,6 +53,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
@@ -64,10 +67,7 @@ import java.util.zip.Deflater;
 import aQute.bnd.osgi.Analyzer;
 import aQute.bnd.osgi.Jar;
 
-/**
- * Simple tool repackaging existing jar files into OSGi bundles in an A2
- * repository.
- */
+/** Repackages existing jar files into OSGi bundles in an A2 repository. */
 public class Repackage {
 	final static Logger logger = System.getLogger(Repackage.class.getName());
 
@@ -79,10 +79,6 @@ public class Repackage {
 
 	/** Whether repackaging should run in parallel or sequentially. */
 	final static boolean parallel = true;
-
-	// cache
-	/** Summary of all license seen during the repackaging. */
-	final static Map<String, Set<String>> licensesUsed = new TreeMap<>();
 
 	/** Main entry point. */
 	public static void main(String[] args) {
@@ -112,6 +108,78 @@ public class Repackage {
 		logger.log(INFO, "# License summary:\n" + sb);
 	}
 
+	/** MANIFEST headers. */
+	enum ManifestHeader {
+		// OSGi
+		/** OSGi bundle symbolic name. */
+		BUNDLE_SYMBOLICNAME("Bundle-SymbolicName"), //
+		/** OSGi bundle version. */
+		BUNDLE_VERSION("Bundle-Version"), //
+		/** OSGi bundle license. */
+		BUNDLE_LICENSE("Bundle-License"), //
+		/** OSGi exported packages list. */
+		EXPORT_PACKAGE("Export-Package"), //
+		/** OSGi imported packages list. */
+		IMPORT_PACKAGE("Import-Package"), //
+		/** OSGi path to embedded jar. */
+		BUNDLE_CLASSPATH("Bundle-Classpath"), //
+		// Java
+		/** Java module name. */
+		AUTOMATIC_MODULE_NAME("Automatic-Module-Name"), //
+		// Eclipse
+		/** Eclipse source bundle. */
+		ECLIPSE_SOURCE_BUNDLE("Eclipse-SourceBundle"), //
+		// SPDX
+		/**
+		 * SPDX license identifier.
+		 * 
+		 * @see https://spdx.org/licenses/
+		 */
+		SPDX_LICENSE_IDENTIFIER("SPDX-License-Identifier"), //
+		// Argeo Origin
+		/**
+		 * Maven coordinates of the origin, possibly partial when using common.bnd or
+		 * merge.bnd.
+		 */
+		ARGEO_ORIGIN_M2("Argeo-Origin-M2"), //
+		/** List of Maven coordinates to merge. */
+		ARGEO_ORIGIN_M2_MERGE("Argeo-Origin-M2-Merge"), //
+		/** Maven repository, if not the default one. */
+		ARGEO_ORIGIN_M2_REPO("Argeo-Origin-M2-Repo"), //
+		/**
+		 * Do not perform BND analysis of the origin component. Typically IMport_package
+		 * and Export-Package will be kept untouched.
+		 */
+		ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED("Argeo-Origin-ManifestNotModified"), //
+		/**
+		 * Embed the original jar without modifying it (may be required by some
+		 * proprietary licenses, such as JCR Day License).
+		 */
+		ARGEO_ORIGIN_EMBED("Argeo-Origin-Embed"), //
+		/**
+		 * Do not modify original jar (may be required by some proprietary licenses,
+		 * such as JCR Day License).
+		 */
+		ARGEO_DO_NOT_MODIFY("Argeo-Origin-Do-Not-Modify"), //
+		/**
+		 * Origin (non-Maven) URI of the component. It may be anything (jar, archive,
+		 * etc.).
+		 */
+		ARGEO_ORIGIN_URI("Argeo-Origin-URI"), //
+		;
+
+		final String value;
+
+		private ManifestHeader(String value) {
+			this.value = value;
+		}
+
+		@Override
+		public String toString() {
+			return value;
+		}
+	}
+
 	/** Name of the file centralising information for multiple M2 artifacts. */
 	final static String COMMON_BND = "common.bnd";
 	/** Name of the file centralising information for mergin M2 artifacts. */
@@ -121,6 +189,17 @@ public class Repackage {
 	 * notices etc. are stored)
 	 */
 	final static String A2_ORIGIN = "A2-ORIGIN";
+	/** File detailing modifications to the original component. */
+	final static String CHANGES = A2_ORIGIN + "/changes";
+	/**
+	 * Name of the file at the root of the repackaged jar, which prominently
+	 * notifies that the component has be repackaged.
+	 */
+	final static String README_REPACKAGED = "README.repackaged";
+
+	// cache
+	/** Summary of all license seen during the repackaging. */
+	final static Map<String, Set<String>> licensesUsed = new TreeMap<>();
 
 	/** Directory where to download archives */
 	final Path originBase;
@@ -231,8 +310,8 @@ public class Repackage {
 					? fileProps.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
 					: null;
 
+			// use file name as symbolic name
 			if (!fileProps.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
-				// use file name as symbolic name
 				String symbolicName = bndFile.getFileName().toString();
 				symbolicName = symbolicName.substring(0, symbolicName.length() - ".bnd".length());
 				fileProps.put(BUNDLE_SYMBOLICNAME.toString(), symbolicName);
@@ -248,7 +327,7 @@ public class Repackage {
 			// some proprietary artifacts do not allow any modification
 			// when releasing (with separate sources) we just copy it
 			boolean doNotModify = Boolean.parseBoolean(
-					fileProps.getOrDefault(ManifestConstants.ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
+					fileProps.getOrDefault(ManifestHeader.ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
 			if (doNotModify && sourceBundles) {
 				Path unmodifiedTarget = targetCategoryBase.resolve(
 						fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch() + ".jar");
@@ -278,6 +357,9 @@ public class Repackage {
 	 * Process multiple Maven artifacts coming from a same project and therefore
 	 * with information in common (typically the version), generating single bundles
 	 * or merging them if necessary.
+	 * 
+	 * @see #COMMON_BND
+	 * @see #MERGE_BND
 	 */
 	void processM2BasedDistributionUnit(Path duDir) {
 		try {
@@ -397,6 +479,7 @@ public class Repackage {
 		A2Origin origin = new A2Origin();
 		Path bundleDir = targetCategoryBase.resolve(bundleSymbolicName + "." + nameVersion.getBranch());
 
+		StringJoiner originDesc = new StringJoiner(",");
 		String[] artifacts = artifactsStr.split(",");
 		artifacts: for (String str : artifacts) {
 			String m2Coordinates = str.trim();
@@ -405,6 +488,7 @@ public class Repackage {
 			M2Artifact artifact = new M2Artifact(m2Coordinates.trim());
 			if (artifact.getVersion() == null)
 				artifact.setVersion(m2Version);
+			originDesc.add(artifact.toString());
 			URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
 			Path downloaded = downloadMaven(url, artifact);
 			JarEntry entry;
@@ -504,6 +588,7 @@ public class Repackage {
 			}
 		}
 
+		// BND analysis
 		Map<String, String> entries = new TreeMap<>();
 		try (Analyzer bndAnalyzer = new Analyzer()) {
 			bndAnalyzer.setProperties(mergeProps);
@@ -536,14 +621,18 @@ public class Repackage {
 			String value = entries.get(key);
 			manifest.getMainAttributes().putValue(key, value);
 		}
+		manifest.getMainAttributes().putValue(ARGEO_ORIGIN_M2.toString(), originDesc.toString());
 
+		processLicense(bundleDir, manifest);
+
+		// write MANIFEST
 		try (OutputStream out = Files.newOutputStream(manifestPath)) {
 			manifest.write(out);
 		}
 		createJar(bundleDir, origin);
 	}
 
-	/** Generate MANIFEST using BND. */
+	/** Generates MANIFEST using BND. */
 	Path processBndJar(Path downloaded, Path targetCategoryBase, Properties fileProps, M2Artifact artifact,
 			A2Origin origin) {
 		try {
@@ -574,6 +663,7 @@ public class Repackage {
 							"*;version=\"" + fileProps.getProperty(BUNDLE_VERSION.toString()) + "\"");
 				}
 
+				// BND analysis
 				try (Analyzer bndAnalyzer = new Analyzer()) {
 					bndAnalyzer.setProperties(fileProps);
 					Jar jar = new Jar(downloaded.toFile());
@@ -831,7 +921,7 @@ public class Repackage {
 	/*
 	 * COMMON PROCESSING
 	 */
-	/** Normalise a bundle. */
+	/** Normalise a single (that is, non-merged) bundle. */
 	Path processBundleJar(Path file, Path targetBase, Map<String, String> entries, A2Origin origin) throws IOException {
 		boolean embed = Boolean.parseBoolean(entries.getOrDefault(ARGEO_ORIGIN_EMBED.toString(), "false").toString());
 		NameVersion nameVersion;
@@ -886,7 +976,7 @@ public class Repackage {
 			}
 
 			// force Java 9 module name
-			entries.put(ManifestConstants.AUTOMATIC_MODULE_NAME.toString(), nameVersion.getName());
+			entries.put(ManifestHeader.AUTOMATIC_MODULE_NAME.toString(), nameVersion.getName());
 
 			boolean isNative = false;
 			String os = null;
@@ -978,12 +1068,11 @@ public class Repackage {
 
 		if (embed) {// copy embedded jar
 			Files.copy(file, bundleDir.resolve(file.getFileName()));
-			entries.put(ManifestConstants.BUNDLE_CLASSPATH.toString(), file.getFileName().toString());
+			entries.put(ManifestHeader.BUNDLE_CLASSPATH.toString(), file.getFileName().toString());
 		}
 
 		// Final MANIFEST decisions
-		// This also where we check the original OSGi metadata and compare with our
-		// changes
+		// We also check the original OSGi metadata and compare with our changes
 		for (String key : entries.keySet()) {
 			String value = entries.get(key);
 			String previousValue = manifest.getMainAttributes().getValue(key);
@@ -1042,17 +1131,7 @@ public class Repackage {
 			}
 		}
 
-		// license checks
-		String spdxLicenceId = manifest.getMainAttributes().getValue(SPDX_LICENSE_IDENTIFIER.toString());
-		String bundleLicense = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
-		if (spdxLicenceId == null) {
-			logger.log(ERROR, file.getFileName() + ": " + SPDX_LICENSE_IDENTIFIER + " not available, " + BUNDLE_LICENSE
-					+ " is " + bundleLicense);
-		} else {
-			if (!licensesUsed.containsKey(spdxLicenceId))
-				licensesUsed.put(spdxLicenceId, new TreeSet<>());
-			licensesUsed.get(spdxLicenceId).add(nameVersion.toString());
-		}
+		processLicense(bundleDir, manifest);
 
 		origin.modified.add("jar MANIFEST (META-INF/MANIFEST.MF)");
 		// write the MANIFEST
@@ -1060,6 +1139,31 @@ public class Repackage {
 			manifest.write(out);
 		}
 		return bundleDir;
+	}
+
+	/** Process SPDX license identifier. */
+	void processLicense(Path bundleDir, Manifest manifest) {
+		String spdxLicenceId = manifest.getMainAttributes().getValue(SPDX_LICENSE_IDENTIFIER.toString());
+		String bundleLicense = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
+		if (spdxLicenceId == null) {
+			logger.log(ERROR, bundleDir.getFileName() + ": " + SPDX_LICENSE_IDENTIFIER + " not available, "
+					+ BUNDLE_LICENSE + " is " + bundleLicense);
+		} else {
+			// only use the first licensing option
+			int orIndex = spdxLicenceId.indexOf(" OR ");
+			if (orIndex >= 0)
+				spdxLicenceId = spdxLicenceId.substring(0, orIndex).trim();
+
+			// bundles starting with org.apache MUST be licensed with Apache-2.0
+			// even if we say otherwise (typically because coming from an Eclipse archive)
+			if (bundleDir.getFileName().startsWith("org.apache."))
+				spdxLicenceId = "Apache-2.0";
+
+			manifest.getMainAttributes().put(SPDX_LICENSE_IDENTIFIER.toString(), spdxLicenceId);
+			if (!licensesUsed.containsKey(spdxLicenceId))
+				licensesUsed.put(spdxLicenceId, new TreeSet<>());
+			licensesUsed.get(spdxLicenceId).add(bundleDir.getParent().getFileName() + "/" + bundleDir.getFileName());
+		}
 	}
 
 	/*
@@ -1090,13 +1194,13 @@ public class Repackage {
 	NameVersion nameVersionFromManifest(Manifest manifest) {
 		Attributes attrs = manifest.getMainAttributes();
 		// symbolic name
-		String symbolicName = attrs.getValue(ManifestConstants.BUNDLE_SYMBOLICNAME.toString());
+		String symbolicName = attrs.getValue(ManifestHeader.BUNDLE_SYMBOLICNAME.toString());
 		if (symbolicName == null)
 			return null;
 		// make sure there is no directive
 		symbolicName = symbolicName.split(";")[0];
 
-		String version = attrs.getValue(ManifestConstants.BUNDLE_VERSION.toString());
+		String version = attrs.getValue(ManifestHeader.BUNDLE_VERSION.toString());
 		return new NameVersion(symbolicName, version);
 	}
 
@@ -1172,13 +1276,15 @@ public class Repackage {
 	Path createJar(Path bundleDir, A2Origin origin) throws IOException {
 		// write changes
 		origin.appendChanges(bundleDir);
-		// Create the jar
-		Path jarPath = bundleDir.getParent().resolve(bundleDir.getFileName() + ".jar");
+
 		Path manifestPath = bundleDir.resolve("META-INF/MANIFEST.MF");
 		Manifest manifest;
 		try (InputStream in = Files.newInputStream(manifestPath)) {
 			manifest = new Manifest(in);
 		}
+		createReadMe(bundleDir, manifest);
+		// create the jar
+		Path jarPath = bundleDir.getParent().resolve(bundleDir.getFileName() + ".jar");
 		try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
 			jarOut.setLevel(Deflater.DEFAULT_COMPRESSION);
 			Files.walkFileTree(bundleDir, new SimpleFileVisitor<Path>() {
@@ -1204,14 +1310,15 @@ public class Repackage {
 		return jarPath;
 	}
 
+	/** Package sources separately, in the Eclipse-SourceBundle format. */
 	void createSourceJar(Path bundleDir, Manifest manifest) throws IOException {
 		Path bundleCategoryDir = bundleDir.getParent();
 		Path sourceDir = bundleCategoryDir.resolve(bundleDir.toString() + ".src");
 		if (!Files.exists(sourceDir)) {
 			logger.log(WARNING, sourceDir + " does not exist, skipping...");
 			return;
-
 		}
+		createReadMe(sourceDir, manifest);
 
 		Path relPath = a2Base.relativize(bundleCategoryDir);
 		Path srcCategoryDir = a2SrcBase.resolve(relPath);
@@ -1249,103 +1356,69 @@ public class Repackage {
 		deleteDirectory(sourceDir);
 	}
 
-	/** MANIFEST headers. */
-	enum ManifestConstants {
-		// OSGi
-		/** OSGi bundle symbolic name. */
-		BUNDLE_SYMBOLICNAME("Bundle-SymbolicName"), //
-		/** OSGi bundle version. */
-		BUNDLE_VERSION("Bundle-Version"), //
-		/** OSGi bundle license. */
-		BUNDLE_LICENSE("Bundle-License"), //
-		/** OSGi exported packages list. */
-		EXPORT_PACKAGE("Export-Package"), //
-		/** OSGi imported packages list. */
-		IMPORT_PACKAGE("Import-Package"), //
-		/** OSGi path to embedded jar. */
-		BUNDLE_CLASSPATH("Bundle-Classpath"), //
-		// Java
-		/** Java module name. */
-		AUTOMATIC_MODULE_NAME("Automatic-Module-Name"), //
-		// Eclipse
-		/** Eclipse source bundle. */
-		ECLIPSE_SOURCE_BUNDLE("Eclipse-SourceBundle"), //
-		// SPDX
-		/**
-		 * SPDX license identifier.
-		 * 
-		 * @see https://spdx.org/licenses/
-		 */
-		SPDX_LICENSE_IDENTIFIER("SPDX-License-Identifier"), //
-		// Argeo Origin
-		/**
-		 * Maven coordinates of the origin, possibly partial when using common.bnd or
-		 * merge.bnd.
-		 */
-		ARGEO_ORIGIN_M2("Argeo-Origin-M2"), //
-		/** List of Maven coordinates to merge. */
-		ARGEO_ORIGIN_M2_MERGE("Argeo-Origin-M2-Merge"), //
-		/** Maven repository, if not the default one. */
-		ARGEO_ORIGIN_M2_REPO("Argeo-Origin-M2-Repo"), //
-		/**
-		 * Do not perform BND analysis of the origin component. Typically IMport_package
-		 * and Export-Package will be kept untouched.
-		 */
-		ARGEO_ORIGIN_MANIFEST_NOT_MODIFIED("Argeo-Origin-ManifestNotModified"), //
-		/**
-		 * Embed the original jar without modifying it (may be required by some
-		 * proprietary licenses, such as JCR Day License).
-		 */
-		ARGEO_ORIGIN_EMBED("Argeo-Origin-Embed"), //
-		/**
-		 * Do not modify original jar (may be required by some proprietary licenses,
-		 * such as JCR Day License).
-		 */
-		ARGEO_DO_NOT_MODIFY("Argeo-Origin-Do-Not-Modify"), //
-		/**
-		 * Origin (non-Maven) URI of the component. It may be anything (jar, archive,
-		 * etc.).
-		 */
-		ARGEO_ORIGIN_URI("Argeo-Origin-URI"), //
-		;
+	void createReadMe(Path jarDir, Manifest manifest) throws IOException {
+		// write repackaged README
+		try (BufferedWriter writer = Files.newBufferedWriter(jarDir.resolve(README_REPACKAGED))) {
+			boolean merged = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2_MERGE.toString()) != null;
+			if (merged)
+				writer.append("This component is a merging of third party components"
+						+ " in order to comply with A2 packaging standards.\n");
+			else
+				writer.append("This component is a repackaging of a third party component"
+						+ " in order to comply with A2 packaging standards.\n");
 
-		final String value;
+			String m2Repo = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2_REPO.toString());
+			String originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2.toString());
+			if (originDesc != null)
+				writer.append("The original component has Maven coordinates " + originDesc
+						+ (m2Repo != null ? " in M2 repository" + m2Repo : "") + ".\n");
+			else
+				originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_URI.toString());
+			if (originDesc != null)
+				writer.append("The original component comes from " + originDesc + ".\n");
+			else
+				logger.log(ERROR, "Cannot find origin information in " + jarDir);
 
-		private ManifestConstants(String value) {
-			this.value = value;
+			writer.append("A detailed list of changes is available under " + CHANGES + "\n");
+			if (!jarDir.getFileName().endsWith(".src")) {// binary archive
+				if (sourceBundles)
+					writer.append("Corresponding sources are available in the related archive named "
+							+ jarDir.toString() + ".src.jar.\n");
+				else
+					writer.append("Corresponding sources are available under OSGI-OPT/src.\n");
+			}
 		}
 
-		@Override
-		public String toString() {
-			return value;
-		}
 	}
-}
 
-/**
- * Gathers modifications performed on the original binaries and sources,
- * especially in order to comply with their license requirements.
- */
-class A2Origin {
-	Set<String> modified = new TreeSet<>();
-	Set<String> deleted = new TreeSet<>();
-	Set<String> added = new TreeSet<>();
-	Set<String> moved = new TreeSet<>();
+	/**
+	 * Gathers modifications performed on the original binaries and sources,
+	 * especially in order to comply with their license requirements.
+	 */
+	class A2Origin {
+		A2Origin() {
 
-	/** Append changes to the A2-ORIGIN/changes file. */
-	void appendChanges(Path baseDirectory) throws IOException {
-		Path changesFile = baseDirectory.resolve("A2-ORIGIN/changes");
-		Files.createDirectories(changesFile.getParent());
-		try (BufferedWriter writer = Files.newBufferedWriter(changesFile, StandardOpenOption.APPEND,
-				StandardOpenOption.CREATE)) {
-			for (String msg : added)
-				writer.write("- Added " + msg + ".\n");
-			for (String msg : modified)
-				writer.write("- Modified " + msg + ".\n");
-			for (String msg : moved)
-				writer.write("- Moved " + msg + ".\n");
-			for (String msg : deleted)
-				writer.write("- Deleted " + msg + ".\n");
+		}
+
+		Set<String> modified = new TreeSet<>();
+		Set<String> deleted = new TreeSet<>();
+		Set<String> added = new TreeSet<>();
+		Set<String> moved = new TreeSet<>();
+
+		/** Append changes to the A2-ORIGIN/changes file. */
+		void appendChanges(Path baseDirectory) throws IOException {
+			Path changesFile = baseDirectory.resolve(CHANGES);
+			Files.createDirectories(changesFile.getParent());
+			try (BufferedWriter writer = Files.newBufferedWriter(changesFile, APPEND, CREATE)) {
+				for (String msg : added)
+					writer.write("- Added " + msg + ".\n");
+				for (String msg : modified)
+					writer.write("- Modified " + msg + ".\n");
+				for (String msg : moved)
+					writer.write("- Moved " + msg + ".\n");
+				for (String msg : deleted)
+					writer.write("- Deleted " + msg + ".\n");
+			}
 		}
 	}
 }
