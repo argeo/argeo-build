@@ -1164,9 +1164,17 @@ public class Repackage {
 			if (orIndex >= 0)
 				spdxLicenceId = spdxLicenceId.substring(0, orIndex).trim();
 
-			// bundles starting with org.apache MUST be licensed with Apache-2.0
+			// set licenses of some well-known components
 			// even if we say otherwise (typically because coming from an Eclipse archive)
 			if (bundleDir.getFileName().startsWith("org.apache."))
+				spdxLicenceId = "Apache-2.0";
+			if (bundleDir.getFileName().startsWith("com.sun.jna."))
+				spdxLicenceId = "Apache-2.0";
+			if (bundleDir.getFileName().startsWith("com.ibm.icu."))
+				spdxLicenceId = "ICU";
+			if (bundleDir.getFileName().startsWith("javax.annotation."))
+				spdxLicenceId = "GPL-2.0-only WITH Classpath-exception-2.0";
+			if (bundleDir.getFileName().startsWith("javax.inject."))
 				spdxLicenceId = "Apache-2.0";
 
 			manifest.getMainAttributes().putValue(SPDX_LICENSE_IDENTIFIER.toString(), spdxLicenceId);
@@ -1284,15 +1292,15 @@ public class Repackage {
 
 	/** Create a JAR file from a directory. */
 	Path createJar(Path bundleDir, A2Origin origin) throws IOException {
-		// write changes
-		origin.appendChanges(bundleDir);
-
 		Path manifestPath = bundleDir.resolve("META-INF/MANIFEST.MF");
 		Manifest manifest;
 		try (InputStream in = Files.newInputStream(manifestPath)) {
 			manifest = new Manifest(in);
 		}
+		// legal requirements
+		origin.appendChanges(bundleDir);
 		createReadMe(bundleDir, manifest);
+
 		// create the jar
 		Path jarPath = bundleDir.getParent().resolve(bundleDir.getFileName() + ".jar");
 		try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(jarPath), manifest)) {
@@ -1376,6 +1384,31 @@ public class Repackage {
 			else
 				writer.append("This component is a repackaging of a third party component"
 						+ " in order to comply with A2 packaging standards.\n");
+
+			// license
+			String spdxLicenseId = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2_REPO.toString());
+			writer.append("\nIt is redistributed under the following license:\n\n");
+			writer.append("SPDX-Identifier: " + spdxLicenseId + "\n\n");
+
+			if (!spdxLicenseId.startsWith("LicenseRef")) {// standard
+				int withIndex = spdxLicenseId.indexOf(" WITH ");
+				if (withIndex >= 0) {
+					String simpleId = spdxLicenseId.substring(0, withIndex).trim();
+					String exception = spdxLicenseId.substring(withIndex + " WITH ".length());
+					writer.append("which are available here: https://spdx.org/licenses/" + simpleId
+							+ "\nand here: https://spdx.org/licenses/" + exception + "\n");
+				} else {
+					writer.append("which is available here: https://spdx.org/licenses/" + spdxLicenseId + "\n");
+				}
+			} else {
+				String url = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
+				if (url != null) {
+					writer.write("which is avaliabel here: " + url + "\n");
+				} else {
+					logger.log(ERROR, "No licne URL for " + jarDir);
+				}
+			}
+			writer.write("\n");
 
 			String m2Repo = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2_REPO.toString());
 			String originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2.toString());
