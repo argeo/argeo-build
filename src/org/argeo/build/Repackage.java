@@ -1164,17 +1164,18 @@ public class Repackage {
 			if (orIndex >= 0)
 				spdxLicenceId = spdxLicenceId.substring(0, orIndex).trim();
 
-			// set licenses of some well-known components
-			// even if we say otherwise (typically because coming from an Eclipse archive)
-			if (bundleDir.getFileName().startsWith("org.apache."))
+			String bundleDirName = bundleDir.getFileName().toString();
+			// force licenses of some well-known components
+			// even if we say otherwise (typically because from an Eclipse archive)
+			if (bundleDirName.startsWith("org.apache."))
 				spdxLicenceId = "Apache-2.0";
-			if (bundleDir.getFileName().startsWith("com.sun.jna."))
+			if (bundleDirName.startsWith("com.sun.jna."))
 				spdxLicenceId = "Apache-2.0";
-			if (bundleDir.getFileName().startsWith("com.ibm.icu."))
+			if (bundleDirName.startsWith("com.ibm.icu."))
 				spdxLicenceId = "ICU";
-			if (bundleDir.getFileName().startsWith("javax.annotation."))
+			if (bundleDirName.startsWith("javax.annotation."))
 				spdxLicenceId = "GPL-2.0-only WITH Classpath-exception-2.0";
-			if (bundleDir.getFileName().startsWith("javax.inject."))
+			if (bundleDirName.startsWith("javax.inject."))
 				spdxLicenceId = "Apache-2.0";
 
 			manifest.getMainAttributes().putValue(SPDX_LICENSE_IDENTIFIER.toString(), spdxLicenceId);
@@ -1374,6 +1375,10 @@ public class Repackage {
 		deleteDirectory(sourceDir);
 	}
 
+	/**
+	 * Generate a readme clarifying and prominently notifying of the repackaging and
+	 * modifications.
+	 */
 	void createReadMe(Path jarDir, Manifest manifest) throws IOException {
 		// write repackaged README
 		try (BufferedWriter writer = Files.newBufferedWriter(jarDir.resolve(README_REPACKAGED))) {
@@ -1415,8 +1420,8 @@ public class Repackage {
 			String m2Repo = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2_REPO.toString());
 			String originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2.toString());
 			if (originDesc != null)
-				writer.append("The original component has Maven coordinates " + originDesc
-						+ (m2Repo != null ? " in M2 repository" + m2Repo : "") + ".\n");
+				writer.append("The original component has M2 coordinates " + originDesc.replace(',', '\n') + "\n"
+						+ (m2Repo != null ? "\nin M2 repository" + m2Repo : "") + ".\n");
 			else
 				originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_URI.toString());
 			if (originDesc != null)
@@ -1424,7 +1429,7 @@ public class Repackage {
 			else
 				logger.log(ERROR, "Cannot find origin information in " + jarDir);
 
-			writer.append("A detailed list of changes is available under " + CHANGES + ".\n");
+			writer.append("\nA detailed list of changes is available under " + CHANGES + ".\n");
 			if (!jarDir.getFileName().endsWith(".src")) {// binary archive
 				if (sourceBundles)
 					writer.append("Corresponding sources are available in the related archive named "
