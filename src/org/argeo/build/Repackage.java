@@ -1412,24 +1412,26 @@ public class Repackage {
 			} else {
 				String url = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
 				if (url != null) {
-					writer.write("which is avaliabel here: " + url + "\n");
+					writer.write("which is available here: " + url + "\n");
 				} else {
 					logger.log(ERROR, "No licne URL for " + jarDir);
 				}
 			}
 			writer.write("\n");
 
+			// origin
 			String m2Repo = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2_REPO.toString());
 			String originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2.toString());
 			if (originDesc != null)
 				writer.append("The original component has M2 coordinates " + originDesc.replace(',', '\n') + "\n"
-						+ (m2Repo != null ? "\nin M2 repository" + m2Repo : "") + ".\n");
-			else
+						+ (m2Repo != null ? "\nin M2 repository" + m2Repo + "\n" : "") + "\n");
+			else {
 				originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_URI.toString());
-			if (originDesc != null)
-				writer.append("The original component comes from " + originDesc + ".\n");
-			else
-				logger.log(ERROR, "Cannot find origin information in " + jarDir);
+				if (originDesc != null)
+					writer.append("The original component comes from " + originDesc + ".\n");
+				else
+					logger.log(ERROR, "Cannot find origin information in " + jarDir);
+			}
 
 			writer.append("\nA detailed list of changes is available under " + CHANGES + ".\n");
 			if (!jarDir.getFileName().endsWith(".src")) {// binary archive
