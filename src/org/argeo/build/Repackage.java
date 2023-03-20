@@ -590,8 +590,10 @@ public class Repackage {
 							continue keys;
 						}
 						if ("Require-Capability".equals(key.toString())
-								&& value.toString().equals("osgi.ee;filter:=\"(&(osgi.ee=JavaSE)(version=1.1))\""))
+								&& value.toString().equals("osgi.ee;filter:=\"(&(osgi.ee=JavaSE)(version=1.1))\"")) {
+							origin.deleted.add("MANIFEST header " + key);
 							continue keys;// !! hack for very old classes
+						}
 						additionalEntries.put(key.toString(), value.toString());
 					}
 				}
@@ -837,8 +839,9 @@ public class Repackage {
 		// singleton
 		boolean isSingleton = false;
 		Manifest manifest;
+		Manifest sourceManifest;
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
-			Manifest sourceManifest = jarIn.getManifest();
+			sourceManifest = jarIn.getManifest();
 			manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
 
 			String rawSourceSymbolicName = manifest.getMainAttributes().getValue(BUNDLE_SYMBOLICNAME.toString());
@@ -879,7 +882,7 @@ public class Repackage {
 				try (OutputStream out = Files.newOutputStream(originalManifest)) {
 					sourceManifest.write(out);
 				}
-				origin.added.add("original MANIFEST (" + bundleDir.relativize(originalManifest) + ")");
+				origin.moved.add("original MANIFEST (" + bundleDir.relativize(originalManifest) + ")");
 			}
 
 			// force Java 9 module name
@@ -1008,12 +1011,14 @@ public class Repackage {
 				else
 					logger.log(WARNING,
 							file.getFileName() + ": " + key + " was " + previousValue + ", overridden with " + value);
+				origin.modified.add("MANIFEST header " + key);
 			}
 
 			// !! hack to remove unresolvable
 			if (key.equals("Provide-Capability") || key.equals("Require-Capability"))
 				if (nameVersion.getName().equals("osgi.core") || nameVersion.getName().equals("osgi.cmpn")) {
 					manifest.getMainAttributes().remove(key);
+					origin.deleted.add("MANIFEST header " + key);
 				}
 		}
 
@@ -1029,8 +1034,11 @@ public class Repackage {
 			case "Tool":
 			case "Bnd-LastModified":
 				manifestEntries.remove();
+				origin.deleted.add("MANIFEST header " + manifestEntry.getKey());
 				break;
-			default: // do nothing
+			default:
+				if (!sourceManifest.getMainAttributes().containsKey(manifestEntry.getKey()))
+					origin.added.add("MANIFEST header " + manifestEntry.getKey());
 			}
 		}
 
