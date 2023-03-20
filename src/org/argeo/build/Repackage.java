@@ -1423,8 +1423,8 @@ public class Repackage {
 			String m2Repo = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2_REPO.toString());
 			String originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2.toString());
 			if (originDesc != null)
-				writer.append("The original component has M2 coordinates " + originDesc.replace(',', '\n') + "\n"
-						+ (m2Repo != null ? "\nin M2 repository" + m2Repo + "\n" : "") + "\n");
+				writer.append("The original component has M2 coordinates:\n" + originDesc.replace(',', '\n') + "\n"
+						+ (m2Repo != null ? "\nin M2 repository " + m2Repo + "\n" : ""));
 			else {
 				originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_URI.toString());
 				if (originDesc != null)
