@@ -13,6 +13,7 @@ import java.io.PrintWriter;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.lang.management.ManagementFactory;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -406,6 +407,12 @@ public class Make {
 				}
 			});
 
+			// add legal notices and licenses
+			for (Path p : listLegalFilesToInclude(source).values()) {
+				jarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
+				Files.copy(p, jarOut);
+			}
+
 			// add sources
 			// TODO add effective BND, Eclipse project file, etc., in order to be able to
 			// repackage
@@ -425,11 +432,51 @@ public class Make {
 
 				try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
 					copySourcesToJar(srcP, srcJarOut, "");
+					// add legal notices and licenses
+					for (Path p : listLegalFilesToInclude(source).values()) {
+						jarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
+						Files.copy(p, jarOut);
+					}
 				}
 			} else {
 				copySourcesToJar(srcP, jarOut, "OSGI-OPT/src/");
 			}
 		}
+	}
+
+	/** List the relevant legal files to include, from the SDK source base. */
+	Map<String, Path> listLegalFilesToInclude(Path bundleBase) throws IOException {
+		Map<String, Path> toInclude = new HashMap<>();
+		DirectoryStream<Path> sdkSrcLegal = Files.newDirectoryStream(sdkSrcBase, (p) -> {
+			String fileName = p.getFileName().toString();
+			return switch (fileName) {
+			case "NOTICE":
+			case "LICENSE":
+			case "COPYING":
+			case "COPYING.LESSER":
+				yield true;
+			default:
+				yield false;
+			};
+		});
+		for (Path p : sdkSrcLegal)
+			toInclude.put(p.getFileName().toString(), p);
+		DirectoryStream<Path> bundleLegal = Files.newDirectoryStream(bundleBase, (p) -> {
+			String fileName = p.getFileName().toString();
+			return switch (fileName) {
+			case "NOTICE":
+			case "LICENSE":
+			case "COPYING":
+			case "COPYING.LESSER":
+				yield true;
+			default:
+				yield false;
+			};
+		});
+		// bundle can override
+		for (Path p : bundleLegal)
+			toInclude.put(p.getFileName().toString(), p);
+		return toInclude;
 	}
 
 	/*
