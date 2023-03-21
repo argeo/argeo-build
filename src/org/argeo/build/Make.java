@@ -476,21 +476,15 @@ public class Make {
 			for (Path p : sdkSrcLegal)
 				toInclude.put(p.getFileName().toString(), p);
 		}
-		DirectoryStream<Path> bundleLegal = Files.newDirectoryStream(bundleBase, (p) -> {
-			String fileName = p.getFileName().toString();
-			return switch (fileName) {
-			case "NOTICE":
-			case "LICENSE":
-			case "COPYING":
-			case "COPYING.LESSER":
-				yield true;
-			default:
-				yield false;
-			};
-		});
-		// bundle can override
-		for (Path p : bundleLegal)
-			toInclude.put(p.getFileName().toString(), p);
+		for(Iterator<Map.Entry<String, Path>> entries=toInclude.entrySet().iterator();entries.hasNext();) {
+			Map.Entry<String, Path> entry= entries.next();
+			Path inBundle = bundleBase.resolve(entry.getValue().getFileName());
+			// remove file if it is also defined at bundle level
+			// since it has already been copied
+			// and has priority
+			if(Files.exists(inBundle)) 
+				entries.remove();
+		}		
 		return toInclude;
 	}
 
