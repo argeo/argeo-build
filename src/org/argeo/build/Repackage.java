@@ -193,9 +193,9 @@ public class Repackage {
 	 * Subdirectory of the jar file where origin informations (changes, legal
 	 * notices etc. are stored)
 	 */
-	final static String A2_ORIGIN = "A2-ORIGIN";
+	final static String ARGEO_ORIGIN = "ARGEO-ORIGIN";
 	/** File detailing modifications to the original component. */
-	final static String CHANGES = A2_ORIGIN + "/changes";
+	final static String CHANGES = ARGEO_ORIGIN + "/changes";
 	/**
 	 * Name of the file at the root of the repackaged jar, which prominently
 	 * notifies that the component has be repackaged.
@@ -527,7 +527,7 @@ public class Repackage {
 						continue entries;
 					}
 					if (entry.getName().equals("META-INF/MANIFEST.MF")) {
-						Path originalManifest = bundleDir.resolve(A2_ORIGIN).resolve(artifact.getGroupId())
+						Path originalManifest = bundleDir.resolve(ARGEO_ORIGIN).resolve(artifact.getGroupId())
 								.resolve(artifact.getArtifactId()).resolve("MANIFEST.MF");
 						Files.createDirectories(originalManifest.getParent());
 						try (OutputStream out = Files.newOutputStream(originalManifest)) {
@@ -542,7 +542,7 @@ public class Repackage {
 							|| entry.getName().endsWith("LICENSE") || entry.getName().endsWith("LICENSE.md")
 							|| entry.getName().endsWith("LICENSE-notice.md") || entry.getName().endsWith("COPYING")
 							|| entry.getName().endsWith("COPYING.LESSER")) {
-						Path artifactOriginDir = bundleDir.resolve(A2_ORIGIN).resolve(artifact.getGroupId())
+						Path artifactOriginDir = bundleDir.resolve(ARGEO_ORIGIN).resolve(artifact.getGroupId())
 								.resolve(artifact.getArtifactId());
 						Path target = artifactOriginDir.resolve(entry.getName());
 						Files.createDirectories(target.getParent());
@@ -977,7 +977,7 @@ public class Repackage {
 
 			// copy original MANIFEST
 			if (sourceManifest != null) {
-				Path originalManifest = bundleDir.resolve(A2_ORIGIN).resolve("MANIFEST.MF");
+				Path originalManifest = bundleDir.resolve(ARGEO_ORIGIN).resolve("MANIFEST.MF");
 				Files.createDirectories(originalManifest.getParent());
 				try (OutputStream out = Files.newOutputStream(originalManifest)) {
 					sourceManifest.write(out);
