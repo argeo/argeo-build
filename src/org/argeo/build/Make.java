@@ -63,6 +63,14 @@ public class Make {
 	private final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
 
 	/**
+	 * Environment variable on whether legal files at the root of the sources should
+	 * be included in the generated bundles. Should be set to true when building
+	 * third-party software in order no to include the build harness license into
+	 * the generated bundles.
+	 */
+	private final static String ENV_NO_SDK_LEGAL = "NO_SDK_LEGAL";
+
+	/**
 	 * Environment variable to override the default location for the Argeo Build
 	 * configuration files. Typically used if Argeo Build has been compiled and
 	 * packaged separately.
@@ -79,7 +87,7 @@ public class Make {
 	/** Base of the source code, typically the cloned git repository. */
 	final Path sdkSrcBase;
 	/**
-	 * The base of the builder, typically a submodule pointing to the public
+	 * The base of the builder, typically a submodule pointing to the INCLUDEpublic
 	 * argeo-build directory.
 	 */
 	final Path argeoBuildBase;
@@ -92,14 +100,19 @@ public class Make {
 	/** The base of the a2 sources when packages separately. */
 	final Path a2srcOutput;
 
-	/** Whether sources should be packaged separately */
+	/** Whether sources should be packaged separately. */
 	final boolean sourceBundles;
+	/** Whether common legal files should be included. */
+	final boolean noSdkLegal;
 
 	/** Constructor initialises the base directories. */
 	public Make() throws IOException {
 		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_SOURCE_BUNDLES));
 		if (sourceBundles)
 			logger.log(Level.INFO, "Sources will be packaged separately");
+		noSdkLegal = Boolean.parseBoolean(System.getenv(ENV_NO_SDK_LEGAL));
+		if (noSdkLegal)
+			logger.log(Level.INFO, "SDK legal files will NOT be included");
 
 		execDirectory = Paths.get(System.getProperty("user.dir"));
 		Path sdkMkP = findSdkMk(execDirectory);
@@ -447,20 +460,22 @@ public class Make {
 	/** List the relevant legal files to include, from the SDK source base. */
 	Map<String, Path> listLegalFilesToInclude(Path bundleBase) throws IOException {
 		Map<String, Path> toInclude = new HashMap<>();
-		DirectoryStream<Path> sdkSrcLegal = Files.newDirectoryStream(sdkSrcBase, (p) -> {
-			String fileName = p.getFileName().toString();
-			return switch (fileName) {
-			case "NOTICE":
-			case "LICENSE":
-			case "COPYING":
-			case "COPYING.LESSER":
-				yield true;
-			default:
-				yield false;
-			};
-		});
-		for (Path p : sdkSrcLegal)
-			toInclude.put(p.getFileName().toString(), p);
+		if (!noSdkLegal) {
+			DirectoryStream<Path> sdkSrcLegal = Files.newDirectoryStream(sdkSrcBase, (p) -> {
+				String fileName = p.getFileName().toString();
+				return switch (fileName) {
+				case "NOTICE":
+				case "LICENSE":
+				case "COPYING":
+				case "COPYING.LESSER":
+					yield true;
+				default:
+					yield false;
+				};
+			});
+			for (Path p : sdkSrcLegal)
+				toInclude.put(p.getFileName().toString(), p);
+		}
 		DirectoryStream<Path> bundleLegal = Files.newDirectoryStream(bundleBase, (p) -> {
 			String fileName = p.getFileName().toString();
 			return switch (fileName) {
