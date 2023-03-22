@@ -13,6 +13,7 @@ import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_MERGE;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_REPO;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_NO_METADATA_GENERATION;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_SOURCES_URI;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_URI;
 import static org.argeo.build.Repackage.ManifestHeader.AUTOMATIC_MODULE_NAME;
 import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_LICENSE;
@@ -171,6 +172,11 @@ public class Repackage {
 		 * etc.).
 		 */
 		ARGEO_ORIGIN_URI("Argeo-Origin-URI"), //
+		/**
+		 * Origin (non-Maven) URI of the source of the component. It may be anything
+		 * (jar, archive, code repository, etc.).
+		 */
+		ARGEO_ORIGIN_SOURCES_URI("Argeo-Origin-Sources-URI"), //
 		;
 
 		final String value;
@@ -311,10 +317,6 @@ public class Repackage {
 			try (InputStream in = Files.newInputStream(bndFile)) {
 				fileProps.load(in);
 			}
-			String repoStr = fileProps.containsKey(ARGEO_ORIGIN_M2_REPO.toString())
-					? fileProps.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
-					: null;
-
 			// use file name as symbolic name
 			if (!fileProps.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
 				String symbolicName = bndFile.getFileName().toString();
@@ -326,8 +328,8 @@ public class Repackage {
 			if (m2Coordinates == null)
 				throw new IllegalArgumentException("No M2 coordinates available for " + bndFile);
 			M2Artifact artifact = new M2Artifact(m2Coordinates);
-			URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
-			Path downloaded = downloadMaven(url, artifact);
+
+			Path downloaded = downloadMaven(fileProps, artifact);
 
 			// some proprietary artifacts do not allow any modification
 			// when releasing (with separate sources) we just copy it
@@ -339,7 +341,7 @@ public class Repackage {
 				Files.copy(downloaded, unmodifiedTarget, StandardCopyOption.REPLACE_EXISTING);
 				Path bundleDir = targetCategoryBase
 						.resolve(fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch());
-				downloadAndProcessM2Sources(repoStr, artifact, bundleDir, false);
+				downloadAndProcessM2Sources(fileProps, artifact, bundleDir, false);
 				Manifest manifest;
 				try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(unmodifiedTarget))) {
 					manifest = jarIn.getManifest();
@@ -351,7 +353,7 @@ public class Repackage {
 			// regular processing
 			A2Origin origin = new A2Origin();
 			Path bundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact, origin);
-			downloadAndProcessM2Sources(repoStr, artifact, bundleDir, false);
+			downloadAndProcessM2Sources(fileProps, artifact, bundleDir, false);
 			createJar(bundleDir, origin);
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot process " + bndFile, e);
@@ -412,38 +414,33 @@ public class Repackage {
 				}
 
 				// prepare manifest entries
-				Properties mergeProps = new Properties();
-				mergeProps.putAll(commonProps);
+				Properties mergedProps = new Properties();
+				mergedProps.putAll(commonProps);
 
 				fileEntries: for (Object key : fileProps.keySet()) {
 					if (ARGEO_ORIGIN_M2.toString().equals(key))
 						continue fileEntries;
 					String value = fileProps.getProperty(key.toString());
-					Object previousValue = mergeProps.put(key.toString(), value);
+					Object previousValue = mergedProps.put(key.toString(), value);
 					if (previousValue != null) {
 						logger.log(WARNING,
 								commonBnd + ": " + key + " was " + previousValue + ", overridden with " + value);
 					}
 				}
-				mergeProps.put(ARGEO_ORIGIN_M2.toString(), artifact.toM2Coordinates());
-				if (!mergeProps.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
+				mergedProps.put(ARGEO_ORIGIN_M2.toString(), artifact.toM2Coordinates());
+				if (!mergedProps.containsKey(BUNDLE_SYMBOLICNAME.toString())) {
 					// use file name as symbolic name
 					String symbolicName = p.getFileName().toString();
 					symbolicName = symbolicName.substring(0, symbolicName.length() - ".bnd".length());
-					mergeProps.put(BUNDLE_SYMBOLICNAME.toString(), symbolicName);
+					mergedProps.put(BUNDLE_SYMBOLICNAME.toString(), symbolicName);
 				}
 
-				String repoStr = mergeProps.containsKey(ARGEO_ORIGIN_M2_REPO.toString())
-						? mergeProps.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
-						: null;
-
 				// download
-				URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
-				Path downloaded = downloadMaven(url, artifact);
+				Path downloaded = downloadMaven(mergedProps, artifact);
 
 				A2Origin origin = new A2Origin();
-				Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergeProps, artifact, origin);
-				downloadAndProcessM2Sources(repoStr, artifact, targetBundleDir, false);
+				Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergedProps, artifact, origin);
+				downloadAndProcessM2Sources(mergedProps, artifact, targetBundleDir, false);
 				createJar(targetBundleDir, origin);
 			}
 		} catch (IOException e) {
@@ -484,10 +481,6 @@ public class Repackage {
 		if (artifactsStr == null)
 			throw new IllegalArgumentException(mergeBnd + ": " + ARGEO_ORIGIN_M2_MERGE + " must be set");
 
-		String repoStr = mergeProps.containsKey(ARGEO_ORIGIN_M2_REPO.toString())
-				? mergeProps.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
-				: null;
-
 		String bundleSymbolicName = mergeProps.getProperty(BUNDLE_SYMBOLICNAME.toString());
 		if (bundleSymbolicName == null)
 			throw new IllegalArgumentException("Bundle-SymbolicName must be set in " + mergeBnd);
@@ -506,8 +499,7 @@ public class Repackage {
 			if (artifact.getVersion() == null)
 				artifact.setVersion(m2Version);
 			originDesc.add(artifact.toString());
-			URL url = M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
-			Path downloaded = downloadMaven(url, artifact);
+			Path downloaded = downloadMaven(mergeProps, artifact);
 			JarEntry entry;
 			try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(downloaded), false)) {
 				entries: while ((entry = jarIn.getNextJarEntry()) != null) {
@@ -587,7 +579,7 @@ public class Repackage {
 			origin.added.add("binary content of " + artifact);
 
 			// process sources
-			downloadAndProcessM2Sources(repoStr, artifact, bundleDir, true);
+			downloadAndProcessM2Sources(mergeProps, artifact, bundleDir, true);
 		}
 
 		// additional service files
@@ -715,12 +707,17 @@ public class Repackage {
 	}
 
 	/** Download and integrates sources for a single Maven artifact. */
-	void downloadAndProcessM2Sources(String repoStr, M2Artifact artifact, Path targetBundleDir, boolean merging)
+	void downloadAndProcessM2Sources(Properties props, M2Artifact artifact, Path targetBundleDir, boolean merging)
 			throws IOException {
 		try {
+			String repoStr = props.containsKey(ARGEO_ORIGIN_M2_REPO.toString())
+					? props.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
+					: null;
+			String alternateUri = props.getProperty(ARGEO_ORIGIN_SOURCES_URI.toString());
 			M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
-			URL sourcesUrl = M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
-			Path sourcesDownloaded = downloadMaven(sourcesUrl, artifact, true);
+			URL sourcesUrl = alternateUri != null ? new URL(alternateUri)
+					: M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
+			Path sourcesDownloaded = downloadMaven(sourcesUrl, sourcesArtifact);
 			processM2SourceJar(sourcesDownloaded, targetBundleDir, merging ? artifact : null);
 			logger.log(TRACE, () -> "Processed source " + sourcesDownloaded);
 		} catch (Exception e) {
@@ -785,15 +782,22 @@ public class Repackage {
 	}
 
 	/** Download a Maven artifact. */
-	Path downloadMaven(URL url, M2Artifact artifact) throws IOException {
-		return downloadMaven(url, artifact, false);
+	Path downloadMaven(Properties props, M2Artifact artifact) throws IOException {
+		String repoStr = props.containsKey(ARGEO_ORIGIN_M2_REPO.toString())
+				? props.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
+				: null;
+		String alternateUri = props.getProperty(ARGEO_ORIGIN_URI.toString());
+		URL url = alternateUri != null ? new URL(alternateUri) : M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
+		return downloadMaven(url, artifact);
 	}
 
 	/** Download a Maven artifact. */
-	Path downloadMaven(URL url, M2Artifact artifact, boolean sources) throws IOException {
-		return download(url, mavenBase, artifact.getGroupId().replace(".", "/") //
-				+ '/' + artifact.getArtifactId() + '/' + artifact.getVersion() //
-				+ '/' + artifact.getArtifactId() + "-" + artifact.getVersion() + (sources ? "-sources" : "") + ".jar");
+	Path downloadMaven(URL url, M2Artifact artifact) throws IOException {
+		return download(url, mavenBase, M2ConventionsUtils.artifactPath("", artifact));
+//		return download(url, mavenBase, artifact.getGroupId().replace(".", "/") //
+//				+ '/' + artifact.getArtifactId() + '/' + artifact.getVersion() //
+//				+ '/' + artifact.getArtifactId() + "-" + artifact.getVersion()
+//				+ (artifact.getClassifier() != null ? "-" + artifact.getClassifier() : "") + ".jar");
 	}
 
 	/*
