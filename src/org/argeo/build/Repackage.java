@@ -708,6 +708,7 @@ public class Repackage {
 		// When releasing (with separate sources), we just copy it
 		Path unmodifiedTarget = targetCategoryBase
 				.resolve(fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch() + ".jar");
+		Files.createDirectories(unmodifiedTarget.getParent());
 		Files.copy(downloaded, unmodifiedTarget, StandardCopyOption.REPLACE_EXISTING);
 		Path bundleDir = targetCategoryBase
 				.resolve(fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch());
