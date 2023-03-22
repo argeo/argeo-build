@@ -794,10 +794,6 @@ public class Repackage {
 	/** Download a Maven artifact. */
 	Path downloadMaven(URL url, M2Artifact artifact) throws IOException {
 		return download(url, mavenBase, M2ConventionsUtils.artifactPath("", artifact));
-//		return download(url, mavenBase, artifact.getGroupId().replace(".", "/") //
-//				+ '/' + artifact.getArtifactId() + '/' + artifact.getVersion() //
-//				+ '/' + artifact.getArtifactId() + "-" + artifact.getVersion()
-//				+ (artifact.getClassifier() != null ? "-" + artifact.getClassifier() : "") + ".jar");
 	}
 
 	/*
@@ -1578,7 +1574,8 @@ class M2ConventionsUtils {
 
 	/** Absolute path to the directories where the files will be stored */
 	static String artifactParentPath(String artifactBasePath, M2Artifact artifact) {
-		return artifactBasePath + (artifactBasePath.endsWith("/") ? "" : "/") + artifactParentPath(artifact);
+		return artifactBasePath + (artifactBasePath.endsWith("/") || artifactBasePath.equals("") ? "" : "/")
+				+ artifactParentPath(artifact);
 	}
 
 	/** Relative path to the directories where the files will be stored */
