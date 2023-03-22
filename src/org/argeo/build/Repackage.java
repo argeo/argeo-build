@@ -9,6 +9,7 @@ import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.util.jar.Attributes.Name.MANIFEST_VERSION;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_DO_NOT_MODIFY;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_MERGE;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_REPO;
@@ -331,22 +332,10 @@ public class Repackage {
 
 			Path downloaded = downloadMaven(fileProps, artifact);
 
-			// some proprietary artifacts do not allow any modification
-			// when releasing (with separate sources) we just copy it
-			boolean doNotModify = Boolean.parseBoolean(
-					fileProps.getOrDefault(ManifestHeader.ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
+			boolean doNotModify = Boolean
+					.parseBoolean(fileProps.getOrDefault(ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
 			if (doNotModify && sourceBundles) {
-				Path unmodifiedTarget = targetCategoryBase.resolve(
-						fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch() + ".jar");
-				Files.copy(downloaded, unmodifiedTarget, StandardCopyOption.REPLACE_EXISTING);
-				Path bundleDir = targetCategoryBase
-						.resolve(fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch());
-				downloadAndProcessM2Sources(fileProps, artifact, bundleDir, false);
-				Manifest manifest;
-				try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(unmodifiedTarget))) {
-					manifest = jarIn.getManifest();
-				}
-				createSourceJar(bundleDir, manifest);
+				processNotModified(targetCategoryBase, downloaded, fileProps, artifact);
 				return;
 			}
 
@@ -438,10 +427,16 @@ public class Repackage {
 				// download
 				Path downloaded = downloadMaven(mergedProps, artifact);
 
-				A2Origin origin = new A2Origin();
-				Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergedProps, artifact, origin);
-				downloadAndProcessM2Sources(mergedProps, artifact, targetBundleDir, false);
-				createJar(targetBundleDir, origin);
+				boolean doNotModify = Boolean
+						.parseBoolean(fileProps.getOrDefault(ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
+				if (doNotModify && sourceBundles) {
+					processNotModified(targetCategoryBase, downloaded, fileProps, artifact);
+				} else {
+					A2Origin origin = new A2Origin();
+					Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergedProps, artifact, origin);
+					downloadAndProcessM2Sources(mergedProps, artifact, targetBundleDir, false);
+					createJar(targetBundleDir, origin);
+				}
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot process " + duDir, e);
@@ -704,6 +699,24 @@ public class Repackage {
 			throw new RuntimeException("Cannot BND process " + downloaded, e);
 		}
 
+	}
+
+	/** Process an artifact that should not be modified. */
+	void processNotModified(Path targetCategoryBase, Path downloaded, Properties fileProps, M2Artifact artifact)
+			throws IOException {
+		// Some proprietary or signed artifacts do not allow any modification
+		// When releasing (with separate sources), we just copy it
+		Path unmodifiedTarget = targetCategoryBase
+				.resolve(fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch() + ".jar");
+		Files.copy(downloaded, unmodifiedTarget, StandardCopyOption.REPLACE_EXISTING);
+		Path bundleDir = targetCategoryBase
+				.resolve(fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch());
+		downloadAndProcessM2Sources(fileProps, artifact, bundleDir, false);
+		Manifest manifest;
+		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(unmodifiedTarget))) {
+			manifest = jarIn.getManifest();
+		}
+		createSourceJar(bundleDir, manifest, true);
 	}
 
 	/** Download and integrates sources for a single Maven artifact. */
@@ -1347,20 +1360,22 @@ public class Repackage {
 		deleteDirectory(bundleDir);
 
 		if (sourceBundles)
-			createSourceJar(bundleDir, manifest);
+			createSourceJar(bundleDir, manifest, false);
 
 		return jarPath;
 	}
 
 	/** Package sources separately, in the Eclipse-SourceBundle format. */
-	void createSourceJar(Path bundleDir, Manifest manifest) throws IOException {
+	void createSourceJar(Path bundleDir, Manifest manifest, boolean notModified) throws IOException {
 		Path bundleCategoryDir = bundleDir.getParent();
 		Path sourceDir = bundleCategoryDir.resolve(bundleDir.toString() + ".src");
 		if (!Files.exists(sourceDir)) {
 			logger.log(WARNING, sourceDir + " does not exist, skipping...");
 			return;
 		}
-		createReadMe(sourceDir, manifest);
+
+		if (!notModified)
+			createReadMe(sourceDir, manifest);
 
 		Path relPath = a2Base.relativize(bundleCategoryDir);
 		Path srcCategoryDir = a2SrcBase.resolve(relPath);
