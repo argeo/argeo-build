@@ -342,7 +342,7 @@ public class Repackage {
 			// regular processing
 			A2Origin origin = new A2Origin();
 			Path bundleDir = processBndJar(downloaded, targetCategoryBase, fileProps, artifact, origin);
-			downloadAndProcessM2Sources(fileProps, artifact, bundleDir, false);
+			downloadAndProcessM2Sources(fileProps, artifact, bundleDir, false, false);
 			createJar(bundleDir, origin);
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot process " + bndFile, e);
@@ -434,7 +434,7 @@ public class Repackage {
 				} else {
 					A2Origin origin = new A2Origin();
 					Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergedProps, artifact, origin);
-					downloadAndProcessM2Sources(mergedProps, artifact, targetBundleDir, false);
+					downloadAndProcessM2Sources(mergedProps, artifact, targetBundleDir, false, false);
 					createJar(targetBundleDir, origin);
 				}
 			}
@@ -574,7 +574,7 @@ public class Repackage {
 			origin.added.add("binary content of " + artifact);
 
 			// process sources
-			downloadAndProcessM2Sources(mergeProps, artifact, bundleDir, true);
+			downloadAndProcessM2Sources(mergeProps, artifact, bundleDir, true, false);
 		}
 
 		// additional service files
@@ -712,7 +712,7 @@ public class Repackage {
 		Files.copy(downloaded, unmodifiedTarget, StandardCopyOption.REPLACE_EXISTING);
 		Path bundleDir = targetCategoryBase
 				.resolve(fileProps.getProperty(BUNDLE_SYMBOLICNAME.toString()) + "." + artifact.getBranch());
-		downloadAndProcessM2Sources(fileProps, artifact, bundleDir, false);
+		downloadAndProcessM2Sources(fileProps, artifact, bundleDir, false, true);
 		Manifest manifest;
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(unmodifiedTarget))) {
 			manifest = jarIn.getManifest();
@@ -721,8 +721,8 @@ public class Repackage {
 	}
 
 	/** Download and integrates sources for a single Maven artifact. */
-	void downloadAndProcessM2Sources(Properties props, M2Artifact artifact, Path targetBundleDir, boolean merging)
-			throws IOException {
+	void downloadAndProcessM2Sources(Properties props, M2Artifact artifact, Path targetBundleDir, boolean merging,
+			boolean unmodified) throws IOException {
 		try {
 			String repoStr = props.containsKey(ARGEO_ORIGIN_M2_REPO.toString())
 					? props.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
@@ -732,7 +732,7 @@ public class Repackage {
 			URL sourcesUrl = alternateUri != null ? new URL(alternateUri)
 					: M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
 			Path sourcesDownloaded = downloadMaven(sourcesUrl, sourcesArtifact);
-			processM2SourceJar(sourcesDownloaded, targetBundleDir, merging ? artifact : null);
+			processM2SourceJar(sourcesDownloaded, targetBundleDir, merging ? artifact : null, unmodified);
 			logger.log(TRACE, () -> "Processed source " + sourcesDownloaded);
 		} catch (Exception e) {
 			logger.log(ERROR, () -> "Cannot download source for  " + artifact);
@@ -741,9 +741,9 @@ public class Repackage {
 	}
 
 	/** Integrate sources from a downloaded jar file. */
-	void processM2SourceJar(Path file, Path bundleDir, M2Artifact mergingFrom) throws IOException {
+	void processM2SourceJar(Path file, Path bundleDir, M2Artifact mergingFrom, boolean unmodified) throws IOException {
 		A2Origin origin = new A2Origin();
-		Path sourceDir = separateSources ? bundleDir.getParent().resolve(bundleDir.toString() + ".src")
+		Path sourceDir = separateSources || unmodified ? bundleDir.getParent().resolve(bundleDir.toString() + ".src")
 				: bundleDir.resolve("OSGI-OPT/src");
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
 
