@@ -78,7 +78,7 @@ clean-manifests :
 
 # Javadoc generation
 javadoc: $(BUILD_BASE)/built
-	$(JAVADOC) -quiet -Xmaxwarns 1 -d $(BUILD_BASE)/api --source-path $(subst $(space),$(pathsep),$(strip $(JAVADOC_SRCS))) -subpackages $(JAVADOC_PACKAGES)
+	$(JAVADOC) -noindex -quiet -Xmaxwarns 1 -d $(BUILD_BASE)/api --source-path $(subst $(space),$(pathsep),$(strip $(JAVADOC_SRCS))) -subpackages $(JAVADOC_PACKAGES)
 
 # Make variables used to replace spaces by a separator, typically in order to generate classpaths
 # for example: CLASSPATH = $(subst $(space),$(pathsep),$(strip $(JARS)))
