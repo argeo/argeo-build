@@ -624,8 +624,10 @@ public class Repackage {
 					continue keys;
 				}
 				if ("Require-Capability".equals(key.toString())
-						&& value.toString().equals("osgi.ee;filter:=\"(&(osgi.ee=JavaSE)(version=1.1))\""))
+						&& value.toString().equals("osgi.ee;filter:=\"(&(osgi.ee=JavaSE)(version=1.1))\"")) {
+					origin.deleted.add("MANIFEST header " + key);
 					continue keys;// hack for very old classes
+				}
 				entries.put(key.toString(), value.toString());
 			}
 		} catch (Exception e) {
