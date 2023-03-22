@@ -232,12 +232,12 @@ public class Repackage {
 	final Map<String, List<String>> mirrors = new HashMap<String, List<String>>();
 
 	/** Whether sources should be packaged separately */
-	final boolean sourceBundles;
+	final boolean separateSources;
 
 	/** Constructor initialises the various variables */
 	public Repackage(Path a2Base, Path descriptorsBase) {
-		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_SOURCE_BUNDLES));
-		if (sourceBundles)
+		separateSources = Boolean.parseBoolean(System.getenv(ENV_SOURCE_BUNDLES));
+		if (separateSources)
 			logger.log(INFO, "Sources will be packaged separately");
 
 		Objects.requireNonNull(a2Base);
@@ -247,7 +247,7 @@ public class Repackage {
 
 		// TODO define and use a build base
 		this.a2Base = a2Base;
-		this.a2SrcBase = a2Base.getParent().resolve(a2Base.getFileName() + ".src");
+		this.a2SrcBase = separateSources ? a2Base.getParent().resolve(a2Base.getFileName() + ".src") : a2Base;
 		this.a2LibBase = a2Base.resolve("lib");
 		this.descriptorsBase = descriptorsBase;
 		if (!Files.exists(this.descriptorsBase))
@@ -334,7 +334,7 @@ public class Repackage {
 
 			boolean doNotModify = Boolean
 					.parseBoolean(fileProps.getOrDefault(ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
-			if (doNotModify && sourceBundles) {
+			if (doNotModify) {
 				processNotModified(targetCategoryBase, downloaded, fileProps, artifact);
 				return;
 			}
@@ -429,7 +429,7 @@ public class Repackage {
 
 				boolean doNotModify = Boolean
 						.parseBoolean(mergedProps.getOrDefault(ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
-				if (doNotModify && sourceBundles) {
+				if (doNotModify) {
 					processNotModified(targetCategoryBase, downloaded, mergedProps, artifact);
 				} else {
 					A2Origin origin = new A2Origin();
@@ -742,7 +742,7 @@ public class Repackage {
 	/** Integrate sources from a downloaded jar file. */
 	void processM2SourceJar(Path file, Path bundleDir, M2Artifact mergingFrom) throws IOException {
 		A2Origin origin = new A2Origin();
-		Path sourceDir = sourceBundles ? bundleDir.getParent().resolve(bundleDir.toString() + ".src")
+		Path sourceDir = separateSources ? bundleDir.getParent().resolve(bundleDir.toString() + ".src")
 				: bundleDir.resolve("OSGI-OPT/src");
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
 
@@ -786,7 +786,7 @@ public class Repackage {
 			}
 		}
 		// write the changes
-		if (sourceBundles) {
+		if (separateSources) {
 			origin.appendChanges(sourceDir);
 		} else {
 			origin.added.add("source code under OSGI-OPT/src");
@@ -925,7 +925,7 @@ public class Repackage {
 				NameVersion nameVersion = new NameVersion(relatedBundle[0], version);
 				bundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
 
-				Path sourceDir = sourceBundles ? bundleDir.getParent().resolve(bundleDir.toString() + ".src")
+				Path sourceDir = separateSources ? bundleDir.getParent().resolve(bundleDir.toString() + ".src")
 						: bundleDir.resolve("OSGI-OPT/src");
 
 				Files.createDirectories(sourceDir);
@@ -942,7 +942,7 @@ public class Repackage {
 				}
 
 				// write the changes
-				if (sourceBundles) {
+				if (separateSources) {
 					origin.appendChanges(sourceDir);
 				} else {
 					origin.added.add("source code under OSGI-OPT/src");
@@ -1359,7 +1359,7 @@ public class Repackage {
 		}
 		deleteDirectory(bundleDir);
 
-		if (sourceBundles)
+		if (separateSources)
 			createSourceJar(bundleDir, manifest, false);
 
 		return jarPath;
@@ -1471,7 +1471,7 @@ public class Repackage {
 
 			writer.append("\nA detailed list of changes is available under " + CHANGES + ".\n");
 			if (!jarDir.getFileName().endsWith(".src")) {// binary archive
-				if (sourceBundles)
+				if (separateSources)
 					writer.append("Corresponding sources are available in the related archive named "
 							+ jarDir.toString() + ".src.jar.\n");
 				else
