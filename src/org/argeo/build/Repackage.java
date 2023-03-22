@@ -404,7 +404,12 @@ public class Repackage {
 				}
 				String m2Coordinates = fileProps.getProperty(ARGEO_ORIGIN_M2.toString());
 				M2Artifact artifact = new M2Artifact(m2Coordinates);
-				artifact.setVersion(m2Version);
+				if (artifact.getVersion() == null) {
+					artifact.setVersion(m2Version);
+				} else {
+					logger.log(WARNING, p.getFileName() + " : Using version " + artifact.getVersion()
+							+ " specified in descriptor rather than " + m2Version + " specified in " + COMMON_BND);
+				}
 
 				// prepare manifest entries
 				Properties mergeProps = new Properties();
