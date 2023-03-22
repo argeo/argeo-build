@@ -15,6 +15,7 @@ import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_MERGE;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_REPO;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_NO_METADATA_GENERATION;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_URI;
+import static org.argeo.build.Repackage.ManifestHeader.AUTOMATIC_MODULE_NAME;
 import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_LICENSE;
 import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_SYMBOLICNAME;
 import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_VERSION;
@@ -1119,6 +1120,9 @@ public class Repackage {
 			if (wasDifferent && !keepPrevious) {
 				if (IMPORT_PACKAGE.toString().equals(key) || EXPORT_PACKAGE.toString().equals(key))
 					logger.log(TRACE, () -> file.getFileName() + ": " + key + " was modified");
+				else if (BUNDLE_SYMBOLICNAME.toString().equals(key) || AUTOMATIC_MODULE_NAME.toString().equals(key))
+					logger.log(DEBUG,
+							file.getFileName() + ": " + key + " was " + previousValue + ", overridden with " + value);
 				else
 					logger.log(WARNING,
 							file.getFileName() + ": " + key + " was " + previousValue + ", overridden with " + value);
