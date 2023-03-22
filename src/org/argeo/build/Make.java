@@ -184,8 +184,8 @@ public class Make {
 					if (!Files.exists(a2Dir))
 						continue categories;
 //					modulePath.add(a2Dir.toString());
-					for (Path jarP : Files.newDirectoryStream(a2Dir,
-							(p) -> p.getFileName().toString().endsWith(".jar"))) {
+					for (Path jarP : Files.newDirectoryStream(a2Dir, (p) -> p.getFileName().toString().endsWith(".jar")
+							&& !p.getFileName().toString().endsWith(".src.jar"))) {
 						A2Jar a2Jar = new A2Jar(jarP);
 						if (a2Jars.containsKey(a2Jar.name)) {
 							A2Jar current = a2Jars.get(a2Jar.name);
