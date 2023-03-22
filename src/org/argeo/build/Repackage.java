@@ -453,13 +453,20 @@ public class Repackage {
 		Path targetCategoryBase = a2Base.resolve(category);
 
 		Properties mergeProps = new Properties();
+		// first, load common properties
+		Path commonBnd = duDir.resolve(COMMON_BND);
+		if (Files.exists(commonBnd))
+			try (InputStream in = Files.newInputStream(commonBnd)) {
+				mergeProps.load(in);
+			}
+		// then, the merge properties themselves
 		try (InputStream in = Files.newInputStream(mergeBnd)) {
 			mergeProps.load(in);
 		}
 
 		String m2Version = mergeProps.getProperty(ARGEO_ORIGIN_M2.toString());
 		if (m2Version == null) {
-			logger.log(WARNING, "Ignoring " + duDir + " as it is not an M2-based distribution unit");
+			logger.log(WARNING, "Ignoring merging in " + duDir + " as it is not an M2-based distribution unit");
 			return;// ignore, this is probably an Eclipse archive
 		}
 		if (!m2Version.startsWith(":")) {
