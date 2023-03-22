@@ -9,7 +9,6 @@ import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.util.jar.Attributes.Name.MANIFEST_VERSION;
-import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_EMBED;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_MERGE;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_REPO;
@@ -157,11 +156,11 @@ public class Repackage {
 		 * and Export-Package will be kept untouched.
 		 */
 		ARGEO_ORIGIN_NO_METADATA_GENERATION("Argeo-Origin-NoMetadataGeneration"), //
-		/**
-		 * Embed the original jar without modifying it (may be required by some
-		 * proprietary licenses, such as JCR Day License).
-		 */
-		ARGEO_ORIGIN_EMBED("Argeo-Origin-Embed"), //
+//		/**
+//		 * Embed the original jar without modifying it (may be required by some
+//		 * proprietary licenses, such as JCR Day License).
+//		 */
+//		ARGEO_ORIGIN_EMBED("Argeo-Origin-Embed"), //
 		/**
 		 * Do not modify original jar (may be required by some proprietary licenses,
 		 * such as JCR Day License).
@@ -947,7 +946,9 @@ public class Repackage {
 	 */
 	/** Normalise a single (that is, non-merged) bundle. */
 	Path processBundleJar(Path file, Path targetBase, Map<String, String> entries, A2Origin origin) throws IOException {
-		boolean embed = Boolean.parseBoolean(entries.getOrDefault(ARGEO_ORIGIN_EMBED.toString(), "false").toString());
+//		boolean embed = Boolean.parseBoolean(entries.getOrDefault(ARGEO_ORIGIN_EMBED.toString(), "false").toString());
+		boolean doNotModify = Boolean
+				.parseBoolean(entries.getOrDefault(ManifestHeader.ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
 		NameVersion nameVersion;
 		Path bundleDir;
 		// singleton
@@ -1013,12 +1014,13 @@ public class Repackage {
 				arch = libRelativePath.getName(1).toString();
 			}
 
-			if (!embed) {
-				// copy entries
-				JarEntry entry;
-				entries: while ((entry = jarIn.getNextJarEntry()) != null) {
-					if (entry.isDirectory())
-						continue entries;
+//			if (!embed) {
+			// copy entries
+			JarEntry entry;
+			entries: while ((entry = jarIn.getNextJarEntry()) != null) {
+				if (entry.isDirectory())
+					continue entries;
+				if (!doNotModify) {
 					if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".DSA")
 							|| entry.getName().endsWith(".SF")) {
 						origin.deleted.add("cryptographic signatures");
@@ -1042,43 +1044,44 @@ public class Repackage {
 								.add("file system providers (META-INF/services/java.nio.file.spi.FileSystemProvider)");
 						continue entries;
 					}
-					if (entry.getName().startsWith("OSGI-OPT/src/")) { // skip embedded sources
-						origin.deleted.add("embedded sources");
-						continue entries;
-					}
-					Path target = bundleDir.resolve(entry.getName());
-					Files.createDirectories(target.getParent());
-					Files.copy(jarIn, target);
+				}
+				if (entry.getName().startsWith("OSGI-OPT/src/")) { // skip embedded sources
+					origin.deleted.add("embedded sources");
+					continue entries;
+				}
+				Path target = bundleDir.resolve(entry.getName());
+				Files.createDirectories(target.getParent());
+				Files.copy(jarIn, target);
 
-					// native libraries
-					if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
-							|| entry.getName().endsWith(".jnilib"))) {
-						Path categoryDir = bundleDir.getParent();
-						boolean copyDll = false;
-						Path targetDll = categoryDir.resolve(bundleDir.relativize(target));
-						if (nameVersion.getName().equals("com.sun.jna")) {
-							if (arch.equals("x86_64"))
-								arch = "x86-64";
-							if (os.equals("macosx"))
-								os = "darwin";
-							if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
-								copyDll = true;
-							}
-							targetDll = categoryDir.resolve(target.getFileName());
-						} else {
+				// native libraries
+				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
+						|| entry.getName().endsWith(".jnilib"))) {
+					Path categoryDir = bundleDir.getParent();
+					boolean copyDll = false;
+					Path targetDll = categoryDir.resolve(bundleDir.relativize(target));
+					if (nameVersion.getName().equals("com.sun.jna")) {
+						if (arch.equals("x86_64"))
+							arch = "x86-64";
+						if (os.equals("macosx"))
+							os = "darwin";
+						if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
 							copyDll = true;
 						}
-						if (copyDll) {
-							Files.createDirectories(targetDll.getParent());
-							if (Files.exists(targetDll))
-								Files.delete(targetDll);
-							Files.copy(target, targetDll);
-						}
-						Files.delete(target);
-						origin.deleted.add(bundleDir.relativize(target).toString());
+						targetDll = categoryDir.resolve(target.getFileName());
+					} else {
+						copyDll = true;
 					}
-					logger.log(TRACE, () -> "Copied " + target);
+					if (copyDll) {
+						Files.createDirectories(targetDll.getParent());
+						if (Files.exists(targetDll))
+							Files.delete(targetDll);
+						Files.copy(target, targetDll);
+					}
+					Files.delete(target);
+					origin.deleted.add(bundleDir.relativize(target).toString());
 				}
+				logger.log(TRACE, () -> "Copied " + target);
+//				}
 			}
 		}
 
@@ -1091,10 +1094,10 @@ public class Repackage {
 					entries.get(BUNDLE_SYMBOLICNAME.toString()) + ";singleton:=true");
 		}
 
-		if (embed) {// copy embedded jar
-			Files.copy(file, bundleDir.resolve(file.getFileName()));
-			entries.put(ManifestHeader.BUNDLE_CLASSPATH.toString(), file.getFileName().toString());
-		}
+//		if (embed) {// copy embedded jar
+//			Files.copy(file, bundleDir.resolve(file.getFileName()));
+//			entries.put(ManifestHeader.BUNDLE_CLASSPATH.toString(), file.getFileName().toString());
+//		}
 
 		// Final MANIFEST decisions
 		// We also check the original OSGi metadata and compare with our changes
