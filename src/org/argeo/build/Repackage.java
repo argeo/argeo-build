@@ -428,7 +428,7 @@ public class Repackage {
 				Path downloaded = downloadMaven(mergedProps, artifact);
 
 				boolean doNotModify = Boolean
-						.parseBoolean(fileProps.getOrDefault(ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
+						.parseBoolean(mergedProps.getOrDefault(ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
 				if (doNotModify && sourceBundles) {
 					processNotModified(targetCategoryBase, downloaded, fileProps, artifact);
 				} else {
