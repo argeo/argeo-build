@@ -476,15 +476,15 @@ public class Make {
 			for (Path p : sdkSrcLegal)
 				toInclude.put(p.getFileName().toString(), p);
 		}
-		for(Iterator<Map.Entry<String, Path>> entries=toInclude.entrySet().iterator();entries.hasNext();) {
-			Map.Entry<String, Path> entry= entries.next();
+		for (Iterator<Map.Entry<String, Path>> entries = toInclude.entrySet().iterator(); entries.hasNext();) {
+			Map.Entry<String, Path> entry = entries.next();
 			Path inBundle = bundleBase.resolve(entry.getValue().getFileName());
 			// remove file if it is also defined at bundle level
 			// since it has already been copied
 			// and has priority
-			if(Files.exists(inBundle)) 
+			if (Files.exists(inBundle))
 				entries.remove();
-		}		
+		}
 		return toInclude;
 	}
 
@@ -584,6 +584,7 @@ public class Make {
 		}
 	}
 
+	/** A jar file in A2 format */
 	static class A2Jar {
 		final Path path;
 		final String name;
@@ -591,13 +592,17 @@ public class Make {
 		final int minor;
 
 		A2Jar(Path path) {
-			this.path = path;
-			String fileName = path.getFileName().toString();
-			fileName = fileName.substring(0, fileName.lastIndexOf('.'));
-			minor = Integer.parseInt(fileName.substring(fileName.lastIndexOf('.') + 1));
-			fileName = fileName.substring(0, fileName.lastIndexOf('.'));
-			major = Integer.parseInt(fileName.substring(fileName.lastIndexOf('.') + 1));
-			name = fileName.substring(0, fileName.lastIndexOf('.'));
+			try {
+				this.path = path;
+				String fileName = path.getFileName().toString();
+				fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+				minor = Integer.parseInt(fileName.substring(fileName.lastIndexOf('.') + 1));
+				fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+				major = Integer.parseInt(fileName.substring(fileName.lastIndexOf('.') + 1));
+				name = fileName.substring(0, fileName.lastIndexOf('.'));
+			} catch (Exception e) {
+				throw new IllegalArgumentException("Badly formatted A2 jar " + path, e);
+			}
 		}
 	}
 
