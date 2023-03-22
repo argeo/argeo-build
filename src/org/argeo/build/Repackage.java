@@ -430,7 +430,7 @@ public class Repackage {
 				boolean doNotModify = Boolean
 						.parseBoolean(mergedProps.getOrDefault(ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
 				if (doNotModify && sourceBundles) {
-					processNotModified(targetCategoryBase, downloaded, fileProps, artifact);
+					processNotModified(targetCategoryBase, downloaded, mergedProps, artifact);
 				} else {
 					A2Origin origin = new A2Origin();
 					Path targetBundleDir = processBndJar(downloaded, targetCategoryBase, mergedProps, artifact, origin);
