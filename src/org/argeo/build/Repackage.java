@@ -1478,24 +1478,23 @@ public class Repackage {
 					logger.log(ERROR, "No licence URL for " + jarDir);
 				}
 			}
-			writer.write("\n");
 
 			// origin
-			String m2Repo = ARGEO_ORIGIN_M2_REPO.get(mapping);
-			String originDesc = ARGEO_ORIGIN_M2.get(mapping);
+			String originDesc = ARGEO_ORIGIN_URI.get(mapping);
 			if (originDesc != null)
-				writer.append("The original component has M2 coordinates:\n" + originDesc.replace(',', '\n') + "\n"
-						+ (m2Repo != null ? "\nin M2 repository " + m2Repo + "\n" : ""));
+				writer.append("\nThe original component comes from " + originDesc + ".\n");
 			else {
-				originDesc = ARGEO_ORIGIN_URI.get(mapping);
+				String m2Repo = ARGEO_ORIGIN_M2_REPO.get(mapping);
+				originDesc = ARGEO_ORIGIN_M2.get(mapping);
 				if (originDesc != null)
-					writer.append("The original component comes from " + originDesc + ".\n");
+					writer.append("\nThe original component has M2 coordinates:\n" + originDesc.replace(',', '\n')
+							+ "\n" + (m2Repo != null ? "\nin M2 repository " + m2Repo + "\n" : ""));
 				else
 					logger.log(ERROR, "Cannot find origin information in " + jarDir);
 			}
 			String originSources = ARGEO_ORIGIN_SOURCES_URI.get(mapping);
 			if (originSources != null)
-				writer.append("The original sources come from " + originSources + ".\n");
+				writer.append("\nThe original sources come from " + originSources + ".\n");
 
 			if (Files.exists(jarDir.resolve(CHANGES)))
 				writer.append("\nA detailed list of changes is available under " + CHANGES + ".\n");
@@ -1508,7 +1507,6 @@ public class Repackage {
 					writer.append("Corresponding sources are available under OSGI-OPT/src.\n");
 			}
 		}
-
 	}
 
 	/**
