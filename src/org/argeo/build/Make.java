@@ -299,6 +299,7 @@ public class Make {
 		} else {
 			source = execDirectory.resolve(bundle);
 		}
+		Path srcP = source.resolve("src");
 
 		Path compiled = buildBase.resolve(bundle);
 		String bundleSymbolicName = source.getFileName().toString();
@@ -405,7 +406,6 @@ public class Make {
 				}
 			});
 
-			Path srcP = source.resolve("src");
 			// Add all resources from src/
 			Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
 				@Override
@@ -429,30 +429,31 @@ public class Make {
 			// add sources
 			// TODO add effective BND, Eclipse project file, etc., in order to be able to
 			// repackage
-			if (sourceBundles) {
-				Path a2srcJarDirectory = bundleParent != null ? a2srcOutput.resolve(bundleParent).resolve(category)
-						: a2srcOutput.resolve(category);
-				Files.createDirectories(a2srcJarDirectory);
-				Path srcJarP = a2srcJarDirectory
-						.resolve(compiled.getFileName() + "." + major + "." + minor + ".src.jar");
-				Manifest srcManifest = new Manifest();
-				srcManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-				srcManifest.getMainAttributes().putValue("Bundle-SymbolicName", bundleSymbolicName + ".src");
-				srcManifest.getMainAttributes().putValue("Bundle-Version",
-						manifest.getMainAttributes().getValue("Bundle-Version").toString());
-				srcManifest.getMainAttributes().putValue("Eclipse-SourceBundle",
-						bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue("Bundle-Version"));
-
-				try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
-					copySourcesToJar(srcP, srcJarOut, "");
-					// add legal notices and licenses
-					for (Path p : listLegalFilesToInclude(source).values()) {
-						jarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
-						Files.copy(p, jarOut);
-					}
-				}
-			} else {
+			if (!sourceBundles) {
 				copySourcesToJar(srcP, jarOut, "OSGI-OPT/src/");
+			}
+		}
+
+		if (sourceBundles) {// create separate sources jar
+			Path a2srcJarDirectory = bundleParent != null ? a2srcOutput.resolve(bundleParent).resolve(category)
+					: a2srcOutput.resolve(category);
+			Files.createDirectories(a2srcJarDirectory);
+			Path srcJarP = a2srcJarDirectory.resolve(compiled.getFileName() + "." + major + "." + minor + ".src.jar");
+			Manifest srcManifest = new Manifest();
+			srcManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+			srcManifest.getMainAttributes().putValue("Bundle-SymbolicName", bundleSymbolicName + ".src");
+			srcManifest.getMainAttributes().putValue("Bundle-Version",
+					manifest.getMainAttributes().getValue("Bundle-Version").toString());
+			srcManifest.getMainAttributes().putValue("Eclipse-SourceBundle",
+					bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue("Bundle-Version"));
+
+			try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
+				copySourcesToJar(srcP, srcJarOut, "");
+				// add legal notices and licenses
+				for (Path p : listLegalFilesToInclude(source).values()) {
+					srcJarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
+					Files.copy(p, srcJarOut);
+				}
 			}
 		}
 	}
