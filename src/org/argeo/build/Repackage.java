@@ -180,15 +180,35 @@ public class Repackage {
 		ARGEO_ORIGIN_SOURCES_URI("Argeo-Origin-Sources-URI"), //
 		;
 
-		final String value;
+		final String headerName;
 
-		private ManifestHeader(String value) {
-			this.value = value;
+		private ManifestHeader(String headerName) {
+			this.headerName = headerName;
 		}
 
 		@Override
 		public String toString() {
-			return value;
+			return headerName;
+		}
+
+		/** Get the value from either a {@link Manifest} or a {@link Properties}. */
+		String get(Object map) {
+			if (map instanceof Manifest manifest)
+				return manifest.getMainAttributes().getValue(headerName);
+			else if (map instanceof Properties props)
+				return props.getProperty(headerName);
+			else
+				throw new IllegalArgumentException("Unsupported mapping " + map.getClass());
+		}
+
+		/** Put the value into either a {@link Manifest} or a {@link Properties}. */
+		void put(Object map, String value) {
+			if (map instanceof Manifest manifest)
+				manifest.getMainAttributes().putValue(headerName, value);
+			else if (map instanceof Properties props)
+				props.setProperty(headerName, value);
+			else
+				throw new IllegalArgumentException("Unsupported mapping " + map.getClass());
 		}
 	}
 
@@ -717,7 +737,7 @@ public class Repackage {
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(unmodifiedTarget))) {
 			manifest = jarIn.getManifest();
 		}
-		createSourceJar(bundleDir, manifest, true);
+		createSourceJar(bundleDir, manifest, fileProps);
 	}
 
 	/** Download and integrates sources for a single Maven artifact. */
@@ -757,24 +777,26 @@ public class Repackage {
 				String relPath = entry.getName();
 				if (entry.isDirectory())
 					continue entries;
-				if (entry.getName().startsWith("META-INF")) {// skip META-INF entries
-					origin.deleted.add("META-INF directory from the sources" + mergingMsg);
+				if (entry.getName().equals("META-INF/MANIFEST.MF")) {// skip META-INF entries
+					origin.deleted.add("MANIFEST.MF from the sources" + mergingMsg);
 					continue entries;
 				}
-				if (entry.getName().startsWith("module-info.java")) {// skip Java module information
-					origin.deleted.add("Java module information from the sources (module-info.java)" + mergingMsg);
-					continue entries;
-				}
-				if (entry.getName().startsWith("/")) { // absolute paths
-					int metaInfIndex = entry.getName().indexOf("META-INF");
-					if (metaInfIndex >= 0) {
-						relPath = entry.getName().substring(metaInfIndex);
-						origin.moved.add(" to " + relPath + " entry with absolute path " + entry.getName());
-					} else {
-						logger.log(WARNING, entry.getName() + " has an absolute path");
-						origin.deleted.add(entry.getName() + " from the sources" + mergingMsg);
+				if (!unmodified) {
+					if (entry.getName().startsWith("module-info.java")) {// skip Java module information
+						origin.deleted.add("Java module information from the sources (module-info.java)" + mergingMsg);
+						continue entries;
 					}
-					continue entries;
+					if (entry.getName().startsWith("/")) { // absolute paths
+						int metaInfIndex = entry.getName().indexOf("META-INF");
+						if (metaInfIndex >= 0) {
+							relPath = entry.getName().substring(metaInfIndex);
+							origin.moved.add(" to " + relPath + " entry with absolute path " + entry.getName());
+						} else {
+							logger.log(WARNING, entry.getName() + " has an absolute path");
+							origin.deleted.add(entry.getName() + " from the sources" + mergingMsg);
+						}
+						continue entries;
+					}
 				}
 				Path target = sourceDir.resolve(relPath);
 				Files.createDirectories(target.getParent());
@@ -787,7 +809,7 @@ public class Repackage {
 			}
 		}
 		// write the changes
-		if (separateSources) {
+		if (separateSources || unmodified) {
 			origin.appendChanges(sourceDir);
 		} else {
 			origin.added.add("source code under OSGI-OPT/src");
@@ -1361,22 +1383,20 @@ public class Repackage {
 		deleteDirectory(bundleDir);
 
 		if (separateSources)
-			createSourceJar(bundleDir, manifest, false);
+			createSourceJar(bundleDir, manifest, null);
 
 		return jarPath;
 	}
 
 	/** Package sources separately, in the Eclipse-SourceBundle format. */
-	void createSourceJar(Path bundleDir, Manifest manifest, boolean notModified) throws IOException {
+	void createSourceJar(Path bundleDir, Manifest manifest, Properties props) throws IOException {
+		boolean unmodified = props != null;
 		Path bundleCategoryDir = bundleDir.getParent();
 		Path sourceDir = bundleCategoryDir.resolve(bundleDir.toString() + ".src");
 		if (!Files.exists(sourceDir)) {
 			logger.log(WARNING, sourceDir + " does not exist, skipping...");
 			return;
 		}
-
-		if (!notModified)
-			createReadMe(sourceDir, manifest);
 
 		Path relPath = a2Base.relativize(bundleCategoryDir);
 		Path srcCategoryDir = a2SrcBase.resolve(relPath);
@@ -1388,14 +1408,16 @@ public class Repackage {
 		bundleSymbolicName = bundleSymbolicName.split(";")[0];
 		Manifest srcManifest = new Manifest();
 		srcManifest.getMainAttributes().put(MANIFEST_VERSION, "1.0");
-		srcManifest.getMainAttributes().putValue(BUNDLE_SYMBOLICNAME.toString(), bundleSymbolicName + ".src");
-		srcManifest.getMainAttributes().putValue(BUNDLE_VERSION.toString(),
-				manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()).toString());
-		srcManifest.getMainAttributes().putValue(ECLIPSE_SOURCE_BUNDLE.toString(), bundleSymbolicName + ";version=\""
-				+ manifest.getMainAttributes().getValue(BUNDLE_VERSION.toString()) + "\"");
+		BUNDLE_SYMBOLICNAME.put(srcManifest, bundleSymbolicName + ".src");
+		BUNDLE_VERSION.put(srcManifest, BUNDLE_VERSION.get(manifest));
+		ECLIPSE_SOURCE_BUNDLE.put(srcManifest,
+				bundleSymbolicName + ";version=\"" + BUNDLE_VERSION.get(manifest) + "\"");
 
+		// metadata
+		createReadMe(sourceDir, unmodified ? props : manifest);
+		// create jar
 		try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
-			srcJarOut.setLevel(Deflater.BEST_COMPRESSION);
+			// srcJarOut.setLevel(Deflater.BEST_COMPRESSION);
 			Files.walkFileTree(sourceDir, new SimpleFileVisitor<Path>() {
 
 				@Override
@@ -1418,10 +1440,10 @@ public class Repackage {
 	 * Generate a readme clarifying and prominently notifying of the repackaging and
 	 * modifications.
 	 */
-	void createReadMe(Path jarDir, Manifest manifest) throws IOException {
+	void createReadMe(Path jarDir, Object mapping) throws IOException {
 		// write repackaged README
 		try (BufferedWriter writer = Files.newBufferedWriter(jarDir.resolve(README_REPACKAGED))) {
-			boolean merged = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2_MERGE.toString()) != null;
+			boolean merged = ARGEO_ORIGIN_M2_MERGE.get(mapping) != null;
 			if (merged)
 				writer.append("This component is a merging of third party components"
 						+ " in order to comply with A2 packaging standards.\n");
@@ -1430,7 +1452,7 @@ public class Repackage {
 						+ " in order to comply with A2 packaging standards.\n");
 
 			// license
-			String spdxLicenseId = manifest.getMainAttributes().getValue(SPDX_LICENSE_IDENTIFIER.toString());
+			String spdxLicenseId = SPDX_LICENSE_IDENTIFIER.get(mapping);
 			if (spdxLicenseId == null)
 				throw new IllegalStateException("An SPDX license id must have beend defined at this stage.");
 			writer.append("\nIt is redistributed under the following license:\n\n");
@@ -1447,7 +1469,7 @@ public class Repackage {
 					writer.append("which is available here: https://spdx.org/licenses/" + spdxLicenseId + "\n");
 				}
 			} else {
-				String url = manifest.getMainAttributes().getValue(BUNDLE_LICENSE.toString());
+				String url = BUNDLE_LICENSE.get(mapping);
 				if (url != null) {
 					writer.write("which is available here: " + url + "\n");
 				} else {
@@ -1457,21 +1479,24 @@ public class Repackage {
 			writer.write("\n");
 
 			// origin
-			String m2Repo = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2_REPO.toString());
-			String originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_M2.toString());
+			String m2Repo = ARGEO_ORIGIN_M2_REPO.get(mapping);
+			String originDesc = ARGEO_ORIGIN_M2.get(mapping);
 			if (originDesc != null)
 				writer.append("The original component has M2 coordinates:\n" + originDesc.replace(',', '\n') + "\n"
 						+ (m2Repo != null ? "\nin M2 repository " + m2Repo + "\n" : ""));
 			else {
-				originDesc = manifest.getMainAttributes().getValue(ARGEO_ORIGIN_URI.toString());
+				originDesc = ARGEO_ORIGIN_URI.get(mapping);
 				if (originDesc != null)
 					writer.append("The original component comes from " + originDesc + ".\n");
 				else
 					logger.log(ERROR, "Cannot find origin information in " + jarDir);
 			}
+			String originSources = ARGEO_ORIGIN_SOURCES_URI.get(mapping);
+			if (originSources != null)
+				writer.append("The original sources come from " + originDesc + ".\n");
 
-			writer.append("\nA detailed list of changes is available under " + CHANGES + ".\n");
 			if (!jarDir.getFileName().endsWith(".src")) {// binary archive
+				writer.append("\nA detailed list of changes is available under " + CHANGES + ".\n");
 				if (separateSources)
 					writer.append("Corresponding sources are available in the related archive named "
 							+ jarDir.toString() + ".src.jar.\n");
