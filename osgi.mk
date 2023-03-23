@@ -28,9 +28,9 @@ JAVADOC_PACKAGES ?=
 A2_BASE ?=/usr/share/a2 /usr/local/share/a2 $(A2_OUTPUT)
 
 # Third-party libraries
-LOGGER_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp/org.argeo.tp.syslogger.$(SYSLOGGER_BRANCH).jar)))
-ECJ_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.sdk/org.eclipse.jdt.core.compiler.batch.$(ECJ_BRANCH).jar)))
-BNDLIB_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.sdk/biz.aQute.bndlib.$(BNDLIB_BRANCH).jar)))
+LOGGER_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/log/syslogger/org.argeo.tp/org.argeo.tp.syslogger.$(SYSLOGGER_BRANCH).jar)))
+ECJ_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.build/org.eclipse.jdt.core.compiler.batch.$(ECJ_BRANCH).jar)))
+BNDLIB_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.build/biz.aQute.bndlib.$(BNDLIB_BRANCH).jar)))
 
 # Internal variables
 ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)src/org/argeo/build/Make.java
