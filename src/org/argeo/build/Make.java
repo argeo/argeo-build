@@ -118,7 +118,7 @@ public class Make {
 		Path sdkMkP = findSdkMk(execDirectory);
 		Objects.requireNonNull(sdkMkP, "No " + SDK_MK + " found under " + execDirectory);
 
-		Map<String, String> context = readeMakefileVariables(sdkMkP);
+		Map<String, String> context = readMakefileVariables(sdkMkP);
 		sdkSrcBase = Paths.get(context.computeIfAbsent("SDK_SRC_BASE", (key) -> {
 			throw new IllegalStateException(key + " not found");
 		})).toAbsolutePath();
@@ -266,7 +266,7 @@ public class Make {
 		final String branch;
 		Path branchMk = sdkSrcBase.resolve(BRANCH_MK);
 		if (Files.exists(branchMk)) {
-			Map<String, String> branchVariables = readeMakefileVariables(branchMk);
+			Map<String, String> branchVariables = readMakefileVariables(branchMk);
 			branch = branchVariables.get("BRANCH");
 		} else {
 			branch = null;
@@ -523,7 +523,7 @@ public class Make {
 	 * Reads Makefile variable assignments of the form =, :=, or ?=, ignoring white
 	 * spaces. To be used with very simple included Makefiles only.
 	 */
-	Map<String, String> readeMakefileVariables(Path path) throws IOException {
+	Map<String, String> readMakefileVariables(Path path) throws IOException {
 		Map<String, String> context = new HashMap<>();
 		List<String> sdkMkLines = Files.readAllLines(path);
 		lines: for (String line : sdkMkLines) {
