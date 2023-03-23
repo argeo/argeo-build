@@ -752,6 +752,8 @@ public class Repackage {
 			URL sourcesUrl = alternateUri != null ? new URL(alternateUri)
 					: M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
 			Path sourcesDownloaded = downloadMaven(sourcesUrl, sourcesArtifact);
+			if (!props.containsKey(ARGEO_ORIGIN_SOURCES_URI.toString()))
+				ARGEO_ORIGIN_SOURCES_URI.put(props, sourcesUrl.toString());
 			processM2SourceJar(sourcesDownloaded, targetBundleDir, merging ? artifact : null, unmodified);
 			logger.log(TRACE, () -> "Processed source " + sourcesDownloaded);
 		} catch (Exception e) {
@@ -1473,7 +1475,7 @@ public class Repackage {
 				if (url != null) {
 					writer.write("which is available here: " + url + "\n");
 				} else {
-					logger.log(ERROR, "No licne URL for " + jarDir);
+					logger.log(ERROR, "No licence URL for " + jarDir);
 				}
 			}
 			writer.write("\n");
@@ -1493,10 +1495,12 @@ public class Repackage {
 			}
 			String originSources = ARGEO_ORIGIN_SOURCES_URI.get(mapping);
 			if (originSources != null)
-				writer.append("The original sources come from " + originDesc + ".\n");
+				writer.append("The original sources come from " + originSources + ".\n");
 
-			if (!jarDir.getFileName().endsWith(".src")) {// binary archive
+			if (Files.exists(jarDir.resolve(CHANGES)))
 				writer.append("\nA detailed list of changes is available under " + CHANGES + ".\n");
+
+			if (!jarDir.getFileName().toString().endsWith(".src")) {// binary archive
 				if (separateSources)
 					writer.append("Corresponding sources are available in the related archive named "
 							+ jarDir.toString() + ".src.jar.\n");
@@ -1523,6 +1527,8 @@ public class Repackage {
 
 		/** Append changes to the A2-ORIGIN/changes file. */
 		void appendChanges(Path baseDirectory) throws IOException {
+			if (modified.isEmpty() && deleted.isEmpty() && added.isEmpty() && moved.isEmpty())
+				return; // no changes
 			Path changesFile = baseDirectory.resolve(CHANGES);
 			Files.createDirectories(changesFile.getParent());
 			try (BufferedWriter writer = Files.newBufferedWriter(changesFile, APPEND, CREATE)) {
