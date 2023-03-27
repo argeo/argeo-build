@@ -11,8 +11,8 @@ BUNDLES = \
 org.argeo.build \
 
 DEP_CATEGORIES = \
-org.argeo.tp \
-org.argeo.tp.sdk \
+log/syslogger/org.argeo.tp \
+org.argeo.tp.build \
 
 all: osgi
 # copy generated MANIFEST
