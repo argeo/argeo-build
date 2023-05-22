@@ -752,8 +752,6 @@ public class Repackage {
 			URL sourcesUrl = alternateUri != null ? new URL(alternateUri)
 					: M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
 			Path sourcesDownloaded = downloadMaven(sourcesUrl, sourcesArtifact);
-			if (!props.containsKey(ARGEO_ORIGIN_SOURCES_URI.toString()))
-				ARGEO_ORIGIN_SOURCES_URI.put(props, sourcesUrl.toString());
 			processM2SourceJar(sourcesDownloaded, targetBundleDir, merging ? artifact : null, unmodified);
 			logger.log(TRACE, () -> "Processed source " + sourcesDownloaded);
 		} catch (Exception e) {
