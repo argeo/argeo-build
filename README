@@ -17,9 +17,19 @@ git clone http://git.argeo.org/lgpl/argeo-commons.git --recursive
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64/
 ./argeo-commons/configure
 cd argeo-commons
-make clean all manifests
+make clean all
 
-Argeo Build will be installed as a git submodule under ./sdk/argeo-build/.
+Argeo Build is installed as a git submodule under
+./sdk/argeo-build/
+
+In order to configure a new project, copy the file
+configure.template
+from this directory as
+configure
+at the root of the project, and make it executable:
+chmod +x configure
+git --chmod +x configure
 
 ## Licensing
-This code is in the public domain under the CC0 v1.0 license, so that it can be used in any context by Argeo (or anyone else).
+This code is in the public domain under the CC0 v1.0 license,
+so that it can be used in any licensing context by Argeo or anyone else.
