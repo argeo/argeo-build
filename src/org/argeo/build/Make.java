@@ -77,6 +77,14 @@ public class Make {
 	 */
 	private final static String ENV_ARGEO_BUILD_CONFIG = "ARGEO_BUILD_CONFIG";
 
+	/** Make file variable (in {@link #SDK_MK}) with a path to the sources base. */
+	private final static String VAR_SDK_SRC_BASE = "SDK_SRC_BASE";
+
+	/**
+	 * Make file variable (in {@link #SDK_MK}) with a path to the build output base.
+	 */
+	private final static String VAR_SDK_BUILD_BASE = "SDK_BUILD_BASE";
+
 	/** Name of the local-specific Makefile (sdk.mk). */
 	final static String SDK_MK = "sdk.mk";
 	/** Name of the branch definition Makefile (branch.mk). */
@@ -119,7 +127,7 @@ public class Make {
 		Objects.requireNonNull(sdkMkP, "No " + SDK_MK + " found under " + execDirectory);
 
 		Map<String, String> context = readMakefileVariables(sdkMkP);
-		sdkSrcBase = Paths.get(context.computeIfAbsent("SDK_SRC_BASE", (key) -> {
+		sdkSrcBase = Paths.get(context.computeIfAbsent(VAR_SDK_SRC_BASE, (key) -> {
 			throw new IllegalStateException(key + " not found");
 		})).toAbsolutePath();
 
@@ -136,7 +144,7 @@ public class Make {
 		}
 		argeoBuildBase = argeoBuildBaseT;
 
-		sdkBuildBase = Paths.get(context.computeIfAbsent("SDK_BUILD_BASE", (key) -> {
+		sdkBuildBase = Paths.get(context.computeIfAbsent(VAR_SDK_BUILD_BASE, (key) -> {
 			throw new IllegalStateException(key + " not found");
 		})).toAbsolutePath();
 		buildBase = sdkBuildBase.resolve(sdkSrcBase.getFileName());
@@ -385,6 +393,11 @@ public class Make {
 			Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+					// skip output directory if it happens to be within the sources
+					if (Files.isSameFile(sdkBuildBase, dir))
+						return FileVisitResult.SKIP_SUBTREE;
+
+					// skip excluded patterns
 					Path relativeP = source.relativize(dir);
 					for (PathMatcher exclude : excludes)
 						if (exclude.matches(relativeP))
