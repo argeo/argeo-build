@@ -7,7 +7,7 @@ include $(ARGEO_BUILD_BASE)common.mk
 # SDK_SRC_BASE		the base of the source code, typically the root of the cloned git repository
 # SDK_BUILD_BASE	the base of the output
 # JAVA_HOME			the base of the JDK used to build
-A2_OUTPUT ?= $(SDK_BUILD_BASE)/a2
+A2_OUTPUT = $(SDK_BUILD_BASE)/a2
 JVM ?= $(JAVA_HOME)/bin/java
 JAVADOC ?= $(JAVA_HOME)/bin/javadoc
 
@@ -75,6 +75,11 @@ endif
 
 clean-manifests :
 	@rm -rf $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF);
+
+osgi-install:
+	$(ARGEO_MAKE) \
+	 install --category $(A2_CATEGORY) --bundles $(subst $(A2_CATEGORY)/,,$*) \
+	 --target $(DESTDIR)$(A2_INSTALL_TARGET)
 
 # Javadoc generation
 javadoc: $(BUILD_BASE)/built

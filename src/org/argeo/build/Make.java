@@ -84,6 +84,10 @@ public class Make {
 	 * Make file variable (in {@link #SDK_MK}) with a path to the build output base.
 	 */
 	private final static String VAR_SDK_BUILD_BASE = "SDK_BUILD_BASE";
+	/**
+	 * Make file variable (in {@link #BRANCH_MK}) with the branch.
+	 */
+	private final static String VAR_BRANCH = "BRANCH";
 
 	/** Name of the local-specific Makefile (sdk.mk). */
 	final static String SDK_MK = "sdk.mk";
@@ -266,7 +270,7 @@ public class Make {
 			return;
 
 		List<String> categories = options.get("--category");
-		Objects.requireNonNull(bundles, "--category argument must be set");
+		Objects.requireNonNull(categories, "--category argument must be set");
 		if (categories.size() != 1)
 			throw new IllegalArgumentException("One and only one --category must be specified");
 		String category = categories.get(0);
@@ -275,7 +279,7 @@ public class Make {
 		Path branchMk = sdkSrcBase.resolve(BRANCH_MK);
 		if (Files.exists(branchMk)) {
 			Map<String, String> branchVariables = readMakefileVariables(branchMk);
-			branch = branchVariables.get("BRANCH");
+			branch = branchVariables.get(VAR_BRANCH);
 		} else {
 			branch = null;
 		}
@@ -296,7 +300,60 @@ public class Make {
 		long duration = System.currentTimeMillis() - begin;
 		logger.log(INFO, "Packaging took " + duration + " ms");
 	}
-	
+
+	/** Install the bundles. */
+	void install(Map<String, List<String>> options) throws IOException {
+		// check arguments
+		List<String> bundles = options.get("--bundles");
+		Objects.requireNonNull(bundles, "--bundles argument must be set");
+		if (bundles.isEmpty())
+			return;
+
+		List<String> categories = options.get("--category");
+		Objects.requireNonNull(categories, "--category argument must be set");
+		if (categories.size() != 1)
+			throw new IllegalArgumentException("One and only one --category must be specified");
+		String category = categories.get(0);
+
+		List<String> targetDirs = options.get("--target");
+		Objects.requireNonNull(targetDirs, "--target argument must be set");
+		if (targetDirs.size() != 1)
+			throw new IllegalArgumentException("One and only one --target must be specified");
+		Path targetA2 = Paths.get(targetDirs.get(0));
+
+		final String branch;
+		Path branchMk = sdkSrcBase.resolve(BRANCH_MK);
+		if (Files.exists(branchMk)) {
+			Map<String, String> branchVariables = readMakefileVariables(branchMk);
+			branch = branchVariables.get(VAR_BRANCH);
+		} else {
+			throw new IllegalArgumentException(VAR_BRANCH + " variable must be set.");
+		}
+
+		Properties properties = new Properties();
+		Path branchBnd = sdkSrcBase.resolve("sdk/branches/" + branch + ".bnd");
+		if (Files.exists(branchBnd))
+			try (InputStream in = Files.newInputStream(branchBnd)) {
+				properties.load(in);
+			}
+		String major = properties.getProperty("major");
+		Objects.requireNonNull(major, "'major' must be set");
+		String minor = properties.getProperty("minor");
+		Objects.requireNonNull(minor, "'minor' must be set");
+
+		for (String bundle : bundles) {
+			Path bundlePath = Paths.get(bundle);
+			Path bundleParent = bundlePath.getParent();
+			Path a2JarDirectory = bundleParent != null ? a2Output.resolve(bundleParent).resolve(category)
+					: a2Output.resolve(category);
+			Path jarP = a2JarDirectory.resolve(bundlePath.getFileName() + "." + major + "." + minor + ".jar");
+
+			Path targetJarP = targetA2.resolve(a2JarDirectory.relativize(jarP));
+			Files.createDirectories(targetJarP.getParent());
+			Files.copy(jarP, targetJarP);
+		}
+	}
+
 	/** Package a single bundle. */
 	void createBundle(String branch, String bundle, String category) throws IOException {
 		final Path source;
@@ -583,6 +640,7 @@ public class Make {
 			case "compile" -> argeoMake.compile(options);
 			case "bundle" -> argeoMake.bundle(options);
 			case "all" -> argeoMake.all(options);
+			case "install" -> argeoMake.install(options);
 
 			default -> throw new IllegalArgumentException("Unkown action: " + action);
 			}
