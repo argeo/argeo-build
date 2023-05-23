@@ -30,10 +30,11 @@ REPACKAGED_CATEGORIES = $(foreach category, $(CATEGORIES),$(A2_OUTPUT)/$(categor
 all: $(BUILD_BASE)/repackaged 
 
 install:
-	$(foreach category, $(CATEGORIES), mkdir -p $(A2_INSTALL_TARGET)/$(category);  cp $(A2_OUTPUT)/$(category)/*.jar $(A2_INSTALL_TARGET)/$(category);)
+	@$(foreach category, $(CATEGORIES), mkdir -p $(A2_INSTALL_TARGET)/$(category);  cp $(A2_OUTPUT)/$(category)/*.jar $(A2_INSTALL_TARGET)/$(category);)
 
 uninstall:
-	$(foreach category, $(CATEGORIES), rm -rf $(A2_INSTALL_TARGET)/$(category);)
+	@$(foreach category, $(CATEGORIES), rm -rf $(A2_INSTALL_TARGET)/$(category);)
+	find $(A2_INSTALL_TARGET) -empty -type d -delete
 
 .SECONDEXPANSION:
 # We use .SECONDEXPANSION and CATEGORIES_TO_REPACKAGE instead of directly CATEGORIES
