@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -362,7 +363,7 @@ public class Make {
 			} else { // install
 				Files.createDirectories(targetJarP.getParent());
 				boolean update = Files.exists(targetJarP);
-				Files.copy(jarP, targetJarP);
+				Files.copy(jarP, targetJarP, StandardCopyOption.REPLACE_EXISTING);
 				logger.log(DEBUG, (update ? "Updated " : "Installed ") + targetJarP);
 				count++;
 			}
