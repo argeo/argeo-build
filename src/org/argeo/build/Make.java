@@ -302,7 +302,7 @@ public class Make {
 	}
 
 	/** Install the bundles. */
-	void install(Map<String, List<String>> options) throws IOException {
+	void install(Map<String, List<String>> options, boolean uninstall) throws IOException {
 		// check arguments
 		List<String> bundles = options.get("--bundles");
 		Objects.requireNonNull(bundles, "--bundles argument must be set");
@@ -320,7 +320,7 @@ public class Make {
 		if (targetDirs.size() != 1)
 			throw new IllegalArgumentException("One and only one --target must be specified");
 		Path targetA2 = Paths.get(targetDirs.get(0));
-		logger.log(INFO, "Installing to " + targetA2);
+		logger.log(INFO, (uninstall ? "Uninstalling from " : "Installing to ") + targetA2);
 
 		final String branch;
 		Path branchMk = sdkSrcBase.resolve(BRANCH_MK);
@@ -342,6 +342,7 @@ public class Make {
 		String minor = properties.getProperty("minor");
 		Objects.requireNonNull(minor, "'minor' must be set");
 
+		int count = 0;
 		for (String bundle : bundles) {
 			Path bundlePath = Paths.get(bundle);
 			Path bundleParent = bundlePath.getParent();
@@ -349,10 +350,21 @@ public class Make {
 					: a2Output.resolve(category);
 			Path jarP = a2JarDirectory.resolve(bundlePath.getFileName() + "." + major + "." + minor + ".jar");
 
-			Path targetJarP = targetA2.resolve(a2JarDirectory.relativize(jarP));
-			Files.createDirectories(targetJarP.getParent());
-			Files.copy(jarP, targetJarP);
+			Path targetJarP = targetA2.resolve(a2Output.relativize(jarP));
+			if (uninstall) { // uninstall
+				if (Files.exists(targetJarP)) {
+					Files.delete(targetJarP);
+					logger.log(DEBUG, "Removed " + targetJarP);
+					count++;
+				}
+			} else { // install
+				Files.createDirectories(targetJarP.getParent());
+				boolean update = Files.exists(targetJarP);
+				Files.copy(jarP, targetJarP);
+				logger.log(DEBUG, (update ? "Updated " : "Installed ") + targetJarP);
+			}
 		}
+		logger.log(INFO, uninstall ? count + " bundles removed" : count + " bundles installed or updated");
 	}
 
 	/** Package a single bundle. */
@@ -641,7 +653,8 @@ public class Make {
 			case "compile" -> argeoMake.compile(options);
 			case "bundle" -> argeoMake.bundle(options);
 			case "all" -> argeoMake.all(options);
-			case "install" -> argeoMake.install(options);
+			case "install" -> argeoMake.install(options, false);
+			case "uninstall" -> argeoMake.install(options, true);
 
 			default -> throw new IllegalArgumentException("Unkown action: " + action);
 			}
