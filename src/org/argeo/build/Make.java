@@ -354,6 +354,9 @@ public class Make {
 			if (uninstall) { // uninstall
 				if (Files.exists(targetJarP)) {
 					Files.delete(targetJarP);
+					Path targetParent = targetJarP.getParent();
+					if (!Files.list(targetParent).iterator().hasNext())
+						Files.delete(targetParent);
 					logger.log(DEBUG, "Removed " + targetJarP);
 					count++;
 				}
@@ -362,6 +365,7 @@ public class Make {
 				boolean update = Files.exists(targetJarP);
 				Files.copy(jarP, targetJarP);
 				logger.log(DEBUG, (update ? "Updated " : "Installed ") + targetJarP);
+				count++;
 			}
 		}
 		logger.log(INFO, uninstall ? count + " bundles removed" : count + " bundles installed or updated");
