@@ -355,8 +355,7 @@ public class Make {
 				if (Files.exists(targetJarP)) {
 					Files.delete(targetJarP);
 					Path targetParent = targetJarP.getParent();
-					if (!Files.list(targetParent).iterator().hasNext())
-						Files.delete(targetParent);
+					deleteEmptyParents(targetA2, targetParent);
 					logger.log(DEBUG, "Removed " + targetJarP);
 					count++;
 				}
@@ -369,6 +368,18 @@ public class Make {
 			}
 		}
 		logger.log(INFO, uninstall ? count + " bundles removed" : count + " bundles installed or updated");
+	}
+
+	/** Delete empty parent directory up to the A2 target (included). */
+	void deleteEmptyParents(Path targetA2, Path targetParent) throws IOException {
+		if (!Files.isDirectory(targetParent))
+			throw new IllegalArgumentException(targetParent + " must be a directory");
+		if (!Files.list(targetParent).iterator().hasNext()) {
+			Files.delete(targetParent);
+			if (Files.isSameFile(targetA2, targetParent))
+				return;// stop after deleting A2 base
+			deleteEmptyParents(targetA2, targetParent.getParent());
+		}
 	}
 
 	/** Package a single bundle. */
