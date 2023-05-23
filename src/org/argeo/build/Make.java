@@ -320,7 +320,7 @@ public class Make {
 		if (targetDirs.size() != 1)
 			throw new IllegalArgumentException("One and only one --target must be specified");
 		Path targetA2 = Paths.get(targetDirs.get(0));
-		logger.log(INFO, "Intsalling to " + targetA2 + " ms");
+		logger.log(INFO, "Installing to " + targetA2);
 
 		final String branch;
 		Path branchMk = sdkSrcBase.resolve(BRANCH_MK);
