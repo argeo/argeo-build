@@ -105,7 +105,7 @@ public class Make {
 	final Path buildBase;
 	/** The base of the a2 output for all layers. */
 	final Path a2Output;
-	/** The base of the a2 sources when packages separately. */
+	/** The base of the a2 sources when packaged separately. */
 	final Path a2srcOutput;
 
 	/** Whether sources should be packaged separately. */
@@ -296,7 +296,7 @@ public class Make {
 		long duration = System.currentTimeMillis() - begin;
 		logger.log(INFO, "Packaging took " + duration + " ms");
 	}
-
+	
 	/** Package a single bundle. */
 	void createBundle(String branch, String bundle, String category) throws IOException {
 		final Path source;
