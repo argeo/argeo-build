@@ -25,8 +25,15 @@ BNDLIB_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.arge
 ARGEO_REPACKAGE = $(JVM) -cp $(LOGGER_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)src/org/argeo/build/Repackage.java
 TODOS_REPACKAGE = $(foreach category, $(CATEGORIES),$(BUILD_BASE)/$(category)/to-repackage) 
 BUILD_BASE = $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE))
+REPACKAGED_CATEGORIES = $(foreach category, $(CATEGORIES),$(A2_OUTPUT)/$(category))
 
 all: $(BUILD_BASE)/repackaged 
+
+install:
+	$(foreach category, $(CATEGORIES), mkdir -p $(A2_INSTALL_TARGET)/$(category);  cp $(A2_OUTPUT)/$(category)/*.jar $(A2_INSTALL_TARGET)/$(category);)
+
+uninstall:
+	$(foreach category, $(CATEGORIES), rm -rf $(A2_INSTALL_TARGET)/$(category);)
 
 .SECONDEXPANSION:
 # We use .SECONDEXPANSION and CATEGORIES_TO_REPACKAGE instead of directly CATEGORIES

@@ -10,4 +10,4 @@ SYSLOGGER_BRANCH=$(build-major).$(build-minor)
 prefix ?= /usr/local
 datarootdir ?= $(prefix)/share
 
-A2_INSTALL_TARGET ?= $(datarootdir)/a2
+A2_INSTALL_TARGET ?= $(DESTDIR)$(datarootdir)/a2

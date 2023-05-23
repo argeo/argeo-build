@@ -79,12 +79,12 @@ clean-manifests :
 osgi-install:
 	$(ARGEO_MAKE) \
 	 install --category $(A2_CATEGORY) --bundles $(BUNDLES) \
-	 --target $(DESTDIR)$(A2_INSTALL_TARGET)
+	 --target $(A2_INSTALL_TARGET)
 
 osgi-uninstall:
 	$(ARGEO_MAKE) \
 	 uninstall --category $(A2_CATEGORY) --bundles $(BUNDLES) \
-	 --target $(DESTDIR)$(A2_INSTALL_TARGET)
+	 --target $(A2_INSTALL_TARGET)
 
 # Javadoc generation
 javadoc: $(BUILD_BASE)/built
