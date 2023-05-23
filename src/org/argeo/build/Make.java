@@ -354,11 +354,11 @@ public class Make {
 			if (uninstall) { // uninstall
 				if (Files.exists(targetJarP)) {
 					Files.delete(targetJarP);
-					Path targetParent = targetJarP.getParent();
-					deleteEmptyParents(targetA2, targetParent);
 					logger.log(DEBUG, "Removed " + targetJarP);
 					count++;
 				}
+				Path targetParent = targetJarP.getParent();
+				deleteEmptyParents(targetA2, targetParent);
 			} else { // install
 				Files.createDirectories(targetJarP.getParent());
 				boolean update = Files.exists(targetJarP);
@@ -374,9 +374,10 @@ public class Make {
 	void deleteEmptyParents(Path targetA2, Path targetParent) throws IOException {
 		if (!Files.isDirectory(targetParent))
 			throw new IllegalArgumentException(targetParent + " must be a directory");
+		boolean isA2target = Files.isSameFile(targetA2, targetParent);
 		if (!Files.list(targetParent).iterator().hasNext()) {
 			Files.delete(targetParent);
-			if (Files.isSameFile(targetA2, targetParent))
+			if (isA2target)
 				return;// stop after deleting A2 base
 			deleteEmptyParents(targetA2, targetParent.getParent());
 		}
