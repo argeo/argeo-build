@@ -76,10 +76,9 @@ endif
 clean-manifests :
 	@rm -rf $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF);
 
-osgi-install: BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
 osgi-install:
 	$(ARGEO_MAKE) \
-	 install --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD) \
+	 install --category $(A2_CATEGORY) --bundles $(BUNDLES) \
 	 --target $(DESTDIR)$(A2_INSTALL_TARGET)
 
 # Javadoc generation
