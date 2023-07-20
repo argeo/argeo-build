@@ -50,12 +50,12 @@ TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build)
 osgi: $(BUILD_BASE)/built $(MANIFESTS)
 
 # Actual build (compilation + bundle packaging)
-$(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
+$(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(strip $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?)))
 $(BUILD_BASE)/built : $(TODOS)
-	@echo "\| Compiler     : $(ECJ_JAR)"
-	@echo "\| A2 category  : $(A2_CATEGORY)"
-	@echo "\| Bundles      : $(BUNDLES_TO_BUILD)"
-	@echo "\| Dependencies : $(DEP_CATEGORIES)"
+	@echo "| A2 category  : $(A2_CATEGORY)"
+	@echo "| Bundles      : $(BUNDLES_TO_BUILD)"
+	@echo "| Dependencies : $(DEP_CATEGORIES)"
+	@echo "| Compiler     : $(file $(ECJ_JAR))"
 	@$(ARGEO_MAKE) \
 	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) \
 	 --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
