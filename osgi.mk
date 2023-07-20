@@ -52,6 +52,7 @@ osgi: $(BUILD_BASE)/built $(MANIFESTS)
 # Actual build (compilation + bundle packaging)
 $(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
 $(BUILD_BASE)/built : $(TODOS)
+	@echo Using ECJ compiler $(ECJ_JAR)
 	$(ARGEO_MAKE) \
 	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) \
 	 --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
