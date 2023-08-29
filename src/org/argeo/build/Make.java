@@ -509,6 +509,15 @@ public class Make {
 			// Add all resources from src/
 			Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
 				@Override
+				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+					// skip directories ending with .js
+					// TODO find something more robust?
+					if (dir.getFileName().toString().endsWith(".js"))
+						return FileVisitResult.SKIP_SUBTREE;
+					return super.preVisitDirectory(dir, attrs);
+				}
+
+				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					if (file.getFileName().toString().endsWith(".java")
 							|| file.getFileName().toString().endsWith(".class"))
@@ -518,16 +527,6 @@ public class Make {
 						Files.copy(file, jarOut);
 					return FileVisitResult.CONTINUE;
 				}
-
-				@Override
-				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-					// skip directories ending with .js
-					// TODO find something more robust?
-					if (dir.getFileName().endsWith(".js"))
-						return FileVisitResult.SKIP_SUBTREE;
-					return super.preVisitDirectory(dir, attrs);
-				}
-
 			});
 
 			// add legal notices and licenses
