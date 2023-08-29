@@ -7,3 +7,12 @@ build.properties
 bin
 generated
 META-INF/MANIFEST.MF
+configure
+Makefile
+*.mk
+sdk
+output
+node_modules
+package.json
+package-lock.json
+webpack.*.js
