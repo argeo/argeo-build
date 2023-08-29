@@ -513,15 +513,21 @@ public class Make {
 					if (file.getFileName().toString().endsWith(".java")
 							|| file.getFileName().toString().endsWith(".class"))
 						return FileVisitResult.CONTINUE;
-					// skip directories ending with .js
-					// TODO find something more robust?
-					if (Files.isDirectory(file) && file.getFileName().endsWith(".js"))
-						return FileVisitResult.SKIP_SUBTREE;
 					jarOut.putNextEntry(new JarEntry(srcP.relativize(file).toString()));
 					if (!Files.isDirectory(file))
 						Files.copy(file, jarOut);
 					return FileVisitResult.CONTINUE;
 				}
+
+				@Override
+				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+					// skip directories ending with .js
+					// TODO find something more robust?
+					if (dir.getFileName().endsWith(".js"))
+						return FileVisitResult.SKIP_SUBTREE;
+					return super.preVisitDirectory(dir, attrs);
+				}
+
 			});
 
 			// add legal notices and licenses
