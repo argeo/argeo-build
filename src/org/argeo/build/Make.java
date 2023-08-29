@@ -513,6 +513,10 @@ public class Make {
 					if (file.getFileName().toString().endsWith(".java")
 							|| file.getFileName().toString().endsWith(".class"))
 						return FileVisitResult.CONTINUE;
+					// skip directories ending with .js
+					// TODO find something more robust?
+					if (Files.isDirectory(file) && file.getFileName().endsWith(".js"))
+						return FileVisitResult.SKIP_SUBTREE;
 					jarOut.putNextEntry(new JarEntry(srcP.relativize(file).toString()));
 					if (!Files.isDirectory(file))
 						Files.copy(file, jarOut);
