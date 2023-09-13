@@ -585,7 +585,7 @@ public class Repackage {
 							logger.log(TRACE, "Skip " + entry.getName());
 							continue entries;
 						} else if (entry.getName().startsWith("META-INF/NOTICE")) {
-							logger.log(TRACE, "Skip " + entry.getName());
+							logger.log(WARNING, "Skip " + entry.getName() + " from " + artifact);
 							// TODO merge them?
 							continue entries;
 						} else {
