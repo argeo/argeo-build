@@ -584,6 +584,10 @@ public class Repackage {
 						} else if (entry.getName().startsWith("org/apache/batik/")) {
 							logger.log(TRACE, "Skip " + entry.getName());
 							continue entries;
+						} else if (entry.getName().startsWith("META-INF/NOTICE")) {
+							logger.log(TRACE, "Skip " + entry.getName());
+							// TODO merge them?
+							continue entries;
 						} else {
 							throw new IllegalStateException("File " + target + " from " + artifact + " already exists");
 						}
