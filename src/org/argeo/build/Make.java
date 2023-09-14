@@ -241,7 +241,7 @@ public class Make {
 			}
 			Path bundleSrc = bundlePath.resolve("src");
 			if (!Files.exists(bundleSrc)) {
-				logger.log(TRACE, bundleSrc + " does not exist, skipping it, as this is not a Java bundle");
+				logger.log(WARNING, bundleSrc + " does not exist, skipping it, as this is not a Java bundle");
 				continue bundles;
 			}
 			sb.append(bundleSrc);
