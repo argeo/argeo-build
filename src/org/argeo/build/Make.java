@@ -510,7 +510,7 @@ public class Make {
 						if (exclude.matches(relativeP))
 							return FileVisitResult.CONTINUE;
 					// skip JavaScript source maps
-					if (file.getFileName().toString().endsWith(".map"))
+					if (sourceBundles && file.getFileName().toString().endsWith(".map"))
 						return FileVisitResult.CONTINUE;
 
 					JarEntry entry = new JarEntry(relativeP.toString());
@@ -569,15 +569,36 @@ public class Make {
 			srcManifest.getMainAttributes().putValue("Bundle-SymbolicName", bundleSymbolicName + ".src");
 			srcManifest.getMainAttributes().putValue("Bundle-Version",
 					manifest.getMainAttributes().getValue("Bundle-Version").toString());
-			srcManifest.getMainAttributes().putValue("Eclipse-SourceBundle",
-					bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue("Bundle-Version"));
 
-			try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
-				copySourcesToJar(srcP, srcJarOut, "");
-				// add legal notices and licenses
-				for (Path p : listLegalFilesToInclude(source).values()) {
-					srcJarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
-					Files.copy(p, srcJarOut);
+			boolean isJsBundle = bundleSymbolicName.endsWith(".js");
+			if (!isJsBundle) {
+				srcManifest.getMainAttributes().putValue("Eclipse-SourceBundle",
+						bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue("Bundle-Version"));
+
+				try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
+					copySourcesToJar(srcP, srcJarOut, "");
+					// add legal notices and licenses
+					for (Path p : listLegalFilesToInclude(source).values()) {
+						srcJarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
+						Files.copy(p, srcJarOut);
+					}
+				}
+			} else {// JavaScript source maps
+				srcManifest.getMainAttributes().putValue("Fragment-Host",
+						bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue("Bundle-Version"));
+				try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
+					Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
+						@Override
+						public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+							Path relativeP = source.relativize(file);
+							if (!file.getFileName().toString().endsWith(".map"))
+								return FileVisitResult.CONTINUE;
+							JarEntry entry = new JarEntry(relativeP.toString());
+							srcJarOut.putNextEntry(entry);
+							Files.copy(file, srcJarOut);
+							return FileVisitResult.CONTINUE;
+						}
+					});
 				}
 			}
 		}
