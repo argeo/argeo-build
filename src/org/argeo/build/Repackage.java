@@ -1028,7 +1028,14 @@ public class Repackage {
 					nameVersion.setName(ourSymbolicName);
 				}
 			}
+
+			// create bundle dir
 			bundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
+			if (Files.exists(bundleDir)) {
+				logger.log(WARNING, "Bundle dir " + bundleDir
+						+ " already exists, probably from a previous failed build, deleting it...");
+				deleteDirectory(bundleDir);
+			}
 
 			// copy original MANIFEST
 			if (sourceManifest != null) {
@@ -1053,7 +1060,6 @@ public class Repackage {
 				arch = libRelativePath.getName(1).toString();
 			}
 
-//			if (!embed) {
 			// copy entries
 			JarEntry entry;
 			entries: while ((entry = jarIn.getNextJarEntry()) != null) {
@@ -1120,7 +1126,6 @@ public class Repackage {
 					origin.deleted.add(bundleDir.relativize(target).toString());
 				}
 				logger.log(TRACE, () -> "Copied " + target);
-//				}
 			}
 		}
 
@@ -1132,11 +1137,6 @@ public class Repackage {
 			entries.put(BUNDLE_SYMBOLICNAME.toString(),
 					entries.get(BUNDLE_SYMBOLICNAME.toString()) + ";singleton:=true");
 		}
-
-//		if (embed) {// copy embedded jar
-//			Files.copy(file, bundleDir.resolve(file.getFileName()));
-//			entries.put(ManifestHeader.BUNDLE_CLASSPATH.toString(), file.getFileName().toString());
-//		}
 
 		// Final MANIFEST decisions
 		// We also check the original OSGi metadata and compare with our changes
