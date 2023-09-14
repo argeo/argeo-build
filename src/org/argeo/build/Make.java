@@ -3,6 +3,7 @@ package org.argeo.build;
 import static java.lang.System.Logger.Level.DEBUG;
 import static java.lang.System.Logger.Level.ERROR;
 import static java.lang.System.Logger.Level.INFO;
+import static java.lang.System.Logger.Level.TRACE;
 import static java.lang.System.Logger.Level.WARNING;
 
 import java.io.File;
@@ -226,7 +227,8 @@ public class Make {
 		}
 
 		// sources
-		for (String bundle : bundles) {
+		boolean atLeastOneBundleToCompile = false;
+		bundles: for (String bundle : bundles) {
 			StringBuilder sb = new StringBuilder();
 			Path bundlePath = execDirectory.resolve(bundle);
 			if (!Files.exists(bundlePath)) {
@@ -237,14 +239,23 @@ public class Make {
 				} else
 					throw new IllegalArgumentException("Bundle " + bundle + " not found in " + execDirectory);
 			}
-			sb.append(bundlePath.resolve("src"));
+			Path bundleSrc = bundlePath.resolve("src");
+			if (!Files.exists(bundleSrc)) {
+				logger.log(TRACE, bundleSrc + " does not exist, skipping it, as this is not a Java bundle");
+				continue bundles;
+			}
+			sb.append(bundleSrc);
 			sb.append("[-d");
 			compilerArgs.add(sb.toString());
 			sb = new StringBuilder();
 			sb.append(buildBase.resolve(bundle).resolve("bin"));
 			sb.append("]");
 			compilerArgs.add(sb.toString());
+			atLeastOneBundleToCompile = true;
 		}
+
+		if (!atLeastOneBundleToCompile)
+			return;
 
 		if (logger.isLoggable(INFO))
 			compilerArgs.add("-time");
