@@ -705,7 +705,8 @@ public class Repackage {
 				}
 
 				if (!fileProps.containsKey(EXPORT_PACKAGE.toString())) {
-					fileProps.put(EXPORT_PACKAGE.toString(), "*");
+					fileProps.put(EXPORT_PACKAGE.toString(),
+							"*;version=\"" + fileProps.getProperty(BUNDLE_VERSION.toString()) + "\"");
 				}
 
 				// BND analysis
