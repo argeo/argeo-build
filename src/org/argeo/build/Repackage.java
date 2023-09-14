@@ -99,7 +99,7 @@ public class Repackage {
 		List<CompletableFuture<Void>> toDos = new ArrayList<>();
 		for (int i = 1; i < args.length; i++) {
 			Path categoryPath = Paths.get(args[i]);
-			cleanPreviousFailedBuild(categoryPath);
+			factory.cleanPreviousFailedBuild(categoryPath);
 			if (sequential) // sequential processing happens here
 				factory.processCategory(categoryPath);
 			else
@@ -117,10 +117,11 @@ public class Repackage {
 	}
 
 	/** Deletes remaining sub directories. */
-	static void cleanPreviousFailedBuild(Path categoryPath) {
+	void cleanPreviousFailedBuild(Path categoryPath) {
+		Path outputCategoryPath = a2Base.resolve(categoryPath);
 		// clean previous failed build
 		try {
-			for (Path subDir : Files.newDirectoryStream(categoryPath, (d) -> Files.isDirectory(d))) {
+			for (Path subDir : Files.newDirectoryStream(outputCategoryPath, (d) -> Files.isDirectory(d))) {
 				if (Files.exists(subDir)) {
 					logger.log(WARNING, "Bundle dir " + subDir
 							+ " already exists, probably from a previous failed build, deleting it...");
