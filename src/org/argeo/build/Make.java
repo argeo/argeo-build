@@ -3,7 +3,6 @@ package org.argeo.build;
 import static java.lang.System.Logger.Level.DEBUG;
 import static java.lang.System.Logger.Level.ERROR;
 import static java.lang.System.Logger.Level.INFO;
-import static java.lang.System.Logger.Level.TRACE;
 import static java.lang.System.Logger.Level.WARNING;
 
 import java.io.File;
@@ -511,7 +510,7 @@ public class Make {
 						if (exclude.matches(relativeP))
 							return FileVisitResult.CONTINUE;
 					// skip JavaScript source maps
-					if (relativeP.getFileName().toString().endsWith(".map"))
+					if (file.getFileName().toString().endsWith(".map"))
 						return FileVisitResult.CONTINUE;
 
 					JarEntry entry = new JarEntry(relativeP.toString());
