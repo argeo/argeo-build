@@ -510,6 +510,10 @@ public class Make {
 					for (PathMatcher exclude : excludes)
 						if (exclude.matches(relativeP))
 							return FileVisitResult.CONTINUE;
+					// skip JavaScript source maps
+					if (relativeP.getFileName().toString().endsWith(".map"))
+						return FileVisitResult.CONTINUE;
+
 					JarEntry entry = new JarEntry(relativeP.toString());
 					jarOut.putNextEntry(entry);
 					Files.copy(file, jarOut);
@@ -548,7 +552,7 @@ public class Make {
 					copySourcesToJar(srcP, jarOut, "OSGI-OPT/src/");
 				}
 			}
-			
+
 			// add legal notices and licenses
 			for (Path p : listLegalFilesToInclude(source).values()) {
 				jarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
