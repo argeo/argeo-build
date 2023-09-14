@@ -517,40 +517,42 @@ public class Make {
 				}
 			});
 
-			// Add all resources from src/
-			Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-					// skip directories ending with .js
-					// TODO find something more robust?
-					if (dir.getFileName().toString().endsWith(".js"))
-						return FileVisitResult.SKIP_SUBTREE;
-					return super.preVisitDirectory(dir, attrs);
-				}
+			if (Files.exists(srcP)) {
+				// Add all resources from src/
+				Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
+					@Override
+					public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+						// skip directories ending with .js
+						// TODO find something more robust?
+						if (dir.getFileName().toString().endsWith(".js"))
+							return FileVisitResult.SKIP_SUBTREE;
+						return super.preVisitDirectory(dir, attrs);
+					}
 
-				@Override
-				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					if (file.getFileName().toString().endsWith(".java")
-							|| file.getFileName().toString().endsWith(".class"))
+					@Override
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						if (file.getFileName().toString().endsWith(".java")
+								|| file.getFileName().toString().endsWith(".class"))
+							return FileVisitResult.CONTINUE;
+						jarOut.putNextEntry(new JarEntry(srcP.relativize(file).toString()));
+						if (!Files.isDirectory(file))
+							Files.copy(file, jarOut);
 						return FileVisitResult.CONTINUE;
-					jarOut.putNextEntry(new JarEntry(srcP.relativize(file).toString()));
-					if (!Files.isDirectory(file))
-						Files.copy(file, jarOut);
-					return FileVisitResult.CONTINUE;
-				}
-			});
+					}
+				});
 
+				// add sources
+				// TODO add effective BND, Eclipse project file, etc., in order to be able to
+				// repackage
+				if (!sourceBundles) {
+					copySourcesToJar(srcP, jarOut, "OSGI-OPT/src/");
+				}
+			}
+			
 			// add legal notices and licenses
 			for (Path p : listLegalFilesToInclude(source).values()) {
 				jarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
 				Files.copy(p, jarOut);
-			}
-
-			// add sources
-			// TODO add effective BND, Eclipse project file, etc., in order to be able to
-			// repackage
-			if (!sourceBundles) {
-				copySourcesToJar(srcP, jarOut, "OSGI-OPT/src/");
 			}
 		}
 
