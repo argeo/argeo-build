@@ -98,13 +98,14 @@ public class Repackage {
 
 		List<CompletableFuture<Void>> toDos = new ArrayList<>();
 		for (int i = 1; i < args.length; i++) {
-			Path p = Paths.get(args[i]);
-			if (sequential)
-				factory.processCategory(p);
+			Path categoryPath = Paths.get(args[i]);
+			cleanPreviousFailedBuild(categoryPath);
+			if (sequential) // sequential processing happens here
+				factory.processCategory(categoryPath);
 			else
-				toDos.add(CompletableFuture.runAsync(() -> factory.processCategory(p)));
+				toDos.add(CompletableFuture.runAsync(() -> factory.processCategory(categoryPath)));
 		}
-		if (!sequential)
+		if (!sequential)// parallel processing
 			CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
 
 		// Summary
@@ -113,6 +114,22 @@ public class Repackage {
 			for (String name : licensesUsed.get(licenseId))
 				sb.append((licenseId.equals("") ? "Proprietary" : licenseId) + "\t\t" + name + "\n");
 		logger.log(INFO, "# License summary:\n" + sb);
+	}
+
+	/** Deletes remaining sub directories. */
+	static void cleanPreviousFailedBuild(Path categoryPath) {
+		// clean previous failed build
+		try {
+			for (Path subDir : Files.newDirectoryStream(categoryPath, (d) -> Files.isDirectory(d))) {
+				if (Files.exists(subDir)) {
+					logger.log(WARNING, "Bundle dir " + subDir
+							+ " already exists, probably from a previous failed build, deleting it...");
+					deleteDirectory(subDir);
+				}
+			}
+		} catch (IOException e) {
+			logger.log(ERROR, "Cannot clean previous build", e);
+		}
 	}
 
 	/** MANIFEST headers. */
@@ -1029,13 +1046,7 @@ public class Repackage {
 				}
 			}
 
-			// create bundle dir
 			bundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
-			if (Files.exists(bundleDir)) {
-				logger.log(WARNING, "Bundle dir " + bundleDir
-						+ " already exists, probably from a previous failed build, deleting it...");
-				deleteDirectory(bundleDir);
-			}
 
 			// copy original MANIFEST
 			if (sourceManifest != null) {
