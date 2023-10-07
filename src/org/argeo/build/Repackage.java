@@ -1486,8 +1486,9 @@ public class Repackage {
 			// license
 			String spdxLicenseId = SPDX_LICENSE_IDENTIFIER.get(mapping);
 			if (spdxLicenseId == null) {
-				if (jarDir.getFileName().toString().startsWith("com.sun.jna"))
-					spdxLicenseId = "LGPL-2.1 OR Apache-2.0";
+				if (jarDir.getFileName().toString().startsWith("com.sun.jna")) // FIXME understand/report why JNA's
+																				// jar is corrupted
+					spdxLicenseId = "LGPL-2.1-or-later OR Apache-2.0";
 				else
 					throw new IllegalStateException(
 							"An SPDX license id must have beend defined for " + jarDir + " at this stage.");
