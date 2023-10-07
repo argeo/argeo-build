@@ -1048,8 +1048,10 @@ public class Repackage {
 				if (nameVersion == null) {
 					// hack for weird issue with JNA jar in Eclipse
 					String[] arr_ = file.getFileName().toString().split("_");
+					ourSymbolicName = arr_[0];
 					String v = arr_[1].substring(0, arr_[1].length() - 4);// remove .jar
-					nameVersion = new NameVersion(arr_[0], v);
+					entries.put(BUNDLE_VERSION.toString(), v);
+					nameVersion = new NameVersion(ourSymbolicName, v);
 					logger.log(WARNING, file + " has no symbolic name, trying " + nameVersion.getName() + "/"
 							+ nameVersion.getVersion() + " based on its name");
 				}
