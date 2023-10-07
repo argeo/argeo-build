@@ -119,6 +119,8 @@ public class Repackage {
 	/** Deletes remaining sub directories. */
 	void cleanPreviousFailedBuild(Path categoryPath) {
 		Path outputCategoryPath = a2Base.resolve(categoryPath);
+		if (!Files.exists(outputCategoryPath))
+			return;
 		// clean previous failed build
 		try {
 			for (Path subDir : Files.newDirectoryStream(outputCategoryPath, (d) -> Files.isDirectory(d))) {
