@@ -934,8 +934,10 @@ public class Repackage {
 									map.put(key.toString(), commonProps.getProperty(key.toString()));
 								A2Origin origin = new A2Origin();
 								Path bundleDir = processBundleJar(file, targetCategoryBase, map, origin);
-								if (bundleDir == null)
+								if (bundleDir == null) {
+									logger.log(WARNING, "No bundle dir created for " + file + ", skipping...");
 									return FileVisitResult.CONTINUE;
+								}
 								origins.put(bundleDir, origin);
 								logger.log(DEBUG, () -> "Processed " + file);
 							}
@@ -1019,6 +1021,8 @@ public class Repackage {
 		Manifest sourceManifest;
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
 			sourceManifest = jarIn.getManifest();
+			if (sourceManifest == null)
+				logger.log(WARNING, file + " has no manifest");
 			manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
 
 			String rawSourceSymbolicName = manifest.getMainAttributes().getValue(BUNDLE_SYMBOLICNAME.toString());
@@ -1042,8 +1046,11 @@ public class Repackage {
 			} else {
 				nameVersion = nameVersionFromManifest(manifest);
 				if (nameVersion == null) {
-					logger.log(WARNING, file + " has no symbolic name, skipping...");
-					return null;
+					logger.log(WARNING, file + " has no symbolic name, trying name/version based on its name");
+					// hack for weird issue with JNA jar in Eclipse
+					String[] arr_ = file.getFileName().toString().split("_");
+					String[] arrDot = arr_[1].split("\\.");
+					nameVersion = new NameVersion(arr_[0], arrDot[0]);
 				}
 				if (ourVersion != null && !nameVersion.getVersion().equals(ourVersion)) {
 					logger.log(WARNING,
