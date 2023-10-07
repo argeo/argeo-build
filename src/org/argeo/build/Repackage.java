@@ -934,6 +934,8 @@ public class Repackage {
 									map.put(key.toString(), commonProps.getProperty(key.toString()));
 								A2Origin origin = new A2Origin();
 								Path bundleDir = processBundleJar(file, targetCategoryBase, map, origin);
+								if (bundleDir == null)
+									return FileVisitResult.CONTINUE;
 								origins.put(bundleDir, origin);
 								logger.log(DEBUG, () -> "Processed " + file);
 							}
@@ -1039,6 +1041,10 @@ public class Repackage {
 				nameVersion = new NameVersion(ourSymbolicName, ourVersion);
 			} else {
 				nameVersion = nameVersionFromManifest(manifest);
+				if (nameVersion == null) {
+					logger.log(WARNING, file + " has no symbolic name, skipping...");
+					return null;
+				}
 				if (ourVersion != null && !nameVersion.getVersion().equals(ourVersion)) {
 					logger.log(WARNING,
 							"Original version is " + nameVersion.getVersion() + " while new version is " + ourVersion);
