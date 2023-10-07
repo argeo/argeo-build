@@ -1485,9 +1485,13 @@ public class Repackage {
 
 			// license
 			String spdxLicenseId = SPDX_LICENSE_IDENTIFIER.get(mapping);
-			if (spdxLicenseId == null)
-				throw new IllegalStateException(
-						"An SPDX license id must have beend defined for " + jarDir + " at this stage.");
+			if (spdxLicenseId == null) {
+				if (jarDir.getFileName().toString().startsWith("com.sun.jna"))
+					spdxLicenseId = "Apache-2.0 OR LGPL-2.1";
+				else
+					throw new IllegalStateException(
+							"An SPDX license id must have beend defined for " + jarDir + " at this stage.");
+			}
 			writer.append("\nIt is redistributed under the following license:\n\n");
 			writer.append("SPDX-Identifier: " + spdxLicenseId + "\n\n");
 
