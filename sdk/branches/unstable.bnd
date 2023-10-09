@@ -1,6 +1,6 @@
 major=2
 minor=3
-micro=7
-qualifier=.next
+micro=8
+qualifier=
 
 SPDX-License-Identifier=CC0-1.0
