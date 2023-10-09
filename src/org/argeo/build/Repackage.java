@@ -1045,16 +1045,8 @@ public class Repackage {
 				nameVersion = new NameVersion(ourSymbolicName, ourVersion);
 			} else {
 				nameVersion = nameVersionFromManifest(manifest);
-				if (nameVersion == null) {
-					// hack for weird issue with JNA jar in Eclipse
-					String[] arr_ = file.getFileName().toString().split("_");
-					ourSymbolicName = arr_[0];
-					String v = arr_[1].substring(0, arr_[1].length() - 4);// remove .jar
-					entries.put(BUNDLE_VERSION.toString(), v);
-					nameVersion = new NameVersion(ourSymbolicName, v);
-					logger.log(WARNING, file + " has no symbolic name, trying " + nameVersion.getName() + "/"
-							+ nameVersion.getVersion() + " based on its name");
-				}
+				if (nameVersion == null)
+					throw new IllegalStateException("Could not compute name/version from Manifest");
 				if (ourVersion != null && !nameVersion.getVersion().equals(ourVersion)) {
 					logger.log(WARNING,
 							"Original version is " + nameVersion.getVersion() + " while new version is " + ourVersion);
@@ -1487,14 +1479,8 @@ public class Repackage {
 
 			// license
 			String spdxLicenseId = SPDX_LICENSE_IDENTIFIER.get(mapping);
-			if (spdxLicenseId == null) {
-				if (jarDir.getFileName().toString().startsWith("com.sun.jna")) // FIXME understand/report why JNA's
-																				// jar is corrupted
-					spdxLicenseId = "LGPL-2.1-or-later OR Apache-2.0";
-				else
-					throw new IllegalStateException(
-							"An SPDX license id must have beend defined for " + jarDir + " at this stage.");
-			}
+			if (spdxLicenseId == null)
+				throw new IllegalStateException("An SPDX license id must have beend defined at this stage.");
 			writer.append("\nIt is redistributed under the following license:\n\n");
 			writer.append("SPDX-Identifier: " + spdxLicenseId + "\n\n");
 
