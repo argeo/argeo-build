@@ -2,7 +2,7 @@ build-major=2
 build-minor=3
 
 # Required third party libraries
-ECJ_BRANCH=3.32
+ECJ_MAJOR=3
 BNDLIB_BRANCH=5.3
 SYSLOGGER_BRANCH=$(build-major).$(build-minor)
 

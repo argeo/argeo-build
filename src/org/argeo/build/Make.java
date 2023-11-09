@@ -226,7 +226,8 @@ public class Make {
 		}
 
 		// sources
-		for (String bundle : bundles) {
+		boolean atLeastOneBundleToCompile = false;
+		bundles: for (String bundle : bundles) {
 			StringBuilder sb = new StringBuilder();
 			Path bundlePath = execDirectory.resolve(bundle);
 			if (!Files.exists(bundlePath)) {
@@ -237,14 +238,23 @@ public class Make {
 				} else
 					throw new IllegalArgumentException("Bundle " + bundle + " not found in " + execDirectory);
 			}
-			sb.append(bundlePath.resolve("src"));
+			Path bundleSrc = bundlePath.resolve("src");
+			if (!Files.exists(bundleSrc)) {
+				logger.log(WARNING, bundleSrc + " does not exist, skipping it, as this is not a Java bundle");
+				continue bundles;
+			}
+			sb.append(bundleSrc);
 			sb.append("[-d");
 			compilerArgs.add(sb.toString());
 			sb = new StringBuilder();
 			sb.append(buildBase.resolve(bundle).resolve("bin"));
 			sb.append("]");
 			compilerArgs.add(sb.toString());
+			atLeastOneBundleToCompile = true;
 		}
+
+		if (!atLeastOneBundleToCompile)
+			return;
 
 		if (logger.isLoggable(INFO))
 			compilerArgs.add("-time");
@@ -386,18 +396,18 @@ public class Make {
 
 	/** Package a single bundle. */
 	void createBundle(String branch, String bundle, String category) throws IOException {
-		final Path source;
+		final Path bundleSourceBase;
 		if (!Files.exists(execDirectory.resolve(bundle))) {
 			logger.log(WARNING,
 					"Bundle " + bundle + " not found in " + execDirectory + ", assuming this is this directory.");
-			source = execDirectory;
+			bundleSourceBase = execDirectory;
 		} else {
-			source = execDirectory.resolve(bundle);
+			bundleSourceBase = execDirectory.resolve(bundle);
 		}
-		Path srcP = source.resolve("src");
+		Path srcP = bundleSourceBase.resolve("src");
 
 		Path compiled = buildBase.resolve(bundle);
-		String bundleSymbolicName = source.getFileName().toString();
+		String bundleSymbolicName = bundleSourceBase.getFileName().toString();
 
 		// Metadata
 		Properties properties = new Properties();
@@ -414,7 +424,7 @@ public class Make {
 				}
 		}
 
-		Path bndBnd = source.resolve("bnd.bnd");
+		Path bndBnd = bundleSourceBase.resolve("bnd.bnd");
 		if (Files.exists(bndBnd))
 			try (InputStream in = Files.newInputStream(bndBnd)) {
 				properties.load(in);
@@ -477,7 +487,7 @@ public class Make {
 			});
 
 			// add resources
-			Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
+			Files.walkFileTree(bundleSourceBase, new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
 					// skip output directory if it happens to be within the sources
@@ -485,7 +495,7 @@ public class Make {
 						return FileVisitResult.SKIP_SUBTREE;
 
 					// skip excluded patterns
-					Path relativeP = source.relativize(dir);
+					Path relativeP = bundleSourceBase.relativize(dir);
 					for (PathMatcher exclude : excludes)
 						if (exclude.matches(relativeP))
 							return FileVisitResult.SKIP_SUBTREE;
@@ -495,10 +505,14 @@ public class Make {
 
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					Path relativeP = source.relativize(file);
+					Path relativeP = bundleSourceBase.relativize(file);
 					for (PathMatcher exclude : excludes)
 						if (exclude.matches(relativeP))
 							return FileVisitResult.CONTINUE;
+					// skip JavaScript source maps
+					if (sourceBundles && file.getFileName().toString().endsWith(".map"))
+						return FileVisitResult.CONTINUE;
+
 					JarEntry entry = new JarEntry(relativeP.toString());
 					jarOut.putNextEntry(entry);
 					Files.copy(file, jarOut);
@@ -506,31 +520,42 @@ public class Make {
 				}
 			});
 
-			// Add all resources from src/
-			Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					if (file.getFileName().toString().endsWith(".java")
-							|| file.getFileName().toString().endsWith(".class"))
-						return FileVisitResult.CONTINUE;
-					jarOut.putNextEntry(new JarEntry(srcP.relativize(file).toString()));
-					if (!Files.isDirectory(file))
-						Files.copy(file, jarOut);
-					return FileVisitResult.CONTINUE;
-				}
-			});
+			if (Files.exists(srcP)) {
+				// Add all resources from src/
+				Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
+					@Override
+					public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+						// skip directories ending with .js
+						// TODO find something more robust?
+						if (dir.getFileName().toString().endsWith(".js"))
+							return FileVisitResult.SKIP_SUBTREE;
+						return super.preVisitDirectory(dir, attrs);
+					}
 
-			// add legal notices and licenses
-			for (Path p : listLegalFilesToInclude(source).values()) {
-				jarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
-				Files.copy(p, jarOut);
+					@Override
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						if (file.getFileName().toString().endsWith(".java")
+								|| file.getFileName().toString().endsWith(".class"))
+							return FileVisitResult.CONTINUE;
+						jarOut.putNextEntry(new JarEntry(srcP.relativize(file).toString()));
+						if (!Files.isDirectory(file))
+							Files.copy(file, jarOut);
+						return FileVisitResult.CONTINUE;
+					}
+				});
+
+				// add sources
+				// TODO add effective BND, Eclipse project file, etc., in order to be able to
+				// repackage
+				if (!sourceBundles) {
+					copySourcesToJar(srcP, jarOut, "OSGI-OPT/src/");
+				}
 			}
 
-			// add sources
-			// TODO add effective BND, Eclipse project file, etc., in order to be able to
-			// repackage
-			if (!sourceBundles) {
-				copySourcesToJar(srcP, jarOut, "OSGI-OPT/src/");
+			// add legal notices and licenses
+			for (Path p : listLegalFilesToInclude(bundleSourceBase).values()) {
+				jarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
+				Files.copy(p, jarOut);
 			}
 		}
 
@@ -539,21 +564,48 @@ public class Make {
 					: a2srcOutput.resolve(category);
 			Files.createDirectories(a2srcJarDirectory);
 			Path srcJarP = a2srcJarDirectory.resolve(compiled.getFileName() + "." + major + "." + minor + ".src.jar");
-			Manifest srcManifest = new Manifest();
-			srcManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-			srcManifest.getMainAttributes().putValue("Bundle-SymbolicName", bundleSymbolicName + ".src");
-			srcManifest.getMainAttributes().putValue("Bundle-Version",
-					manifest.getMainAttributes().getValue("Bundle-Version").toString());
+			createSourceBundle(bundleSymbolicName, manifest, bundleSourceBase, srcP, srcJarP);
+		}
+	}
+
+	/** Create a separate bundle containing the sources. */
+	void createSourceBundle(String bundleSymbolicName, Manifest manifest, Path bundleSourceBase, Path srcP,
+			Path srcJarP) throws IOException {
+		Manifest srcManifest = new Manifest();
+		srcManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+		srcManifest.getMainAttributes().putValue("Bundle-SymbolicName", bundleSymbolicName + ".src");
+		srcManifest.getMainAttributes().putValue("Bundle-Version",
+				manifest.getMainAttributes().getValue("Bundle-Version").toString());
+
+		boolean isJsBundle = bundleSymbolicName.endsWith(".js");
+		if (!isJsBundle) {
 			srcManifest.getMainAttributes().putValue("Eclipse-SourceBundle",
 					bundleSymbolicName + ";version=\"" + manifest.getMainAttributes().getValue("Bundle-Version"));
 
 			try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
 				copySourcesToJar(srcP, srcJarOut, "");
 				// add legal notices and licenses
-				for (Path p : listLegalFilesToInclude(source).values()) {
+				for (Path p : listLegalFilesToInclude(bundleSourceBase).values()) {
 					srcJarOut.putNextEntry(new JarEntry(p.getFileName().toString()));
 					Files.copy(p, srcJarOut);
 				}
+			}
+		} else {// JavaScript source maps
+			srcManifest.getMainAttributes().putValue("Fragment-Host", bundleSymbolicName + ";bundle-version=\""
+					+ manifest.getMainAttributes().getValue("Bundle-Version"));
+			try (JarOutputStream srcJarOut = new JarOutputStream(Files.newOutputStream(srcJarP), srcManifest)) {
+				Files.walkFileTree(bundleSourceBase, new SimpleFileVisitor<Path>() {
+					@Override
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						Path relativeP = bundleSourceBase.relativize(file);
+						if (!file.getFileName().toString().endsWith(".map"))
+							return FileVisitResult.CONTINUE;
+						JarEntry entry = new JarEntry(relativeP.toString());
+						srcJarOut.putNextEntry(entry);
+						Files.copy(file, srcJarOut);
+						return FileVisitResult.CONTINUE;
+					}
+				});
 			}
 		}
 	}

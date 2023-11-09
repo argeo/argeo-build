@@ -27,9 +27,10 @@ DEP_CATEGORIES ?=
 JAVADOC_PACKAGES ?=
 A2_BASE ?=/usr/share/a2 /usr/local/share/a2 $(A2_OUTPUT)
 
+# We always use the latest version of the ECJ compiler
+ECJ_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(sort $(wildcard $(base)/org.argeo.tp.build/org.eclipse.jdt.core.compiler.batch.$(ECJ_MAJOR).*.jar))))
 # Third-party libraries
 LOGGER_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/log/syslogger/org.argeo.tp/org.argeo.tp.syslogger.$(SYSLOGGER_BRANCH).jar)))
-ECJ_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.build/org.eclipse.jdt.core.compiler.batch.$(ECJ_BRANCH).jar)))
 BNDLIB_JAR ?= $(lastword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.build/biz.aQute.bndlib.$(BNDLIB_BRANCH).jar)))
 
 # Internal variables
@@ -49,9 +50,13 @@ TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build)
 osgi: $(BUILD_BASE)/built $(MANIFESTS)
 
 # Actual build (compilation + bundle packaging)
-$(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?))
+$(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(strip $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?)))
 $(BUILD_BASE)/built : $(TODOS)
-	$(ARGEO_MAKE) \
+	@echo "| A2 category  : $(A2_CATEGORY)"
+	@echo "| Bundles      : $(BUNDLES_TO_BUILD)"
+	@echo "| Dependencies : $(DEP_CATEGORIES)"
+	@echo "| Compiler     : $(notdir $(ECJ_JAR))"
+	@$(ARGEO_MAKE) \
 	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) \
 	 --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
 	@touch $(BUILD_BASE)/built 

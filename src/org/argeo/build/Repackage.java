@@ -98,13 +98,14 @@ public class Repackage {
 
 		List<CompletableFuture<Void>> toDos = new ArrayList<>();
 		for (int i = 1; i < args.length; i++) {
-			Path p = Paths.get(args[i]);
-			if (sequential)
-				factory.processCategory(p);
+			Path categoryPath = Paths.get(args[i]);
+			factory.cleanPreviousFailedBuild(categoryPath);
+			if (sequential) // sequential processing happens here
+				factory.processCategory(categoryPath);
 			else
-				toDos.add(CompletableFuture.runAsync(() -> factory.processCategory(p)));
+				toDos.add(CompletableFuture.runAsync(() -> factory.processCategory(categoryPath)));
 		}
-		if (!sequential)
+		if (!sequential)// parallel processing
 			CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
 
 		// Summary
@@ -113,6 +114,25 @@ public class Repackage {
 			for (String name : licensesUsed.get(licenseId))
 				sb.append((licenseId.equals("") ? "Proprietary" : licenseId) + "\t\t" + name + "\n");
 		logger.log(INFO, "# License summary:\n" + sb);
+	}
+
+	/** Deletes remaining sub directories. */
+	void cleanPreviousFailedBuild(Path categoryPath) {
+		Path outputCategoryPath = a2Base.resolve(categoryPath);
+		if (!Files.exists(outputCategoryPath))
+			return;
+		// clean previous failed build
+		try {
+			for (Path subDir : Files.newDirectoryStream(outputCategoryPath, (d) -> Files.isDirectory(d))) {
+				if (Files.exists(subDir)) {
+					logger.log(WARNING, "Bundle dir " + subDir
+							+ " already exists, probably from a previous failed build, deleting it...");
+					deleteDirectory(subDir);
+				}
+			}
+		} catch (IOException e) {
+			logger.log(ERROR, "Cannot clean previous build", e);
+		}
 	}
 
 	/** MANIFEST headers. */
@@ -584,6 +604,10 @@ public class Repackage {
 						} else if (entry.getName().startsWith("org/apache/batik/")) {
 							logger.log(TRACE, "Skip " + entry.getName());
 							continue entries;
+						} else if (entry.getName().startsWith("META-INF/NOTICE")) {
+							logger.log(WARNING, "Skip " + entry.getName() + " from " + artifact);
+							// TODO merge them?
+							continue entries;
 						} else {
 							throw new IllegalStateException("File " + target + " from " + artifact + " already exists");
 						}
@@ -910,6 +934,10 @@ public class Repackage {
 									map.put(key.toString(), commonProps.getProperty(key.toString()));
 								A2Origin origin = new A2Origin();
 								Path bundleDir = processBundleJar(file, targetCategoryBase, map, origin);
+								if (bundleDir == null) {
+									logger.log(WARNING, "No bundle dir created for " + file + ", skipping...");
+									return FileVisitResult.CONTINUE;
+								}
 								origins.put(bundleDir, origin);
 								logger.log(DEBUG, () -> "Processed " + file);
 							}
@@ -993,6 +1021,8 @@ public class Repackage {
 		Manifest sourceManifest;
 		try (JarInputStream jarIn = new JarInputStream(Files.newInputStream(file), false)) {
 			sourceManifest = jarIn.getManifest();
+			if (sourceManifest == null)
+				logger.log(WARNING, file + " has no manifest");
 			manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
 
 			String rawSourceSymbolicName = manifest.getMainAttributes().getValue(BUNDLE_SYMBOLICNAME.toString());
@@ -1015,6 +1045,8 @@ public class Repackage {
 				nameVersion = new NameVersion(ourSymbolicName, ourVersion);
 			} else {
 				nameVersion = nameVersionFromManifest(manifest);
+				if (nameVersion == null)
+					throw new IllegalStateException("Could not compute name/version from Manifest");
 				if (ourVersion != null && !nameVersion.getVersion().equals(ourVersion)) {
 					logger.log(WARNING,
 							"Original version is " + nameVersion.getVersion() + " while new version is " + ourVersion);
@@ -1025,6 +1057,7 @@ public class Repackage {
 					nameVersion.setName(ourSymbolicName);
 				}
 			}
+
 			bundleDir = targetBase.resolve(nameVersion.getName() + "." + nameVersion.getBranch());
 
 			// copy original MANIFEST
@@ -1050,7 +1083,6 @@ public class Repackage {
 				arch = libRelativePath.getName(1).toString();
 			}
 
-//			if (!embed) {
 			// copy entries
 			JarEntry entry;
 			entries: while ((entry = jarIn.getNextJarEntry()) != null) {
@@ -1117,7 +1149,6 @@ public class Repackage {
 					origin.deleted.add(bundleDir.relativize(target).toString());
 				}
 				logger.log(TRACE, () -> "Copied " + target);
-//				}
 			}
 		}
 
@@ -1129,11 +1160,6 @@ public class Repackage {
 			entries.put(BUNDLE_SYMBOLICNAME.toString(),
 					entries.get(BUNDLE_SYMBOLICNAME.toString()) + ";singleton:=true");
 		}
-
-//		if (embed) {// copy embedded jar
-//			Files.copy(file, bundleDir.resolve(file.getFileName()));
-//			entries.put(ManifestHeader.BUNDLE_CLASSPATH.toString(), file.getFileName().toString());
-//		}
 
 		// Final MANIFEST decisions
 		// We also check the original OSGi metadata and compare with our changes
