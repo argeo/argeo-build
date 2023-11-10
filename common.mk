@@ -1,5 +1,5 @@
 build-major=2
-build-minor=3
+build-minor=1
 
 # Required third party libraries
 ECJ_MAJOR=3
