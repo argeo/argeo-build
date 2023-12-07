@@ -1343,15 +1343,17 @@ public class Repackage {
 	}
 
 	/**
-	 * Effectively download. Synchronised in order to avoid downloading twice in
-	 * parallel.
+	 * Effectively download an archive.
 	 */
-	synchronized Path downloadArchive(URL url, Path dir) throws IOException {
+	Path downloadArchive(URL url, Path dir) throws IOException {
 		return download(url, dir, (String) null);
 	}
 
-	/** Effectively download. */
-	Path download(URL url, Path dir, String name) throws IOException {
+	/**
+	 * Effectively download. Synchronised in order to avoid downloading twice in
+	 * parallel.
+	 */
+	synchronized Path download(URL url, Path dir, String name) throws IOException {
 
 		Path dest;
 		if (name == null) {
