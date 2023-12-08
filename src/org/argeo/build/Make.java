@@ -729,7 +729,7 @@ public class Make {
 			}
 
 			long jvmUptime = ManagementFactory.getRuntimeMXBean().getUptime();
-			logger.log(INFO, "Make.java action '" + action + "' succesfully completed after " + (jvmUptime / 1000) + "."
+			logger.log(INFO, "Make.java action '" + action + "' successfully completed after " + (jvmUptime / 1000) + "."
 					+ (jvmUptime % 1000) + " s");
 		} catch (Exception e) {
 			long jvmUptime = ManagementFactory.getRuntimeMXBean().getUptime();
