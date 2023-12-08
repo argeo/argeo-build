@@ -578,9 +578,9 @@ public class Repackage {
 					}
 
 					if (entry.getName().endsWith("NOTICE") || entry.getName().endsWith("NOTICE.txt")
-							|| entry.getName().endsWith("LICENSE") || entry.getName().endsWith("LICENSE.md")
-							|| entry.getName().endsWith("LICENSE-notice.md") || entry.getName().endsWith("COPYING")
-							|| entry.getName().endsWith("COPYING.LESSER")) {
+							|| entry.getName().endsWith("NOTICE.md") || entry.getName().endsWith("LICENSE")
+							|| entry.getName().endsWith("LICENSE.md") || entry.getName().endsWith("LICENSE-notice.md")
+							|| entry.getName().endsWith("COPYING") || entry.getName().endsWith("COPYING.LESSER")) {
 						Path artifactOriginDir = bundleDir.resolve(ARGEO_ORIGIN).resolve(artifact.getGroupId())
 								.resolve(artifact.getArtifactId());
 						Path target = artifactOriginDir.resolve(entry.getName());
