@@ -438,7 +438,7 @@ public class Repackage {
 				if (artifact.getVersion() == null) {
 					artifact.setVersion(m2Version);
 				} else {
-					logger.log(WARNING, p.getFileName() + " : Using version " + artifact.getVersion()
+					logger.log(DEBUG, p.getFileName() + " : Using version " + artifact.getVersion()
 							+ " specified in descriptor rather than " + m2Version + " specified in " + COMMON_BND);
 				}
 
