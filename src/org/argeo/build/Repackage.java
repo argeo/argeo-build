@@ -438,7 +438,7 @@ public class Repackage {
 				if (artifact.getVersion() == null) {
 					artifact.setVersion(m2Version);
 				} else {
-					logger.log(WARNING, p.getFileName() + " : Using version " + artifact.getVersion()
+					logger.log(DEBUG, p.getFileName() + " : Using version " + artifact.getVersion()
 							+ " specified in descriptor rather than " + m2Version + " specified in " + COMMON_BND);
 				}
 
@@ -578,9 +578,9 @@ public class Repackage {
 					}
 
 					if (entry.getName().endsWith("NOTICE") || entry.getName().endsWith("NOTICE.txt")
-							|| entry.getName().endsWith("LICENSE") || entry.getName().endsWith("LICENSE.md")
-							|| entry.getName().endsWith("LICENSE-notice.md") || entry.getName().endsWith("COPYING")
-							|| entry.getName().endsWith("COPYING.LESSER")) {
+							|| entry.getName().endsWith("NOTICE.md") || entry.getName().endsWith("LICENSE")
+							|| entry.getName().endsWith("LICENSE.md") || entry.getName().endsWith("LICENSE-notice.md")
+							|| entry.getName().endsWith("COPYING") || entry.getName().endsWith("COPYING.LESSER")) {
 						Path artifactOriginDir = bundleDir.resolve(ARGEO_ORIGIN).resolve(artifact.getGroupId())
 								.resolve(artifact.getArtifactId());
 						Path target = artifactOriginDir.resolve(entry.getName());
@@ -1343,15 +1343,17 @@ public class Repackage {
 	}
 
 	/**
-	 * Effectively download. Synchronised in order to avoid downloading twice in
-	 * parallel.
+	 * Effectively download an archive.
 	 */
-	synchronized Path downloadArchive(URL url, Path dir) throws IOException {
+	Path downloadArchive(URL url, Path dir) throws IOException {
 		return download(url, dir, (String) null);
 	}
 
-	/** Effectively download. */
-	Path download(URL url, Path dir, String name) throws IOException {
+	/**
+	 * Effectively download. Synchronised in order to avoid downloading twice in
+	 * parallel.
+	 */
+	synchronized Path download(URL url, Path dir, String name) throws IOException {
 
 		Path dest;
 		if (name == null) {

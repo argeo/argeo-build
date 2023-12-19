@@ -309,7 +309,7 @@ public class Make {
 		}
 		CompletableFuture.allOf(toDos.toArray(new CompletableFuture[toDos.size()])).join();
 		long duration = System.currentTimeMillis() - begin;
-		logger.log(INFO, "Packaging took " + duration + " ms");
+		logger.log(DEBUG, "Packaging took " + duration + " ms");
 	}
 
 	/** Install the bundles. */
@@ -729,8 +729,8 @@ public class Make {
 			}
 
 			long jvmUptime = ManagementFactory.getRuntimeMXBean().getUptime();
-			logger.log(INFO, "Make.java action '" + action + "' succesfully completed after " + (jvmUptime / 1000) + "."
-					+ (jvmUptime % 1000) + " s");
+			logger.log(INFO, "Make.java action '" + action + "' successfully completed after " + (jvmUptime / 1000)
+					+ "." + (jvmUptime % 1000) + " s");
 		} catch (Exception e) {
 			long jvmUptime = ManagementFactory.getRuntimeMXBean().getUptime();
 			logger.log(ERROR, "Make.java action '" + action + "' failed after " + (jvmUptime / 1000) + "."
