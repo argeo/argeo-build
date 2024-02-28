@@ -32,8 +32,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.System.Logger;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
@@ -773,7 +773,7 @@ public class Repackage {
 					: null;
 			String alternateUri = props.getProperty(ARGEO_ORIGIN_SOURCES_URI.toString());
 			M2Artifact sourcesArtifact = new M2Artifact(artifact.toM2Coordinates(), "sources");
-			URL sourcesUrl = alternateUri != null ? new URL(alternateUri)
+			URI sourcesUrl = alternateUri != null ? new URI(alternateUri)
 					: M2ConventionsUtils.mavenRepoUrl(repoStr, sourcesArtifact);
 			Path sourcesDownloaded = downloadMaven(sourcesUrl, sourcesArtifact);
 			processM2SourceJar(sourcesDownloaded, targetBundleDir, merging ? artifact : null, unmodified);
@@ -847,13 +847,17 @@ public class Repackage {
 				? props.getProperty(ARGEO_ORIGIN_M2_REPO.toString())
 				: null;
 		String alternateUri = props.getProperty(ARGEO_ORIGIN_URI.toString());
-		URL url = alternateUri != null ? new URL(alternateUri) : M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
-		return downloadMaven(url, artifact);
+		try {
+			URI uri = alternateUri != null ? new URI(alternateUri) : M2ConventionsUtils.mavenRepoUrl(repoStr, artifact);
+			return downloadMaven(uri, artifact);
+		} catch (URISyntaxException e) {
+			throw new IllegalArgumentException("Wrong aritfact URI", e);
+		}
 	}
 
 	/** Download a Maven artifact. */
-	Path downloadMaven(URL url, M2Artifact artifact) throws IOException {
-		return download(url, mavenBase, M2ConventionsUtils.artifactPath("", artifact));
+	Path downloadMaven(URI uri, M2Artifact artifact) throws IOException {
+		return download(uri, mavenBase, M2ConventionsUtils.artifactPath("", artifact));
 	}
 
 	/*
@@ -1309,12 +1313,12 @@ public class Repackage {
 	}
 
 	/** Try to download from an URI. */
-	Path tryDownloadArchive(String uri, Path dir) throws IOException {
+	Path tryDownloadArchive(String uriStr, Path dir) throws IOException {
 		// find mirror
 		List<String> urlBases = null;
 		String uriPrefix = null;
 		uriPrefixes: for (String uriPref : mirrors.keySet()) {
-			if (uri.startsWith(uriPref)) {
+			if (uriStr.startsWith(uriPref)) {
 				if (mirrors.get(uriPref).size() > 0) {
 					urlBases = mirrors.get(uriPref);
 					uriPrefix = uriPref;
@@ -1324,56 +1328,56 @@ public class Repackage {
 		}
 		if (urlBases == null)
 			try {
-				return downloadArchive(new URL(uri), dir);
-			} catch (FileNotFoundException e) {
-				throw new FileNotFoundException("Cannot find " + uri);
+				return downloadArchive(new URI(uriStr), dir);
+			} catch (FileNotFoundException | URISyntaxException e) {
+				throw new FileNotFoundException("Cannot find " + uriStr);
 			}
 
 		// try to download
 		for (String urlBase : urlBases) {
-			String relativePath = uri.substring(uriPrefix.length());
-			URL url = new URL(urlBase + relativePath);
+			String relativePath = uriStr.substring(uriPrefix.length());
+			String uStr = urlBase + relativePath;
 			try {
-				return downloadArchive(url, dir);
-			} catch (FileNotFoundException e) {
-				logger.log(WARNING, "Cannot download " + url + ", trying another mirror");
+				return downloadArchive(new URI(uStr), dir);
+			} catch (FileNotFoundException | URISyntaxException e) {
+				logger.log(WARNING, "Cannot download " + uStr + ", trying another mirror");
 			}
 		}
-		throw new FileNotFoundException("Cannot find " + uri);
+		throw new FileNotFoundException("Cannot find " + uriStr);
 	}
 
 	/**
 	 * Effectively download an archive.
 	 */
-	Path downloadArchive(URL url, Path dir) throws IOException {
-		return download(url, dir, (String) null);
+	Path downloadArchive(URI uri, Path dir) throws IOException {
+		return download(uri, dir, (String) null);
 	}
 
 	/**
 	 * Effectively download. Synchronised in order to avoid downloading twice in
 	 * parallel.
 	 */
-	synchronized Path download(URL url, Path dir, String name) throws IOException {
+	synchronized Path download(URI uri, Path dir, String name) throws IOException {
 
 		Path dest;
 		if (name == null) {
 			// We use also use parent directory in case the archive itself has a fixed name
-			String[] segments = url.getPath().split("/");
+			String[] segments = uri.getPath().split("/");
 			name = segments.length > 1 ? segments[segments.length - 2] + '-' + segments[segments.length - 1]
 					: segments[segments.length - 1];
 		}
 
 		dest = dir.resolve(name);
 		if (Files.exists(dest)) {
-			logger.log(TRACE, () -> "File " + dest + " already exists for " + url + ", not downloading again");
+			logger.log(TRACE, () -> "File " + dest + " already exists for " + uri + ", not downloading again");
 			return dest;
 		} else {
 			Files.createDirectories(dest.getParent());
 		}
 
-		try (InputStream in = url.openStream()) {
+		try (InputStream in = uri.toURL().openStream()) {
 			Files.copy(in, dest);
-			logger.log(DEBUG, () -> "Downloaded " + dest + " from " + url);
+			logger.log(DEBUG, () -> "Downloaded " + dest + " from " + uri);
 		}
 		return dest;
 	}
@@ -1633,14 +1637,9 @@ class M2ConventionsUtils {
 	}
 
 	/** Absolute path to the file */
-	static URL mavenRepoUrl(String repoBase, M2Artifact artifact) {
-		String url = artifactUrl(repoBase == null ? MAVEN_CENTRAL_BASE_URL : repoBase, artifact);
-		try {
-			return new URL(url);
-		} catch (MalformedURLException e) {
-			// it should not happen
-			throw new IllegalStateException(e);
-		}
+	static URI mavenRepoUrl(String repoBase, M2Artifact artifact) throws URISyntaxException {
+		String uri = artifactUrl(repoBase == null ? MAVEN_CENTRAL_BASE_URL : repoBase, artifact);
+		return new URI(uri);
 	}
 
 	/** Absolute path to the directories where the files will be stored */
