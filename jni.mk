@@ -40,6 +40,7 @@ install:
 
 uninstall:
 	$(RM) $(A2_NATIVE_INSTALL_TARGET)/$(TARGET_EXEC)
+	@if [ -d $(A2_NATIVE_INSTALL_TARGET) ]; then find $(A2_NATIVE_INSTALL_TARGET) -empty -type d -delete; fi
 
 # Sources
 SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s')

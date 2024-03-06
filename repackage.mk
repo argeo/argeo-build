@@ -39,8 +39,8 @@ uninstall:
 	 $(foreach libfile, $(wildcard $(A2_OUTPUT)/$(category)/*.so), $(RMDIR) $(A2_NATIVE_INSTALL_TARGET)/$(notdir $(libfile));$(LF)) \
 	)
 	@echo Uninstalled arch binaries \'$(ARCH_CATEGORIES)\' to $(A2_NATIVE_INSTALL_TARGET)
-	@find $(A2_INSTALL_TARGET) -empty -type d -delete
-	@find $(A2_NATIVE_INSTALL_TARGET) -empty -type d -delete
+	@if [ -d $(A2_INSTALL_TARGET) ]; then find $(A2_INSTALL_TARGET) -empty -type d -delete; fi
+	@if [ -d $(A2_NATIVE_INSTALL_TARGET) ]; then find $(A2_NATIVE_INSTALL_TARGET) -empty -type d -delete; fi
 
 .SECONDEXPANSION:
 # We use .SECONDEXPANSION and CATEGORIES_TO_REPACKAGE instead of directly CATEGORIES
