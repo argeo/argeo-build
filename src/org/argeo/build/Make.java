@@ -378,7 +378,10 @@ public class Make {
 					count++;
 				}
 				Path targetParent = targetJarP.getParent();
-				deleteEmptyParents(targetA2, targetParent);
+				if (targetParent.startsWith(targetA2))
+					deleteEmptyParents(targetA2, targetParent);
+				if (targetParent.startsWith(nativeTargetA2))
+					deleteEmptyParents(nativeTargetA2, targetParent);
 			} else { // install
 				Files.createDirectories(targetJarP.getParent());
 				boolean update = Files.exists(targetJarP);
@@ -411,16 +414,16 @@ public class Make {
 		return values != null ? values : new ArrayList<>();
 	}
 
-	/** Delete empty parent directory up to the A2 target (included). */
-	void deleteEmptyParents(Path targetA2, Path targetParent) throws IOException {
+	/** Delete empty parent directory up to the base directory (included). */
+	void deleteEmptyParents(Path baseDir, Path targetParent) throws IOException {
 		if (!Files.isDirectory(targetParent))
 			throw new IllegalArgumentException(targetParent + " must be a directory");
-		boolean isA2target = Files.isSameFile(targetA2, targetParent);
+		boolean isA2target = Files.isSameFile(baseDir, targetParent);
 		if (!Files.list(targetParent).iterator().hasNext()) {
 			Files.delete(targetParent);
 			if (isA2target)
 				return;// stop after deleting A2 base
-			deleteEmptyParents(targetA2, targetParent.getParent());
+			deleteEmptyParents(baseDir, targetParent.getParent());
 		}
 	}
 
