@@ -15,17 +15,18 @@ ARGEO_REPACKAGE = $(JVM) -cp $(LOGGER_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)src/
 TODOS_REPACKAGE = $(foreach category, $(CATEGORIES),$(BUILD_BASE)/$(category)/to-repackage) 
 BUILD_BASE = $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE))
 REPACKAGED_CATEGORIES = $(foreach category, $(CATEGORIES),$(A2_OUTPUT)/$(category))
+INSTALL=install -m644 -D
 
 all: $(BUILD_BASE)/repackaged 
 
 install:
-	$(foreach category, $(PORTABLE_CATEGORIES), install -D $(wildcard $(A2_OUTPUT)/$(category)/*.jar) $(A2_INSTALL_TARGET)/$(category);)
+	$(foreach category, $(PORTABLE_CATEGORIES), $(INSTALL) $(wildcard $(A2_OUTPUT)/$(category)/*.jar) $(A2_INSTALL_TARGET)/$(category);$(LF))
 	@echo Installed portable jars '$(PORTABLE_CATEGORIES)' to $(A2_INSTALL_TARGET)
-	$(foreach category, $(OS_CATEGORIES), install -D $(wildcard $(A2_OUTPUT)/$(category)/*.jar) $(A2_INSTALL_TARGET)/$(subst, $(TARGET_OS_CATEGORY_PREFIX)/,, $(category));)
+	$(foreach category, $(OS_CATEGORIES), $(INSTALL) $(wildcard $(A2_OUTPUT)/$(category)/*.jar) $(A2_INSTALL_TARGET)/$(subst,$(TARGET_OS_CATEGORY_PREFIX)/,, $(category));$(LF))
 	@echo Installed OS-dependent jars '$(OS_CATEGORIES)' to $(A2_INSTALL_TARGET)
-	$(foreach category, $(ARCH_CATEGORIES), install -D $(wildcard $(A2_OUTPUT)/$(category)/*.jar) $(A2_NATIVE_INSTALL_TARGET)/$(subst, $(TARGET_ARCH_CATEGORY_PREFIX)/,, $(category));)
+	$(foreach category, $(ARCH_CATEGORIES), $(INSTALL) $(wildcard $(A2_OUTPUT)/$(category)/*.jar) $(A2_NATIVE_INSTALL_TARGET)/$(subst,$(TARGET_ARCH_CATEGORY_PREFIX)/,, $(category));$(LF))
 	@echo Installed arch-dependent jars '$(ARCH_CATEGORIES)' to $(A2_NATIVE_INSTALL_TARGET)
-	$(foreach category, $(ARCH_CATEGORIES), install -D $(wildcard $(A2_OUTPUT)/$(category)/*.so) $(A2_NATIVE_INSTALL_TARGET);)
+	$(foreach category, $(ARCH_CATEGORIES), $(INSTALL) $(wildcard $(A2_OUTPUT)/$(category)/*.so) $(A2_NATIVE_INSTALL_TARGET);$(LF))
 	@echo Installed arch binaries '$(ARCH_CATEGORIES)' to $(A2_NATIVE_INSTALL_TARGET)
 
 uninstall:

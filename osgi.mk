@@ -103,10 +103,4 @@ jni-uninstall:
 javadoc: $(BUILD_BASE)/built
 	$(JAVADOC) -noindex -quiet -Xmaxwarns 1 -d $(BUILD_BASE)/api --source-path $(subst $(space),$(pathsep),$(strip $(JAVADOC_SRCS))) -subpackages $(JAVADOC_PACKAGES)
 
-# Make variables used to replace spaces by a separator, typically in order to generate classpaths
-# for example: CLASSPATH = $(subst $(space),$(pathsep),$(strip $(JARS)))
-null  :=
-space := $(null) #
-pathsep := :
-
 .PHONY: osgi manifests javadoc osgi-all osgi-clean osgi-install osgi-uninstall jni-all jni-clean jni-install jni-uninstall
