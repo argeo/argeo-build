@@ -2,7 +2,7 @@ ARGEO_BUILD_BASE := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(ARGEO_BUILD_BASE)common.mk
 
 # The following variables should be declared in the including Makefile:
-# CATEGORIES		the space-separated list of categories to repackage
+# CATEGORIES        the space-separated list of categories to repackage
 
 A2_BASE ?=/usr/share/a2 /usr/local/share/a2 $(A2_OUTPUT)
 

@@ -2,16 +2,16 @@ ARGEO_BUILD_BASE := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(ARGEO_BUILD_BASE)common.mk
 
 # The following variables should be declared in the including Makefile:
-# BUNDLES			the space-separated list of bundles to build
-# A2_CATEGORY		the (single) a2 category the bundles will belong to
+# BUNDLES           the space-separated list of bundles to build
+# A2_CATEGORY       the (single) a2 category the bundles will belong to
 
 # The following environment variables can change the behaviour of the build
-# SOURCE_BUNDLES	sources will be packaged separately in Eclipse-compatible source bundles
-# NO_MANIFEST_COPY	generated MANIFESTs won't be copied to the source tree
+# SOURCE_BUNDLES    sources will be packaged separately in Eclipse-compatible source bundles
+# NO_MANIFEST_COPY  generated MANIFESTs won't be copied to the source tree
 
 # The following variables have default values which can be overriden
-# DEP_CATEGORIES	the a2 categories the compilation depends on
-# JAVADOC_PACKAGES	the space-separated list of packages for which javadoc will be generated
+# DEP_CATEGORIES    the a2 categories the compilation depends on
+# JAVADOC_PACKAGES  the space-separated list of packages for which javadoc will be generated
 # NATIVE_PACKAGES   the space-separated list of JNI packages (directories)
 DEP_CATEGORIES ?=
 JAVADOC_PACKAGES ?=
