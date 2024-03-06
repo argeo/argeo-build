@@ -380,7 +380,7 @@ public class Make {
 				Path targetParent = targetJarP.getParent();
 				if (targetParent.startsWith(targetA2))
 					deleteEmptyParents(targetA2, targetParent);
-				if (targetParent.startsWith(nativeTargetA2))
+				if (nativeTargetA2 != null && targetParent.startsWith(nativeTargetA2))
 					deleteEmptyParents(nativeTargetA2, targetParent);
 			} else { // install
 				Files.createDirectories(targetJarP.getParent());
@@ -416,6 +416,10 @@ public class Make {
 
 	/** Delete empty parent directory up to the base directory (included). */
 	void deleteEmptyParents(Path baseDir, Path targetParent) throws IOException {
+		if (!targetParent.startsWith(baseDir))
+			throw new IllegalArgumentException(targetParent + " does not start with " + baseDir);
+		if (!Files.exists(targetParent))
+			deleteEmptyParents(baseDir, targetParent.getParent());
 		if (!Files.isDirectory(targetParent))
 			throw new IllegalArgumentException(targetParent + " must be a directory");
 		boolean isA2target = Files.isSameFile(baseDir, targetParent);
