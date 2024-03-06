@@ -40,6 +40,7 @@ uninstall:
 	)
 	@echo Uninstalled arch binaries \'$(ARCH_CATEGORIES)\' to $(A2_NATIVE_INSTALL_TARGET)
 	@find $(A2_INSTALL_TARGET) -empty -type d -delete
+	@find $(A2_NATIVE_INSTALL_TARGET) -empty -type d -delete
 
 .SECONDEXPANSION:
 # We use .SECONDEXPANSION and CATEGORIES_TO_REPACKAGE instead of directly CATEGORIES
