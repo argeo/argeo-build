@@ -36,7 +36,7 @@ uninstall:
 	$(foreach category, $(ARCH_CATEGORIES), $(RM) $(A2_NATIVE_INSTALL_TARGET)/$(category:$(TARGET_ARCH_CATEGORY_PREFIX)/%=%);$(LF))
 	@echo Uninstalled arch-dependent jars '$(ARCH_CATEGORIES)' to $(A2_NATIVE_INSTALL_TARGET)
 	$(foreach category, $(ARCH_CATEGORIES), \
-	 $(foreach libfile, $(wildcard $(A2_OUTPUT)/$(category)/*.so), $(RM) $(A2_NATIVE_INSTALL_TARGET)/$(notdir $(libfile)))
+	 $(foreach libfile, $(wildcard $(A2_OUTPUT)/$(category)/*.so), $(RM) $(A2_NATIVE_INSTALL_TARGET)/$(notdir $(libfile));$(LF)) \
 	)
 	@echo Uninstalled arch binaries '$(ARCH_CATEGORIES)' to $(A2_NATIVE_INSTALL_TARGET)
 	@find $(A2_INSTALL_TARGET) -empty -type d -delete
