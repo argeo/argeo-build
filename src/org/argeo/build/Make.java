@@ -314,23 +314,18 @@ public class Make {
 
 	/** Install or uninstall bundles and native output. */
 	void install(Map<String, List<String>> options, boolean uninstall) throws IOException {
+		final String LIB_ = "lib/";
+		final String NATIVE_ = "native/";
+
 		// check arguments
-		List<String> bundles = options.get("--bundles");
-		Objects.requireNonNull(bundles, "--bundles argument must be set");
+		List<String> bundles = multiArg(options, "--bundles", true);
 		if (bundles.isEmpty())
 			return;
-
-		List<String> categories = options.get("--category");
-		Objects.requireNonNull(categories, "--category argument must be set");
-		if (categories.size() != 1)
-			throw new IllegalArgumentException("One and only one --category must be specified");
-		String category = categories.get(0);
-
-		List<String> targetDirs = options.get("--target");
-		Objects.requireNonNull(targetDirs, "--target argument must be set");
-		if (targetDirs.size() != 1)
-			throw new IllegalArgumentException("Only one --target must be specified");
-		Path targetA2 = Paths.get(targetDirs.get(0));
+		String category = singleArg(options, "--category", true);
+		Path targetA2 = Paths.get(singleArg(options, "--target", true));
+		String nativeTargetArg = singleArg(options, "--target-native", false);
+		Path nativeTargetA2 = nativeTargetArg != null ? Paths.get(nativeTargetArg) : null;
+		String targetOs = singleArg(options, "--os", nativeTargetArg != null);
 		logger.log(INFO, (uninstall ? "Uninstalling bundles from " : "Installing bundles to ") + targetA2);
 
 		final String branch;
@@ -354,14 +349,28 @@ public class Make {
 		Objects.requireNonNull(minor, "'minor' must be set");
 
 		int count = 0;
-		for (String bundle : bundles) {
+		bundles: for (String bundle : bundles) {
 			Path bundlePath = Paths.get(bundle);
 			Path bundleParent = bundlePath.getParent();
 			Path a2JarDirectory = bundleParent != null ? a2Output.resolve(bundleParent).resolve(category)
 					: a2Output.resolve(category);
 			Path jarP = a2JarDirectory.resolve(bundlePath.getFileName() + "." + major + "." + minor + ".jar");
 
-			Path targetJarP = targetA2.resolve(a2Output.relativize(jarP));
+			Path targetJarP;
+			if (bundle.startsWith(LIB_)) {// OS-specific
+				Objects.requireNonNull(nativeTargetA2);
+				if (bundle.startsWith(LIB_ + NATIVE_) // portable native
+						|| bundle.startsWith(LIB_ + targetOs + "/" + NATIVE_)) {// OS-specific native
+					targetJarP = nativeTargetA2.resolve(category).resolve(jarP.getFileName());
+				} else if (bundle.startsWith(LIB_ + targetOs)) {// OS-specific portable
+					targetJarP = targetA2.resolve(category).resolve(jarP.getFileName());
+				} else { // ignore other OS
+					continue bundles;
+				}
+			} else {
+				targetJarP = targetA2.resolve(a2Output.relativize(jarP));
+			}
+
 			if (uninstall) { // uninstall
 				if (Files.exists(targetJarP)) {
 					Files.delete(targetJarP);
@@ -379,6 +388,27 @@ public class Make {
 			}
 		}
 		logger.log(INFO, uninstall ? count + " bundles removed" : count + " bundles installed or updated");
+	}
+
+	/** Extracts an argument which must be unique. */
+	String singleArg(Map<String, List<String>> options, String arg, boolean mandatory) {
+		List<String> values = options.get(arg);
+		if (values == null || values.size() == 0)
+			if (mandatory)
+				throw new IllegalArgumentException(arg + " argument must be set");
+			else
+				return null;
+		if (values.size() != 1)
+			throw new IllegalArgumentException("One and only one " + arg + " arguments must be specified");
+		return values.get(0);
+	}
+
+	/** Extracts an argument which can have multiple values. */
+	List<String> multiArg(Map<String, List<String>> options, String arg, boolean mandatory) {
+		List<String> values = options.get(arg);
+		if (mandatory && values == null)
+			throw new IllegalArgumentException(arg + " argument must be set");
+		return values != null ? values : new ArrayList<>();
 	}
 
 	/** Delete empty parent directory up to the A2 target (included). */

@@ -80,12 +80,14 @@ osgi-clean: jni-clean
 osgi-install: jni-install
 	$(ARGEO_MAKE) \
 	 install --category $(A2_CATEGORY) --bundles $(BUNDLES) \
-	 --target $(A2_INSTALL_TARGET)
+	 --target $(A2_INSTALL_TARGET) \
+	 --os $(TARGET_OS) --target-native $(A2_NATIVE_INSTALL_TARGET)
 
 osgi-uninstall: jni-uninstall
 	$(ARGEO_MAKE) \
 	 uninstall --category $(A2_CATEGORY) --bundles $(BUNDLES) \
-	 --target $(A2_INSTALL_TARGET)
+	 --target $(A2_INSTALL_TARGET) \
+	 --os $(TARGET_OS) --target-native $(A2_NATIVE_INSTALL_TARGET)
 
 jni-all: 
 	$(foreach dir, $(JNIDIRS), $(MAKE) -C $(dir) all;)
