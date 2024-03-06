@@ -1,5 +1,5 @@
 ARGEO_BUILD_BASE := $(dir $(lastword $(MAKEFILE_LIST)))
-include $(ARGEO_BUILD_BASE)osgi.mk
+include $(ARGEO_BUILD_BASE)common.mk
 
 A2_NATIVE_CATEGORY=$(A2_OUTPUT)/lib/linux/$(shell uname -m)/$(A2_CATEGORY)
 TARGET_EXEC := libJava_$(NATIVE_PACKAGE).so
@@ -17,11 +17,17 @@ BUILD_DIR := $(SDK_BUILD_BASE)/jni/$(NATIVE_PACKAGE)
 # Include directories
 INC_DIRS := $(shell find $(SRC_DIRS) -type d) $(JAVA_HOME)/include $(JAVA_HOME)/include/linux $(ADDITIONAL_INCLUDES)
 
-.PHONY: clean all ide
 all: $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
 
 clean:
+	$(RM) $(BUILD_DIR)/*.o
 	$(RM) $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
+
+install:
+	$(CP) $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC) $(A2_NATIVE_INSTALL_TARGET)
+
+uninstall:
+	$(RM) $(A2_NATIVE_INSTALL_TARGET)/$(TARGET_EXEC)
 
 # Sources
 SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s')
@@ -51,3 +57,5 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 
 # Include the .d makefiles. (- pefix suppress errors if not found)
 -include $(DEPS)
+
+.PHONY: clean all install uninstall

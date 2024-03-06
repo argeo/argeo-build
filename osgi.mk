@@ -42,10 +42,11 @@ endif
 BUILD_BASE = $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE))
 TARGET_BUNDLES =  $(abspath $(foreach bundle, $(BUNDLES),$(A2_OUTPUT)/$(shell dirname $(bundle))/$(A2_CATEGORY)/$(shell basename $(bundle)).$(major).$(minor).jar))
 TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build) 
+# Native
+JNIDIRS=$(foreach package, $(NATIVE_PACKAGES), jni/$(package))
 
 # Needed in order to be able to expand $$ variables
 .SECONDEXPANSION:
-.PHONY: osgi manifests javadoc
 
 osgi: $(BUILD_BASE)/built $(MANIFESTS)
 
@@ -81,15 +82,32 @@ endif
 clean-manifests :
 	@rm -rf $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF);
 
-osgi-install:
+osgi-all: osgi jni-all
+
+osgi-clean: jni-clean
+	rm -rf $(BUILD_BASE)
+
+osgi-install: jni-install
 	$(ARGEO_MAKE) \
 	 install --category $(A2_CATEGORY) --bundles $(BUNDLES) \
 	 --target $(A2_INSTALL_TARGET)
 
-osgi-uninstall:
+osgi-uninstall: jni-uninstall
 	$(ARGEO_MAKE) \
 	 uninstall --category $(A2_CATEGORY) --bundles $(BUNDLES) \
 	 --target $(A2_INSTALL_TARGET)
+
+jni-all: 
+	$(foreach dir, $(JNIDIRS), $(MAKE) -C $(dir) all;)
+	
+jni-clean:
+	$(foreach dir, $(JNIDIRS), $(MAKE) -C $(dir) clean;)
+
+jni-install:
+	$(foreach dir, $(JNIDIRS), $(MAKE) -C $(dir) install;)
+
+jni-uninstall:
+	$(foreach dir, $(JNIDIRS), $(MAKE) -C $(dir) uninstall;)
 
 # Javadoc generation
 javadoc: $(BUILD_BASE)/built
@@ -100,3 +118,5 @@ javadoc: $(BUILD_BASE)/built
 null  :=
 space := $(null) #
 pathsep := :
+
+.PHONY: osgi manifests javadoc osgi-all osgi-clean osgi-install osgi-uninstall jni-all jni-clean jni-install jni-uninstall
