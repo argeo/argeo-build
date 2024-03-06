@@ -14,10 +14,6 @@ A2_OUTPUT = $(SDK_BUILD_BASE)/a2
 JVM ?= $(JAVA_HOME)/bin/java
 JAVADOC ?= $(JAVA_HOME)/bin/javadoc
 
-# The following variables have default values which can be overriden
-# A2_BASE           the space-separated directories where already built a2 categories can be found
-A2_BASE ?=$(A2_OUTPUT) /usr/local/share/a2 /usr/share/a2
-
 # GNU defaults
 prefix ?= /usr/local
 datarootdir ?= $(prefix)/share
@@ -26,6 +22,10 @@ libdir ?= $(exec_prefix)/lib
 
 A2_INSTALL_TARGET ?= $(DESTDIR)$(datarootdir)/a2
 A2_NATIVE_INSTALL_TARGET ?= $(DESTDIR)$(libdir)/a2
+
+# The following variables have default values which can be overriden
+# A2_BASE           the space-separated directories where already built a2 categories can be found
+A2_BASE ?=$(A2_OUTPUT) $(A2_INSTALL_TARGET) $(A2_NATIVE_INSTALL_TARGET) /usr/local/share/a2 /usr/local/lib/a2 /usr/share/a2 /usr/lib/a2
 
 # OS-speciific
 KNOWN_ARCHS ?= x86_64 aarch64

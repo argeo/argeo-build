@@ -38,6 +38,7 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 
 import org.eclipse.jdt.core.compiler.CompilationProgress;
@@ -175,7 +176,8 @@ public class Make {
 
 		List<String> a2Categories = options.getOrDefault("--dep-categories", new ArrayList<>());
 		List<String> a2Bases = options.getOrDefault("--a2-bases", new ArrayList<>());
-		if (a2Bases.isEmpty() || !a2Bases.contains(a2Output.toString())) {
+		a2Bases = a2Bases.stream().distinct().collect(Collectors.toList());// remove duplicates
+		if (a2Bases.isEmpty() || !a2Bases.contains(a2Output.toString())) {// make sure a2 output is available
 			a2Bases.add(a2Output.toString());
 		}
 
@@ -204,10 +206,9 @@ public class Make {
 							A2Jar current = a2Jars.get(a2Jar.name);
 							if (a2Jar.major > current.major)
 								a2Jars.put(a2Jar.name, a2Jar);
-							else if (a2Jar.major == current.major //
-									// if minor equals, we take the last one
-									&& a2Jar.minor >= current.minor)
+							else if (a2Jar.major == current.major && a2Jar.minor > current.minor)
 								a2Jars.put(a2Jar.name, a2Jar);
+							// keep if minor equals
 						} else {
 							a2Jars.put(a2Jar.name, a2Jar);
 						}
