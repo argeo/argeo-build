@@ -40,9 +40,8 @@ uninstall:
 	)
 	@echo Uninstalled arch binaries \'$(ARCH_CATEGORIES)\' to $(A2_NATIVE_INSTALL_TARGET)
 	@find $(A2_INSTALL_TARGET) -empty -type d -delete
-	@rmdir --ignore-fail-on-non-empty $(A2_INSTALL_TARGET)
 	@find $(A2_NATIVE_INSTALL_TARGET) -empty -type d -delete
-	@rmdir --ignore-fail-on-non-empty $(A2_NATIVE_INSTALL_TARGET)
+
 .SECONDEXPANSION:
 # We use .SECONDEXPANSION and CATEGORIES_TO_REPACKAGE instead of directly CATEGORIES
 # so that we don't repackage a category if it hasn't changed
