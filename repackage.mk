@@ -30,8 +30,13 @@ REPACKAGED_CATEGORIES = $(foreach category, $(CATEGORIES),$(A2_OUTPUT)/$(categor
 all: $(BUILD_BASE)/repackaged 
 
 install:
-	@$(foreach category, $(CATEGORIES), mkdir -p $(A2_INSTALL_TARGET)/$(category);  cp $(A2_OUTPUT)/$(category)/*.jar $(A2_INSTALL_TARGET)/$(category);)
-	@echo Installed $(CATEGORIES) to $(A2_INSTALL_TARGET)
+	@$(foreach category, $(PORTABLE_CATEGORIES), mkdir -p $(A2_INSTALL_TARGET)/$(category);  cp $(A2_OUTPUT)/$(category)/*.jar $(A2_INSTALL_TARGET)/$(category);)
+	@echo Installed $(PORTABLE_CATEGORIES) to $(A2_INSTALL_TARGET)
+	@$(foreach category, $(OS_CATEGORIES), mkdir -p $(A2_INSTALL_TARGET)/$(category);  cp $(A2_OUTPUT)/$(category)/*.jar $(A2_INSTALL_TARGET)/$(category);)
+	@echo Installed $(OS_CATEGORIES) to $(A2_INSTALL_TARGET)
+	mkdir -p $(A2_NATIVE_INSTALL_TARGET)
+	@$(foreach category, $(ARCH_CATEGORIES), cp $(A2_OUTPUT)/$(category)/*.so $(A2_NATIVE_INSTALL_TARGET);)
+	@echo Installed $(ARCH_CATEGORIES) to $(A2_NATIVE_INSTALL_TARGET)
 
 uninstall:
 	@$(foreach category, $(CATEGORIES), rm -rf $(A2_INSTALL_TARGET)/$(category);)
