@@ -19,14 +19,13 @@ REPACKAGED_CATEGORIES = $(foreach category, $(CATEGORIES),$(A2_OUTPUT)/$(categor
 all: $(BUILD_BASE)/repackaged 
 
 install:
-	@$(foreach category, $(PORTABLE_CATEGORIES), mkdir -p $(A2_INSTALL_TARGET)/$(category);  cp $(A2_OUTPUT)/$(category)/*.jar $(A2_INSTALL_TARGET)/$(category);)
+	@$(foreach category, $(PORTABLE_CATEGORIES), install -D $(A2_OUTPUT)/$(category)/*.jar $(A2_INSTALL_TARGET)/$(category))
 	@echo Installed portable jars '$(PORTABLE_CATEGORIES)' to $(A2_INSTALL_TARGET)
-	@$(foreach category, $(OS_CATEGORIES), mkdir -p $(A2_INSTALL_TARGET)/$(category);  cp $(A2_OUTPUT)/$(category)/*.jar $(A2_INSTALL_TARGET)/$(category);)
+	@$(foreach category, $(OS_CATEGORIES), install -D $(A2_OUTPUT)/$(category)/*.jar $(A2_INSTALL_TARGET)/$(category))
 	@echo Installed OS-dependent jars '$(OS_CATEGORIES)' to $(A2_INSTALL_TARGET)
-	mkdir -p $(A2_NATIVE_INSTALL_TARGET)
-	@$(foreach category, $(ARCH_CATEGORIES), mkdir -p $(A2_NATIVE_INSTALL_TARGET)/$(category);  cp $(A2_OUTPUT)/$(category)/*.jar $(A2_NATIVE_INSTALL_TARGET)/$(category);)
+	@$(foreach category, $(ARCH_CATEGORIES), install -D $(A2_OUTPUT)/$(category)/*.jar $(subst, $(TARGET_ARCH_CATEGORY_PREFIX)/,, $(category)))
 	@echo Installed arch-dependent jars '$(ARCH_CATEGORIES)' to $(A2_NATIVE_INSTALL_TARGET)
-	@$(foreach category, $(ARCH_CATEGORIES), cp $(A2_OUTPUT)/$(category)/*.so $(A2_NATIVE_INSTALL_TARGET);)
+	@$(foreach category, $(ARCH_CATEGORIES), install -D $(A2_OUTPUT)/$(category)/*.so $(A2_NATIVE_INSTALL_TARGET);)
 	@echo Installed arch binaries '$(ARCH_CATEGORIES)' to $(A2_NATIVE_INSTALL_TARGET)
 
 uninstall:
