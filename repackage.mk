@@ -19,19 +19,27 @@ REPACKAGED_CATEGORIES = $(foreach category, $(CATEGORIES),$(A2_OUTPUT)/$(categor
 all: $(BUILD_BASE)/repackaged 
 
 install:
-	$(foreach category, $(PORTABLE_CATEGORIES), $(INSTALL) $(A2_INSTALL_TARGET)/$(category) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))
+	@$(foreach category, $(PORTABLE_CATEGORIES), $(INSTALL) $(A2_INSTALL_TARGET)/$(category) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))
 	@echo Installed portable jars '$(PORTABLE_CATEGORIES)' to $(A2_INSTALL_TARGET)
-	$(foreach category, $(OS_CATEGORIES), $(INSTALL) $(A2_INSTALL_TARGET)/$(category:$(TARGET_OS_CATEGORY_PREFIX)/%=%) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))
+	@$(foreach category, $(OS_CATEGORIES), $(INSTALL) $(A2_INSTALL_TARGET)/$(category:$(TARGET_OS_CATEGORY_PREFIX)/%=%) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))
 	@echo Installed OS-dependent jars '$(OS_CATEGORIES)' to $(A2_INSTALL_TARGET)
-	$(foreach category, $(ARCH_CATEGORIES), $(INSTALL) $(A2_NATIVE_INSTALL_TARGET)/$(category:$(TARGET_ARCH_CATEGORY_PREFIX)/%=%) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))
+	@$(foreach category, $(ARCH_CATEGORIES), $(INSTALL) $(A2_NATIVE_INSTALL_TARGET)/$(category:$(TARGET_ARCH_CATEGORY_PREFIX)/%=%) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))
 	@echo Installed arch-dependent jars '$(ARCH_CATEGORIES)' to $(A2_NATIVE_INSTALL_TARGET)
-	$(foreach category, $(ARCH_CATEGORIES), $(INSTALL) $(A2_NATIVE_INSTALL_TARGET) $(wildcard $(A2_OUTPUT)/$(category)/*.so);$(LF))
+	@$(foreach category, $(ARCH_CATEGORIES), $(INSTALL) $(A2_NATIVE_INSTALL_TARGET) $(wildcard $(A2_OUTPUT)/$(category)/*.so);$(LF))
 	@echo Installed arch binaries '$(ARCH_CATEGORIES)' to $(A2_NATIVE_INSTALL_TARGET)
 
 uninstall:
-	@$(foreach category, $(CATEGORIES), rm -rf $(A2_INSTALL_TARGET)/$(category);)
+	$(foreach category, $(PORTABLE_CATEGORIES), $(RM) $(A2_INSTALL_TARGET)/$(category);$(LF))
+	@echo Uninstalled portable jars '$(PORTABLE_CATEGORIES)' to $(A2_INSTALL_TARGET)
+	$(foreach category, $(OS_CATEGORIES), $(RM) $(A2_INSTALL_TARGET)/$(category:$(TARGET_OS_CATEGORY_PREFIX)/%=%);$(LF))
+	@echo Uninstalled OS-dependent jars '$(OS_CATEGORIES)' to $(A2_INSTALL_TARGET)
+	$(foreach category, $(ARCH_CATEGORIES), $(RM) $(A2_NATIVE_INSTALL_TARGET)/$(category:$(TARGET_ARCH_CATEGORY_PREFIX)/%=%);$(LF))
+	@echo Uninstalled arch-dependent jars '$(ARCH_CATEGORIES)' to $(A2_NATIVE_INSTALL_TARGET)
+	$(foreach category, $(ARCH_CATEGORIES), \
+	 $(foreach libfile, $(wildcard $(A2_OUTPUT)/$(category)/*.so), $(RM) $(A2_NATIVE_INSTALL_TARGET)/$(notdir $(libfile)))
+	)
+	@echo Uninstalled arch binaries '$(ARCH_CATEGORIES)' to $(A2_NATIVE_INSTALL_TARGET)
 	@find $(A2_INSTALL_TARGET) -empty -type d -delete
-	@echo Uninstalled $(CATEGORIES) from $(A2_INSTALL_TARGET)
 
 .SECONDEXPANSION:
 # We use .SECONDEXPANSION and CATEGORIES_TO_REPACKAGE instead of directly CATEGORIES
