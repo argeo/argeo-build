@@ -38,8 +38,13 @@ PORTABLE_CATEGORIES=$(filter-out lib/%, $(CATEGORIES))
 ARCH_CATEGORIES=$(filter $(TARGET_ARCH_CATEGORY_PREFIX)/%, $(CATEGORIES))
 OS_CATEGORIES=$(filter-out $(foreach arch, $(KNOWN_ARCHS), $(TARGET_OS_CATEGORY_PREFIX)/$(arch)/%), $(filter $(TARGET_OS_CATEGORY_PREFIX)/%, $(CATEGORIES)))
 
-# Utilities
+## Utilities
+# Install to a target directory without executable bit
 INSTALL=install -m644 -D --target-directory
+# Always try copy-on-write
+COPY=--reflink=auto
+# Recursively delete directories
+RMDIR=$(RM) -r
 
 # Make variables used to replace spaces by a separator, typically in order to generate classpaths
 # for example: CLASSPATH = $(subst $(space),$(pathsep),$(strip $(JARS)))
