@@ -312,7 +312,7 @@ public class Make {
 		logger.log(DEBUG, "Packaging took " + duration + " ms");
 	}
 
-	/** Install the bundles. */
+	/** Install or uninstall bundles and native output. */
 	void install(Map<String, List<String>> options, boolean uninstall) throws IOException {
 		// check arguments
 		List<String> bundles = options.get("--bundles");
@@ -329,9 +329,9 @@ public class Make {
 		List<String> targetDirs = options.get("--target");
 		Objects.requireNonNull(targetDirs, "--target argument must be set");
 		if (targetDirs.size() != 1)
-			throw new IllegalArgumentException("One and only one --target must be specified");
+			throw new IllegalArgumentException("Only one --target must be specified");
 		Path targetA2 = Paths.get(targetDirs.get(0));
-		logger.log(INFO, (uninstall ? "Uninstalling from " : "Installing to ") + targetA2);
+		logger.log(INFO, (uninstall ? "Uninstalling bundles from " : "Installing bundles to ") + targetA2);
 
 		final String branch;
 		Path branchMk = sdkSrcBase.resolve(BRANCH_MK);
