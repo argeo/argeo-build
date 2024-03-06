@@ -418,8 +418,12 @@ public class Make {
 	void deleteEmptyParents(Path baseDir, Path targetParent) throws IOException {
 		if (!targetParent.startsWith(baseDir))
 			throw new IllegalArgumentException(targetParent + " does not start with " + baseDir);
-		if (!Files.exists(targetParent))
+		if (!Files.exists(baseDir))
+			return;
+		if (!Files.exists(targetParent)) {
 			deleteEmptyParents(baseDir, targetParent.getParent());
+			return;
+		}
 		if (!Files.isDirectory(targetParent))
 			throw new IllegalArgumentException(targetParent + " must be a directory");
 		boolean isA2target = Files.isSameFile(baseDir, targetParent);
