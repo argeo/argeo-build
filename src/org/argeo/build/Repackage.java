@@ -1213,24 +1213,23 @@ public class Repackage {
 					manifest.getMainAttributes().remove(key);
 					origin.deleted.add("MANIFEST header " + key);
 				}
-			if (key.equals(REQUIRE_BUNDLE.toString())) {
-				manifest.getMainAttributes().remove(key);
-				origin.deleted.add("MANIFEST header " + key);
-			}
 		}
 
 		// de-pollute MANIFEST
 		for (Iterator<Map.Entry<Object, Object>> manifestEntries = manifest.getMainAttributes().entrySet()
 				.iterator(); manifestEntries.hasNext();) {
 			Map.Entry<Object, Object> manifestEntry = manifestEntries.next();
-			switch (manifestEntry.getKey().toString()) {
+			String key = manifestEntry.getKey().toString();
+			// TODO make it more generic
+			if (key.equals(REQUIRE_BUNDLE.toString()) && nameVersion.getName().equals("com.sun.jna.platform"))
+				manifestEntries.remove();
+			switch (key) {
 			case "Archiver-Version":
 			case "Build-By":
 			case "Created-By":
 			case "Originally-Created-By":
 			case "Tool":
 			case "Bnd-LastModified":
-			case "Require-Bundle":
 				manifestEntries.remove();
 				origin.deleted.add("MANIFEST header " + manifestEntry.getKey());
 				break;
