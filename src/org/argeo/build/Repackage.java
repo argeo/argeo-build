@@ -1128,7 +1128,7 @@ public class Repackage {
 				// native libraries
 				boolean removeDllFromJar = true;
 				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
-						|| entry.getName().endsWith(".jnilib"))) {
+						|| entry.getName().endsWith(".jnilib") || entry.getName().endsWith(".a"))) {
 					Path categoryDir = bundleDir.getParent();
 					boolean copyDll = false;
 					Path targetDll = categoryDir.resolve(bundleDir.relativize(target));
