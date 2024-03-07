@@ -1030,10 +1030,6 @@ public class Repackage {
 			sourceManifest = jarIn.getManifest();
 			if (sourceManifest == null)
 				logger.log(WARNING, file + " has no manifest");
-			else {
-				if (!doNotModify)
-					sourceManifest.getMainAttributes().remove(REQUIRE_BUNDLE.toString());
-			}
 			manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
 
 			String rawSourceSymbolicName = manifest.getMainAttributes().getValue(BUNDLE_SYMBOLICNAME.toString());
@@ -1217,6 +1213,10 @@ public class Repackage {
 					manifest.getMainAttributes().remove(key);
 					origin.deleted.add("MANIFEST header " + key);
 				}
+			if (key.equals(REQUIRE_BUNDLE.toString())) {
+				manifest.getMainAttributes().remove(key);
+				origin.deleted.add("MANIFEST header " + key);
+			}
 		}
 
 		// de-pollute MANIFEST
