@@ -725,7 +725,6 @@ public class Repackage {
 						case "Tool":
 						case "Bnd-LastModified":
 						case "Created-By":
-						case "Require-Bundle":
 							continue keys;
 						}
 						if ("Require-Capability".equals(key.toString())
@@ -1029,6 +1028,8 @@ public class Repackage {
 			if (sourceManifest == null)
 				logger.log(WARNING, file + " has no manifest");
 			manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
+			if (!doNotModify)
+				manifest.getMainAttributes().remove("Require-Bundle");
 
 			String rawSourceSymbolicName = manifest.getMainAttributes().getValue(BUNDLE_SYMBOLICNAME.toString());
 			if (rawSourceSymbolicName != null) {
