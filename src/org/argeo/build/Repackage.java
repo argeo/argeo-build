@@ -23,6 +23,7 @@ import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_VERSION;
 import static org.argeo.build.Repackage.ManifestHeader.ECLIPSE_SOURCE_BUNDLE;
 import static org.argeo.build.Repackage.ManifestHeader.EXPORT_PACKAGE;
 import static org.argeo.build.Repackage.ManifestHeader.IMPORT_PACKAGE;
+import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_BUNDLE;
 import static org.argeo.build.Repackage.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
 
 import java.io.BufferedWriter;
@@ -148,6 +149,8 @@ public class Repackage {
 		EXPORT_PACKAGE("Export-Package"), //
 		/** OSGi imported packages list. */
 		IMPORT_PACKAGE("Import-Package"), //
+		/** OSGi required bundles. */
+		REQUIRE_BUNDLE("Require-Bundle"), //
 		/** OSGi path to embedded jar. */
 		BUNDLE_CLASSPATH("Bundle-Classpath"), //
 		// Java
@@ -1027,9 +1030,11 @@ public class Repackage {
 			sourceManifest = jarIn.getManifest();
 			if (sourceManifest == null)
 				logger.log(WARNING, file + " has no manifest");
+			else {
+				if (!doNotModify)
+					sourceManifest.getMainAttributes().remove(REQUIRE_BUNDLE.toString());
+			}
 			manifest = sourceManifest != null ? new Manifest(sourceManifest) : new Manifest();
-			if (!doNotModify)
-				manifest.getMainAttributes().remove("Require-Bundle");
 
 			String rawSourceSymbolicName = manifest.getMainAttributes().getValue(BUNDLE_SYMBOLICNAME.toString());
 			if (rawSourceSymbolicName != null) {
