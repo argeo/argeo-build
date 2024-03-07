@@ -1126,7 +1126,7 @@ public class Repackage {
 				Files.copy(jarIn, target);
 
 				// native libraries
-				boolean removeDllFromJar = false;
+				boolean removeDllFromJar = true;
 				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
 						|| entry.getName().endsWith(".jnilib"))) {
 					Path categoryDir = bundleDir.getParent();
