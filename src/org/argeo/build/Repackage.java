@@ -1126,6 +1126,7 @@ public class Repackage {
 				Files.copy(jarIn, target);
 
 				// native libraries
+				boolean removeDllFromJar = false;
 				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
 						|| entry.getName().endsWith(".jnilib"))) {
 					Path categoryDir = bundleDir.getParent();
@@ -1149,8 +1150,11 @@ public class Repackage {
 							Files.delete(targetDll);
 						Files.copy(target, targetDll);
 					}
-					Files.delete(target);
-					origin.deleted.add(bundleDir.relativize(target).toString());
+
+					if (removeDllFromJar) {
+						Files.delete(target);
+						origin.deleted.add(bundleDir.relativize(target).toString());
+					}
 				}
 				logger.log(TRACE, () -> "Copied " + target);
 			}
