@@ -174,7 +174,7 @@ public class Repackage {
 		/** Maven repository, if not the default one. */
 		ARGEO_ORIGIN_M2_REPO("Argeo-Origin-M2-Repo"), //
 		/**
-		 * Do not perform BND analysis of the origin component. Typically Import_package
+		 * Do not perform BND analysis of the origin component. Typically Import-Package
 		 * and Export-Package will be kept untouched.
 		 */
 		ARGEO_ORIGIN_NO_METADATA_GENERATION("Argeo-Origin-NoMetadataGeneration"), //
@@ -725,6 +725,7 @@ public class Repackage {
 						case "Tool":
 						case "Bnd-LastModified":
 						case "Created-By":
+						case "Require-Bundle":
 							continue keys;
 						}
 						if ("Require-Capability".equals(key.toString())
