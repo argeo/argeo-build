@@ -1230,6 +1230,7 @@ public class Repackage {
 			case "Originally-Created-By":
 			case "Tool":
 			case "Bnd-LastModified":
+			case "Require-Bundle":
 				manifestEntries.remove();
 				origin.deleted.add("MANIFEST header " + manifestEntry.getKey());
 				break;
