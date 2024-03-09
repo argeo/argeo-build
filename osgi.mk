@@ -7,7 +7,6 @@ include $(ARGEO_BUILD_BASE)common.mk
 
 # The following environment variables can change the behaviour of the build
 # SOURCE_BUNDLES    sources will be packaged separately in Eclipse-compatible source bundles
-# NO_MANIFEST_COPY  generated MANIFESTs won't be copied to the source tree
 
 # The following variables have default values which can be overriden
 # DEP_CATEGORIES    the a2 categories the compilation depends on
@@ -26,9 +25,9 @@ BNDLIB_JAR ?= $(firstword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.arg
 # Internal variables
 ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)src/org/argeo/build/Make.java
 JAVADOC_SRCS = $(foreach bundle, $(BUNDLES), $(bundle)/src)
-ifneq ($(NO_MANIFEST_COPY),true)
+#ifneq ($(NO_MANIFEST_COPY),true)
 MANIFESTS = $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF)
-endif
+#endif
 BUILD_BASE = $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE))
 TARGET_BUNDLES =  $(abspath $(foreach bundle, $(BUNDLES),$(A2_OUTPUT)/$(shell dirname $(bundle))/$(A2_CATEGORY)/$(shell basename $(bundle)).$(major).$(minor).jar))
 TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build) 
@@ -62,12 +61,15 @@ $(BUILD_BASE)/%/to-build : $$(shell find % -type f -not -path 'bin/*' -not -path
 	@mkdir -p $(dir $@) 
 	@touch $@
 
+## DISABLED
+# NO_MANIFEST_COPY  generated MANIFESTs won't be copied to the source tree
+
 # Local manifests
 %/META-INF/MANIFEST.MF : $(BUILD_BASE)/%/META-INF/MANIFEST.MF
-ifneq ($(NO_MANIFEST_COPY),true)
+#ifneq ($(NO_MANIFEST_COPY),true)
 	@mkdir -p $*/META-INF
 	@cp $< $@
-endif
+#endif
 
 clean-manifests :
 	@rm -rf $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF);

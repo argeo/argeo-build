@@ -51,7 +51,7 @@ RMDIR=$(RM) -r
 null  :=
 space := $(null) #
 pathsep := :
-define LF
-
-$(null)
-endef
+#define LF
+#
+#$(null)
+#endef
