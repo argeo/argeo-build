@@ -14,7 +14,7 @@ DEP_INCLUDES ?= $(foreach dep, $(DEP_NATIVE), /usr/include/$(dep))
 DEP_LIBS ?= $(foreach dep, $(DEP_NATIVE), -l$(dep))
 
 A2_NATIVE_CATEGORY=$(A2_OUTPUT)/lib/linux/$(shell uname -m)/$(A2_CATEGORY)
-TARGET_EXEC := libJava_$(NATIVE_PACKAGE).so
+TARGET_EXEC := libJava_$(NATIVE_PACKAGE).$(MAJOR).$(MINOR).so
 
 LDFLAGS ?= -shared -fPIC -Wl,-soname,$(TARGET_EXEC).$(MAJOR).$(MINOR) $(DEP_LIBS)
 CFLAGS ?= -O3 -fPIC
@@ -36,10 +36,10 @@ clean:
 	$(RM) $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
 
 install:
-	$(INSTALL) $(A2_NATIVE_INSTALL_TARGET) $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
+	$(INSTALL) $(A2_NATIVE_INSTALL_TARGET)/$(A2_CATEGORY) $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
 
 uninstall:
-	$(RM) $(A2_NATIVE_INSTALL_TARGET)/$(TARGET_EXEC)
+	$(RM) $(A2_NATIVE_INSTALL_TARGET)/$(A2_CATEGORY)/$(TARGET_EXEC)
 	@if [ -d $(A2_NATIVE_INSTALL_TARGET) ]; then find $(A2_NATIVE_INSTALL_TARGET) -empty -type d -delete; fi
 
 # Sources
