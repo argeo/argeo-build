@@ -14,9 +14,9 @@ DEP_INCLUDES ?= $(foreach dep, $(DEP_NATIVE), /usr/include/$(dep))
 DEP_LIBS ?= $(foreach dep, $(DEP_NATIVE), -l$(dep))
 
 A2_NATIVE_CATEGORY=$(A2_OUTPUT)/lib/linux/$(shell uname -m)/$(A2_CATEGORY)
-TARGET_EXEC := libJava_$(NATIVE_PACKAGE).$(MAJOR).$(MINOR).so
+TARGET_EXEC := libJava_$(NATIVE_PACKAGE).$(major).$(minor).so
 
-LDFLAGS ?= -shared -fPIC -Wl,-soname,$(TARGET_EXEC).$(MAJOR).$(MINOR) $(DEP_LIBS)
+LDFLAGS ?= -shared -fPIC -Wl,-soname,$(TARGET_EXEC).$(major).$(minor).$(micro) $(DEP_LIBS)
 CFLAGS ?= -O3 -fPIC
 
 SRC_DIRS := . 
