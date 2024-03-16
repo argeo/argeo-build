@@ -38,6 +38,7 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 
 import org.eclipse.jdt.core.compiler.CompilationProgress;
@@ -175,7 +176,8 @@ public class Make {
 
 		List<String> a2Categories = options.getOrDefault("--dep-categories", new ArrayList<>());
 		List<String> a2Bases = options.getOrDefault("--a2-bases", new ArrayList<>());
-		if (a2Bases.isEmpty() || !a2Bases.contains(a2Output.toString())) {
+		a2Bases = a2Bases.stream().distinct().collect(Collectors.toList());// remove duplicates
+		if (a2Bases.isEmpty() || !a2Bases.contains(a2Output.toString())) {// make sure a2 output is available
 			a2Bases.add(a2Output.toString());
 		}
 
@@ -204,10 +206,9 @@ public class Make {
 							A2Jar current = a2Jars.get(a2Jar.name);
 							if (a2Jar.major > current.major)
 								a2Jars.put(a2Jar.name, a2Jar);
-							else if (a2Jar.major == current.major //
-									// if minor equals, we take the last one
-									&& a2Jar.minor >= current.minor)
+							else if (a2Jar.major == current.major && a2Jar.minor > current.minor)
 								a2Jars.put(a2Jar.name, a2Jar);
+							// keep if minor equals
 						} else {
 							a2Jars.put(a2Jar.name, a2Jar);
 						}
@@ -312,26 +313,21 @@ public class Make {
 		logger.log(DEBUG, "Packaging took " + duration + " ms");
 	}
 
-	/** Install the bundles. */
+	/** Install or uninstall bundles and native output. */
 	void install(Map<String, List<String>> options, boolean uninstall) throws IOException {
+		final String LIB_ = "lib/";
+		final String NATIVE_ = "native/";
+
 		// check arguments
-		List<String> bundles = options.get("--bundles");
-		Objects.requireNonNull(bundles, "--bundles argument must be set");
+		List<String> bundles = multiArg(options, "--bundles", true);
 		if (bundles.isEmpty())
 			return;
-
-		List<String> categories = options.get("--category");
-		Objects.requireNonNull(categories, "--category argument must be set");
-		if (categories.size() != 1)
-			throw new IllegalArgumentException("One and only one --category must be specified");
-		String category = categories.get(0);
-
-		List<String> targetDirs = options.get("--target");
-		Objects.requireNonNull(targetDirs, "--target argument must be set");
-		if (targetDirs.size() != 1)
-			throw new IllegalArgumentException("One and only one --target must be specified");
-		Path targetA2 = Paths.get(targetDirs.get(0));
-		logger.log(INFO, (uninstall ? "Uninstalling from " : "Installing to ") + targetA2);
+		String category = singleArg(options, "--category", true);
+		Path targetA2 = Paths.get(singleArg(options, "--target", true));
+		String nativeTargetArg = singleArg(options, "--target-native", false);
+		Path nativeTargetA2 = nativeTargetArg != null ? Paths.get(nativeTargetArg) : null;
+		String targetOs = singleArg(options, "--os", nativeTargetArg != null);
+		logger.log(INFO, (uninstall ? "Uninstalling bundles from " : "Installing bundles to ") + targetA2);
 
 		final String branch;
 		Path branchMk = sdkSrcBase.resolve(BRANCH_MK);
@@ -354,14 +350,28 @@ public class Make {
 		Objects.requireNonNull(minor, "'minor' must be set");
 
 		int count = 0;
-		for (String bundle : bundles) {
+		bundles: for (String bundle : bundles) {
 			Path bundlePath = Paths.get(bundle);
 			Path bundleParent = bundlePath.getParent();
 			Path a2JarDirectory = bundleParent != null ? a2Output.resolve(bundleParent).resolve(category)
 					: a2Output.resolve(category);
 			Path jarP = a2JarDirectory.resolve(bundlePath.getFileName() + "." + major + "." + minor + ".jar");
 
-			Path targetJarP = targetA2.resolve(a2Output.relativize(jarP));
+			Path targetJarP;
+			if (bundle.startsWith(LIB_)) {// OS-specific
+				Objects.requireNonNull(nativeTargetA2);
+				if (bundle.startsWith(LIB_ + NATIVE_) // portable native
+						|| bundle.startsWith(LIB_ + targetOs + "/" + NATIVE_)) {// OS-specific native
+					targetJarP = nativeTargetA2.resolve(category).resolve(jarP.getFileName());
+				} else if (bundle.startsWith(LIB_ + targetOs)) {// OS-specific portable
+					targetJarP = targetA2.resolve(category).resolve(jarP.getFileName());
+				} else { // ignore other OS
+					continue bundles;
+				}
+			} else {
+				targetJarP = targetA2.resolve(a2Output.relativize(jarP));
+			}
+
 			if (uninstall) { // uninstall
 				if (Files.exists(targetJarP)) {
 					Files.delete(targetJarP);
@@ -369,7 +379,10 @@ public class Make {
 					count++;
 				}
 				Path targetParent = targetJarP.getParent();
-				deleteEmptyParents(targetA2, targetParent);
+				if (targetParent.startsWith(targetA2))
+					deleteEmptyParents(targetA2, targetParent);
+				if (nativeTargetA2 != null && targetParent.startsWith(nativeTargetA2))
+					deleteEmptyParents(nativeTargetA2, targetParent);
 			} else { // install
 				Files.createDirectories(targetJarP.getParent());
 				boolean update = Files.exists(targetJarP);
@@ -381,16 +394,45 @@ public class Make {
 		logger.log(INFO, uninstall ? count + " bundles removed" : count + " bundles installed or updated");
 	}
 
-	/** Delete empty parent directory up to the A2 target (included). */
-	void deleteEmptyParents(Path targetA2, Path targetParent) throws IOException {
+	/** Extracts an argument which must be unique. */
+	String singleArg(Map<String, List<String>> options, String arg, boolean mandatory) {
+		List<String> values = options.get(arg);
+		if (values == null || values.size() == 0)
+			if (mandatory)
+				throw new IllegalArgumentException(arg + " argument must be set");
+			else
+				return null;
+		if (values.size() != 1)
+			throw new IllegalArgumentException("One and only one " + arg + " arguments must be specified");
+		return values.get(0);
+	}
+
+	/** Extracts an argument which can have multiple values. */
+	List<String> multiArg(Map<String, List<String>> options, String arg, boolean mandatory) {
+		List<String> values = options.get(arg);
+		if (mandatory && values == null)
+			throw new IllegalArgumentException(arg + " argument must be set");
+		return values != null ? values : new ArrayList<>();
+	}
+
+	/** Delete empty parent directory up to the base directory (included). */
+	void deleteEmptyParents(Path baseDir, Path targetParent) throws IOException {
+		if (!targetParent.startsWith(baseDir))
+			throw new IllegalArgumentException(targetParent + " does not start with " + baseDir);
+		if (!Files.exists(baseDir))
+			return;
+		if (!Files.exists(targetParent)) {
+			deleteEmptyParents(baseDir, targetParent.getParent());
+			return;
+		}
 		if (!Files.isDirectory(targetParent))
 			throw new IllegalArgumentException(targetParent + " must be a directory");
-		boolean isA2target = Files.isSameFile(targetA2, targetParent);
+		boolean isA2target = Files.isSameFile(baseDir, targetParent);
 		if (!Files.list(targetParent).iterator().hasNext()) {
 			Files.delete(targetParent);
 			if (isA2target)
 				return;// stop after deleting A2 base
-			deleteEmptyParents(targetA2, targetParent.getParent());
+			deleteEmptyParents(baseDir, targetParent.getParent());
 		}
 	}
 
