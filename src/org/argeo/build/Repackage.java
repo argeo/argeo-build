@@ -23,7 +23,7 @@ import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_VERSION;
 import static org.argeo.build.Repackage.ManifestHeader.ECLIPSE_SOURCE_BUNDLE;
 import static org.argeo.build.Repackage.ManifestHeader.EXPORT_PACKAGE;
 import static org.argeo.build.Repackage.ManifestHeader.IMPORT_PACKAGE;
-import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_BUNDLE;
+//import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_BUNDLE;
 import static org.argeo.build.Repackage.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
 
 import java.io.BufferedWriter;
@@ -149,10 +149,10 @@ public class Repackage {
 		EXPORT_PACKAGE("Export-Package"), //
 		/** OSGi imported packages list. */
 		IMPORT_PACKAGE("Import-Package"), //
-		/** OSGi required bundles. */
-		REQUIRE_BUNDLE("Require-Bundle"), //
-		/** OSGi path to embedded jar. */
-		BUNDLE_CLASSPATH("Bundle-Classpath"), //
+//		/** OSGi required bundles. */
+//		REQUIRE_BUNDLE("Require-Bundle"), //
+//		/** OSGi path to embedded jar. */
+//		BUNDLE_CLASSPATH("Bundle-Classpath"), //
 		// Java
 		/** Java module name. */
 		AUTOMATIC_MODULE_NAME("Automatic-Module-Name"), //
@@ -1221,8 +1221,8 @@ public class Repackage {
 			Map.Entry<Object, Object> manifestEntry = manifestEntries.next();
 			String key = manifestEntry.getKey().toString();
 			// TODO make it more generic
-			if (key.equals(REQUIRE_BUNDLE.toString()) && nameVersion.getName().equals("com.sun.jna.platform"))
-				manifestEntries.remove();
+//			if (key.equals(REQUIRE_BUNDLE.toString()) && nameVersion.getName().equals("com.sun.jna.platform"))
+//				manifestEntries.remove();
 			switch (key) {
 			case "Archiver-Version":
 			case "Build-By":
