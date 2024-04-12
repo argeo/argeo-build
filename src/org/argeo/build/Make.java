@@ -494,7 +494,7 @@ public class Make {
 			jar.setManifest(manifest);
 			JPMSModuleInfoPlugin jpmsModuleInfoPlugin = new JPMSModuleInfoPlugin();
 			jpmsModuleInfoPlugin.verify(bndAnalyzer);
-			moduleInfoClass = jar.getResource("module-info.class");
+			moduleInfoClass = bndAnalyzer.getJar().getResource("module-info.class");
 		} catch (Exception e) {
 			throw new RuntimeException("Bnd analysis of " + compiled + " failed", e);
 		}
@@ -517,6 +517,7 @@ public class Make {
 			Files.createDirectories(moduleInfoClassP.getParent());
 			try (OutputStream out = Files.newOutputStream(moduleInfoClassP)) {
 				moduleInfoClass.write(out);
+				logger.log(INFO, "Wrote " + moduleInfoClassP);
 			} catch (Exception e) {
 				throw new RuntimeException("Cannot write module-info.class");
 			}
