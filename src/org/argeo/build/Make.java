@@ -45,6 +45,7 @@ import org.eclipse.jdt.core.compiler.CompilationProgress;
 
 import aQute.bnd.osgi.Analyzer;
 import aQute.bnd.osgi.Jar;
+import aQute.bnd.osgi.Resource;
 import aQute.bnd.plugin.jpms.JPMSModuleInfoPlugin;
 
 /**
@@ -482,6 +483,7 @@ public class Make {
 		if (!Files.exists(binP))
 			Files.createDirectories(binP);
 		Manifest manifest;
+		Resource moduleInfoClass = null;
 		try (Analyzer bndAnalyzer = new Analyzer()) {
 			bndAnalyzer.setProperties(properties);
 			Jar jar = new Jar(bundleSymbolicName, binP.toFile());
@@ -492,6 +494,7 @@ public class Make {
 			jar.setManifest(manifest);
 			JPMSModuleInfoPlugin jpmsModuleInfoPlugin = new JPMSModuleInfoPlugin();
 			jpmsModuleInfoPlugin.verify(bndAnalyzer);
+			moduleInfoClass = jar.getResource("module-info.class");
 		} catch (Exception e) {
 			throw new RuntimeException("Bnd analysis of " + compiled + " failed", e);
 		}
@@ -506,6 +509,17 @@ public class Make {
 		Files.createDirectories(manifestP.getParent());
 		try (OutputStream out = Files.newOutputStream(manifestP)) {
 			manifest.write(out);
+		}
+
+		// Write module-info.class
+		if (moduleInfoClass != null) {
+			Path moduleInfoClassP = compiled.resolve("module-info.class");
+			Files.createDirectories(moduleInfoClassP.getParent());
+			try (OutputStream out = Files.newOutputStream(moduleInfoClassP)) {
+				moduleInfoClass.write(out);
+			} catch (Exception e) {
+				throw new RuntimeException("Cannot write module-info.class");
+			}
 		}
 
 		// Load excludes
