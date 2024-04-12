@@ -1082,8 +1082,7 @@ public class Repackage {
 			}
 
 			// force Java 9 module name
-			if (!keepModuleInfo)
-				entries.put(ManifestHeader.AUTOMATIC_MODULE_NAME.toString(), nameVersion.getName());
+			entries.put(AUTOMATIC_MODULE_NAME.toString(), nameVersion.getName());
 
 			boolean isNative = false;
 			String os = null;
@@ -1106,9 +1105,13 @@ public class Repackage {
 						origin.deleted.add("cryptographic signatures");
 						continue entries;
 					}
-					if (entry.getName().endsWith("module-info.class") && !keepModuleInfo) { // skip Java 9 module info
-						origin.deleted.add("Java module information (module-info.class)");
-						continue entries;
+					if (entry.getName().endsWith("module-info.class")) { // skip Java 9 module info
+						if (keepModuleInfo) {
+							entries.remove(AUTOMATIC_MODULE_NAME.toString());
+						} else {
+							origin.deleted.add("Java module information (module-info.class)");
+							continue entries;
+						}
 					}
 					if (entry.getName().startsWith("META-INF/versions/")) { // skip multi-version
 						origin.deleted.add("additional Java versions (META-INF/versions)");
