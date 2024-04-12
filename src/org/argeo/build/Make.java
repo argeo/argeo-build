@@ -488,6 +488,8 @@ public class Make {
 			bndAnalyzer.setJar(jar);
 			manifest = bndAnalyzer.calcManifest();
 
+			// JPMS module
+			jar.setManifest(manifest);
 			JPMSModuleInfoPlugin jpmsModuleInfoPlugin = new JPMSModuleInfoPlugin();
 			jpmsModuleInfoPlugin.verify(bndAnalyzer);
 		} catch (Exception e) {
