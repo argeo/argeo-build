@@ -6,3 +6,4 @@ Bundle-RequiredExecutionEnvironment=JavaSE-17
 -contract: !JavaServlet,*
 -removeheaders = Bnd-LastModified,Build-Jdk,Built-By,Tool,Created-By
 Automatic-Module-Name: ${bsn}
+-jpms-module-info:

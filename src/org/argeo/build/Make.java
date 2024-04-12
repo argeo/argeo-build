@@ -513,11 +513,11 @@ public class Make {
 
 		// Write module-info.class
 		if (moduleInfoClass != null) {
-			Path moduleInfoClassP = compiled.resolve("module-info.class");
+			Path moduleInfoClassP = binP.resolve("module-info.class");
 			Files.createDirectories(moduleInfoClassP.getParent());
 			try (OutputStream out = Files.newOutputStream(moduleInfoClassP)) {
 				moduleInfoClass.write(out);
-				logger.log(INFO, "Wrote " + moduleInfoClassP);
+//				logger.log(INFO, "Wrote " + moduleInfoClassP);
 			} catch (Exception e) {
 				throw new RuntimeException("Cannot write module-info.class");
 			}
