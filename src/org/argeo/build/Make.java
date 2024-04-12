@@ -45,6 +45,7 @@ import org.eclipse.jdt.core.compiler.CompilationProgress;
 
 import aQute.bnd.osgi.Analyzer;
 import aQute.bnd.osgi.Jar;
+import aQute.bnd.plugin.jpms.JPMSModuleInfoPlugin;
 
 /**
  * Minimalistic OSGi compiler and packager, meant to be used as a single file
@@ -486,6 +487,9 @@ public class Make {
 			Jar jar = new Jar(bundleSymbolicName, binP.toFile());
 			bndAnalyzer.setJar(jar);
 			manifest = bndAnalyzer.calcManifest();
+
+			JPMSModuleInfoPlugin jpmsModuleInfoPlugin = new JPMSModuleInfoPlugin();
+			jpmsModuleInfoPlugin.verify(bndAnalyzer);
 		} catch (Exception e) {
 			throw new RuntimeException("Bnd analysis of " + compiled + " failed", e);
 		}
