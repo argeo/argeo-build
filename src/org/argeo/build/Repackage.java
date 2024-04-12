@@ -9,7 +9,7 @@ import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.util.jar.Attributes.Name.MANIFEST_VERSION;
-import static org.argeo.build.Repackage.ManifestHeader.ARGEO_DO_NOT_MODIFY;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_DO_NOT_MODIFY;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_MERGE;
 import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_REPO;
@@ -181,6 +181,8 @@ public class Repackage {
 		 * and Export-Package will be kept untouched.
 		 */
 		ARGEO_ORIGIN_NO_METADATA_GENERATION("Argeo-Origin-NoMetadataGeneration"), //
+		/** Keep JPMS module-info */
+		ARGEO_ORIGIN_KEEP_MODULE_INFO("Argeo-Origin-KeepModuleInfo"), //
 //		/**
 //		 * Embed the original jar without modifying it (may be required by some
 //		 * proprietary licenses, such as JCR Day License).
@@ -190,7 +192,7 @@ public class Repackage {
 		 * Do not modify original jar (may be required by some proprietary licenses,
 		 * such as JCR Day License).
 		 */
-		ARGEO_DO_NOT_MODIFY("Argeo-Origin-Do-Not-Modify"), //
+		ARGEO_ORIGIN_DO_NOT_MODIFY("Argeo-Origin-Do-Not-Modify"), //
 		/**
 		 * Origin (non-Maven) URI of the component. It may be anything (jar, archive,
 		 * etc.).
@@ -376,7 +378,7 @@ public class Repackage {
 			Path downloaded = downloadMaven(fileProps, artifact);
 
 			boolean doNotModify = Boolean
-					.parseBoolean(fileProps.getOrDefault(ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
+					.parseBoolean(fileProps.getOrDefault(ARGEO_ORIGIN_DO_NOT_MODIFY.toString(), "false").toString());
 			if (doNotModify) {
 				processNotModified(targetCategoryBase, downloaded, fileProps, artifact);
 				return;
@@ -470,8 +472,8 @@ public class Repackage {
 				// download
 				Path downloaded = downloadMaven(mergedProps, artifact);
 
-				boolean doNotModify = Boolean
-						.parseBoolean(mergedProps.getOrDefault(ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
+				boolean doNotModify = Boolean.parseBoolean(
+						mergedProps.getOrDefault(ARGEO_ORIGIN_DO_NOT_MODIFY.toString(), "false").toString());
 				if (doNotModify) {
 					processNotModified(targetCategoryBase, downloaded, mergedProps, artifact);
 				} else {
@@ -1018,8 +1020,10 @@ public class Repackage {
 	/** Normalise a single (that is, non-merged) bundle. */
 	Path processBundleJar(Path file, Path targetBase, Map<String, String> entries, A2Origin origin) throws IOException {
 //		boolean embed = Boolean.parseBoolean(entries.getOrDefault(ARGEO_ORIGIN_EMBED.toString(), "false").toString());
-		boolean doNotModify = Boolean
-				.parseBoolean(entries.getOrDefault(ManifestHeader.ARGEO_DO_NOT_MODIFY.toString(), "false").toString());
+		boolean doNotModify = Boolean.parseBoolean(
+				entries.getOrDefault(ManifestHeader.ARGEO_ORIGIN_DO_NOT_MODIFY.toString(), "false").toString());
+		boolean keepModuleInfo = Boolean.parseBoolean(
+				entries.getOrDefault(ManifestHeader.ARGEO_ORIGIN_KEEP_MODULE_INFO.toString(), "false").toString());
 		NameVersion nameVersion;
 		Path bundleDir;
 		// singleton
@@ -1078,7 +1082,8 @@ public class Repackage {
 			}
 
 			// force Java 9 module name
-			entries.put(ManifestHeader.AUTOMATIC_MODULE_NAME.toString(), nameVersion.getName());
+			if (!keepModuleInfo)
+				entries.put(ManifestHeader.AUTOMATIC_MODULE_NAME.toString(), nameVersion.getName());
 
 			boolean isNative = false;
 			String os = null;
@@ -1101,7 +1106,7 @@ public class Repackage {
 						origin.deleted.add("cryptographic signatures");
 						continue entries;
 					}
-					if (entry.getName().endsWith("module-info.class")) { // skip Java 9 module info
+					if (entry.getName().endsWith("module-info.class") && !keepModuleInfo) { // skip Java 9 module info
 						origin.deleted.add("Java module information (module-info.class)");
 						continue entries;
 					}
