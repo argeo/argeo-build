@@ -677,7 +677,7 @@ public class Make {
 	Map<String, Path> listLegalFilesToInclude(Path bundleBase) throws IOException {
 		Map<String, Path> toInclude = new HashMap<>();
 		if (!noSdkLegal) {
-			DirectoryStream<Path> sdkSrcLegal = Files.newDirectoryStream(sdkSrcBase, (p) -> {
+			try (DirectoryStream<Path> sdkSrcLegal = Files.newDirectoryStream(sdkSrcBase, (p) -> {
 				String fileName = p.getFileName().toString();
 				return switch (fileName) {
 				case "NOTICE":
@@ -688,9 +688,10 @@ public class Make {
 				default:
 					yield false;
 				};
-			});
-			for (Path p : sdkSrcLegal)
-				toInclude.put(p.getFileName().toString(), p);
+			});) {
+				for (Path p : sdkSrcLegal)
+					toInclude.put(p.getFileName().toString(), p);
+			}
 		}
 		for (Iterator<Map.Entry<String, Path>> entries = toInclude.entrySet().iterator(); entries.hasNext();) {
 			Map.Entry<String, Path> entry = entries.next();
