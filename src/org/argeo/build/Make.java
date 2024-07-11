@@ -45,6 +45,8 @@ import org.eclipse.jdt.core.compiler.CompilationProgress;
 
 import aQute.bnd.osgi.Analyzer;
 import aQute.bnd.osgi.Jar;
+import aQute.bnd.osgi.Resource;
+import aQute.bnd.plugin.jpms.JPMSModuleInfoPlugin;
 
 /**
  * Minimalistic OSGi compiler and packager, meant to be used as a single file
@@ -481,11 +483,18 @@ public class Make {
 		if (!Files.exists(binP))
 			Files.createDirectories(binP);
 		Manifest manifest;
+		Resource moduleInfoClass = null;
 		try (Analyzer bndAnalyzer = new Analyzer()) {
 			bndAnalyzer.setProperties(properties);
 			Jar jar = new Jar(bundleSymbolicName, binP.toFile());
 			bndAnalyzer.setJar(jar);
 			manifest = bndAnalyzer.calcManifest();
+
+			// JPMS module
+			jar.setManifest(manifest);
+			JPMSModuleInfoPlugin jpmsModuleInfoPlugin = new JPMSModuleInfoPlugin();
+			jpmsModuleInfoPlugin.verify(bndAnalyzer);
+			moduleInfoClass = bndAnalyzer.getJar().getResource("module-info.class");
 		} catch (Exception e) {
 			throw new RuntimeException("Bnd analysis of " + compiled + " failed", e);
 		}
@@ -500,6 +509,18 @@ public class Make {
 		Files.createDirectories(manifestP.getParent());
 		try (OutputStream out = Files.newOutputStream(manifestP)) {
 			manifest.write(out);
+		}
+
+		// Write module-info.class
+		if (moduleInfoClass != null) {
+			Path moduleInfoClassP = binP.resolve("module-info.class");
+			Files.createDirectories(moduleInfoClassP.getParent());
+			try (OutputStream out = Files.newOutputStream(moduleInfoClassP)) {
+				moduleInfoClass.write(out);
+//				logger.log(INFO, "Wrote " + moduleInfoClassP);
+			} catch (Exception e) {
+				throw new RuntimeException("Cannot write module-info.class");
+			}
 		}
 
 		// Load excludes
@@ -656,7 +677,7 @@ public class Make {
 	Map<String, Path> listLegalFilesToInclude(Path bundleBase) throws IOException {
 		Map<String, Path> toInclude = new HashMap<>();
 		if (!noSdkLegal) {
-			DirectoryStream<Path> sdkSrcLegal = Files.newDirectoryStream(sdkSrcBase, (p) -> {
+			try (DirectoryStream<Path> sdkSrcLegal = Files.newDirectoryStream(sdkSrcBase, (p) -> {
 				String fileName = p.getFileName().toString();
 				return switch (fileName) {
 				case "NOTICE":
@@ -667,9 +688,10 @@ public class Make {
 				default:
 					yield false;
 				};
-			});
-			for (Path p : sdkSrcLegal)
-				toInclude.put(p.getFileName().toString(), p);
+			});) {
+				for (Path p : sdkSrcLegal)
+					toInclude.put(p.getFileName().toString(), p);
+			}
 		}
 		for (Iterator<Map.Entry<String, Path>> entries = toInclude.entrySet().iterator(); entries.hasNext();) {
 			Map.Entry<String, Path> entry = entries.next();
