@@ -82,7 +82,6 @@ osgi-all: osgi jni-all
 
 osgi-clean: jni-clean
 	rm -rf $(BUILD_BASE)
-	echo A2_BASE=$(A2_BASE)
 
 osgi-install: jni-install
 	$(ARGEO_MAKE) \
