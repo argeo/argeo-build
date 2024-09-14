@@ -492,9 +492,10 @@ public class Make {
 
 			// JPMS module
 			jar.setManifest(manifest);
-//			JPMSModuleInfoPlugin jpmsModuleInfoPlugin = new JPMSModuleInfoPlugin();
+			JPMSModuleInfoPlugin jpmsModuleInfoPlugin = new JPMSModuleInfoPlugin();
+			jpmsModuleInfoPlugin.mainSet(bndAnalyzer, manifest);
 //			jpmsModuleInfoPlugin.verify(bndAnalyzer);
-//			moduleInfoClass = bndAnalyzer.getJar().getResource("module-info.class");
+			moduleInfoClass = bndAnalyzer.getJar().getResource("module-info.class");
 		} catch (Exception e) {
 			throw new RuntimeException("Bnd analysis of " + compiled + " failed", e);
 		}
