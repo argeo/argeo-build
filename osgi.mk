@@ -30,7 +30,7 @@ LOGGER_JAR ?= $(firstword $(foreach base, $(A2_BASE), $(wildcard $(base)/log/sys
 BNDLIB_JAR ?= $(firstword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.build/biz.aQute.bndlib.$(BNDLIB_BRANCH).jar)))
 
 # Internal variables
-ARGEO_MAKE = $(JVM) --enable-preview --source $(JAVA_PREVIEW_SOURCE) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)src/org/argeo/build/Make.java
+ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)src/org/argeo/build/Make.java
 JAVADOC_SRCS = $(foreach bundle, $(BUNDLES), $(bundle)/src)
 ifneq ($(NO_MANIFEST_COPY),true)
 MANIFESTS = $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF)
