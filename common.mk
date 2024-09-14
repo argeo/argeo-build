@@ -25,7 +25,7 @@ A2_NATIVE_INSTALL_TARGET ?= $(DESTDIR)$(libdir)/a2
 
 # The following variables have default values which can be overriden
 # A2_BASE           the space-separated directories where already built a2 categories can be found
-A2_BASE ?=$(A2_OUTPUT) $(A2_INSTALL_TARGET) $(A2_NATIVE_INSTALL_TARGET) /usr/local/share/a2 /usr/local/lib/a2 /usr/share/a2 /usr/lib/a2
+A2_BASE ?=$(call uniq, $(A2_OUTPUT) $(A2_INSTALL_TARGET) $(A2_NATIVE_INSTALL_TARGET) /usr/local/share/a2 /usr/local/lib/a2 /usr/share/a2 /usr/lib/a2)
 
 # OS-speciific
 KNOWN_ARCHS ?= x86_64 aarch64
@@ -45,6 +45,14 @@ INSTALL=install -m644 -D --target-directory
 COPY=--reflink=auto
 # Recursively delete directories
 RMDIR=$(RM) -r
+
+# Reverse list
+# see https://stackoverflow.com/questions/52674/simplest-way-to-reverse-the-order-of-strings-in-a-make-variable/14260762#14260762
+reverse = $(if $(wordlist 2,2,$(1)),$(call reverse,$(wordlist 2,$(words $(1)),$(1))) $(firstword $(1)),$(1))
+
+# Remove duplicates
+# see https://stackoverflow.com/questions/16144115/makefile-remove-duplicate-words-without-sorting/16151140#16151140
+uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 
 # Make variables used to replace spaces by a separator, typically in order to generate classpaths
 # for example: CLASSPATH = $(subst $(space),$(pathsep),$(strip $(JARS)))

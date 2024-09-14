@@ -17,8 +17,14 @@ DEP_CATEGORIES ?=
 JAVADOC_PACKAGES ?=
 NATIVE_PACKAGES ?=
 
-# We always use the latest version of the ECJ compiler
-ECJ_JAR ?= $(firstword $(foreach base, $(A2_BASE), $(sort $(wildcard $(base)/org.argeo.tp.build/org.eclipse.jdt.core.compiler.batch.$(ECJ_MAJOR).*.jar))))
+# We use the latest version of the ECJ compiler, within the A2 repository with the highest priority;
+# that is, an older version in /usr/local/share would have priority on a newer one in /usr/share.
+ECJ_JAR=$(firstword \
+	$(foreach base, $(A2_BASE), \
+		$(call reverse, $(sort $(wildcard $(base)/org.argeo.tp.build/org.eclipse.jdt.core.compiler.batch.$(ECJ_MAJOR).*.jar))) \
+	) \
+)
+
 # Third-party libraries
 LOGGER_JAR ?= $(firstword $(foreach base, $(A2_BASE), $(wildcard $(base)/log/syslogger/org.argeo.tp/org.argeo.tp.syslogger.$(SYSLOGGER_BRANCH).jar)))
 BNDLIB_JAR ?= $(firstword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.build/biz.aQute.bndlib.$(BNDLIB_BRANCH).jar)))
@@ -76,6 +82,7 @@ osgi-all: osgi jni-all
 
 osgi-clean: jni-clean
 	rm -rf $(BUILD_BASE)
+	echo A2_BASE=$(A2_BASE)
 
 osgi-install: jni-install
 	$(ARGEO_MAKE) \
