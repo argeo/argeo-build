@@ -1,3 +1,2 @@
--source 17
--target 17
+--release 17
 -nowarn
