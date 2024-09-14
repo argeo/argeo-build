@@ -11,7 +11,7 @@ LOGGER_JAR ?= $(firstword $(foreach base, $(A2_BASE), $(wildcard $(base)/log/sys
 BNDLIB_JAR ?= $(firstword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.build/biz.aQute.bndlib.$(BNDLIB_BRANCH).jar)))
 
 # Internal variables
-ARGEO_REPACKAGE = $(JVM) -cp $(LOGGER_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)src/org/argeo/build/Repackage.java
+ARGEO_REPACKAGE = $(JVM) --enable-preview -cp $(LOGGER_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)src/org/argeo/build/Repackage.java
 TODOS_REPACKAGE = $(foreach category, $(CATEGORIES),$(BUILD_BASE)/$(category)/to-repackage) 
 BUILD_BASE = $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE))
 REPACKAGED_CATEGORIES = $(foreach category, $(CATEGORIES),$(A2_OUTPUT)/$(category))
