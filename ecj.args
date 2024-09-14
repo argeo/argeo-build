@@ -1,3 +1,4 @@
--source 21
+-source 22
 -target 17
+--enable-preview
 -nowarn
