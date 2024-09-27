@@ -9,23 +9,23 @@ import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.util.jar.Attributes.Name.MANIFEST_VERSION;
-import static org.argeo.build.ManifestHeader.ARGEO_ORIGIN_DO_NOT_MODIFY;
-import static org.argeo.build.ManifestHeader.ARGEO_ORIGIN_M2;
-import static org.argeo.build.ManifestHeader.ARGEO_ORIGIN_M2_MERGE;
-import static org.argeo.build.ManifestHeader.ARGEO_ORIGIN_M2_REPO;
-import static org.argeo.build.ManifestHeader.ARGEO_ORIGIN_NO_METADATA_GENERATION;
-import static org.argeo.build.ManifestHeader.ARGEO_ORIGIN_SOURCES_URI;
-import static org.argeo.build.ManifestHeader.ARGEO_ORIGIN_URI;
-import static org.argeo.build.ManifestHeader.AUTOMATIC_MODULE_NAME;
-import static org.argeo.build.ManifestHeader.BUNDLE_LICENSE;
-import static org.argeo.build.ManifestHeader.BUNDLE_SYMBOLICNAME;
-import static org.argeo.build.ManifestHeader.BUNDLE_VERSION;
-import static org.argeo.build.ManifestHeader.ECLIPSE_SOURCE_BUNDLE;
-import static org.argeo.build.ManifestHeader.EXPORT_PACKAGE;
-import static org.argeo.build.ManifestHeader.IMPORT_PACKAGE;
-import static org.argeo.build.ManifestHeader.REQUIRE_CAPABILITY;
-//import static org.argeo.build.ManifestHeader.REQUIRE_BUNDLE;
-import static org.argeo.build.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_DO_NOT_MODIFY;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_MERGE;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_M2_REPO;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_NO_METADATA_GENERATION;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_SOURCES_URI;
+import static org.argeo.build.Repackage.ManifestHeader.ARGEO_ORIGIN_URI;
+import static org.argeo.build.Repackage.ManifestHeader.AUTOMATIC_MODULE_NAME;
+import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_LICENSE;
+import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_SYMBOLICNAME;
+import static org.argeo.build.Repackage.ManifestHeader.BUNDLE_VERSION;
+import static org.argeo.build.Repackage.ManifestHeader.ECLIPSE_SOURCE_BUNDLE;
+import static org.argeo.build.Repackage.ManifestHeader.EXPORT_PACKAGE;
+import static org.argeo.build.Repackage.ManifestHeader.IMPORT_PACKAGE;
+import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_CAPABILITY;
+//import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_BUNDLE;
+import static org.argeo.build.Repackage.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -1464,6 +1464,115 @@ public class Repackage {
 		}
 	}
 
+	/** Standard and Argeo-specific MANIFEST headers. */
+	enum ManifestHeader implements Supplier<String> {
+		// OSGi
+		/** OSGi bundle symbolic name. */
+		BUNDLE_SYMBOLICNAME("Bundle-SymbolicName"), //
+		/** OSGi bundle version. */
+		BUNDLE_VERSION("Bundle-Version"), //
+		/** OSGi bundle license. */
+		BUNDLE_LICENSE("Bundle-License"), //
+		/** OSGi exported packages list. */
+		EXPORT_PACKAGE("Export-Package"), //
+		/** OSGi imported packages list. */
+		IMPORT_PACKAGE("Import-Package"), //
+		/** Require capability. */
+		REQUIRE_CAPABILITY("Require-Capability"), //
+//		/** OSGi required bundles. */
+//		REQUIRE_BUNDLE("Require-Bundle"), //
+//		/** OSGi path to embedded jar. */
+//		BUNDLE_CLASSPATH("Bundle-Classpath"), //
+		// Java
+		/** Java module name. */
+		AUTOMATIC_MODULE_NAME("Automatic-Module-Name"), //
+		// Eclipse
+		/** Eclipse source bundle. */
+		ECLIPSE_SOURCE_BUNDLE("Eclipse-SourceBundle"), //
+		// SPDX
+		/**
+		 * SPDX license identifier.
+		 * 
+		 * @see https://spdx.org/licenses/
+		 */
+		SPDX_LICENSE_IDENTIFIER("SPDX-License-Identifier"), //
+		// Argeo Origin
+		/**
+		 * Maven coordinates of the origin, possibly partial when using common.bnd or
+		 * merge.bnd.
+		 */
+		ARGEO_ORIGIN_M2("Argeo-Origin-M2"), //
+		/** List of Maven coordinates to merge. */
+		ARGEO_ORIGIN_M2_MERGE("Argeo-Origin-M2-Merge"), //
+		/** Maven repository, if not the default one. */
+		ARGEO_ORIGIN_M2_REPO("Argeo-Origin-M2-Repo"), //
+		/**
+		 * Do not perform BND analysis of the origin component. Typically Import-Package
+		 * and Export-Package will be kept untouched.
+		 */
+		ARGEO_ORIGIN_NO_METADATA_GENERATION("Argeo-Origin-NoMetadataGeneration"), //
+		/** Keep JPMS module-info */
+		ARGEO_ORIGIN_KEEP_MODULE_INFO("Argeo-Origin-KeepModuleInfo"), //
+//		/**
+//		 * Embed the original jar without modifying it (may be required by some
+//		 * proprietary licenses, such as JCR Day License).
+//		 */
+//		ARGEO_ORIGIN_EMBED("Argeo-Origin-Embed"), //
+		/**
+		 * Do not modify original jar (may be required by some proprietary licenses,
+		 * such as JCR Day License).
+		 */
+		ARGEO_ORIGIN_DO_NOT_MODIFY("Argeo-Origin-Do-Not-Modify"), //
+		/**
+		 * Origin (non-Maven) URI of the component. It may be anything (jar, archive,
+		 * etc.).
+		 */
+		ARGEO_ORIGIN_URI("Argeo-Origin-URI"), //
+		/**
+		 * Origin (non-Maven) URI of the source of the component. It may be anything
+		 * (jar, archive, code repository, etc.).
+		 */
+		ARGEO_ORIGIN_SOURCES_URI("Argeo-Origin-Sources-URI"), //
+		;
+
+		private final String headerName;
+
+		private ManifestHeader(String headerName) {
+			this.headerName = headerName;
+		}
+
+		@Override
+		public String toString() {
+			return get();
+		}
+
+		/** The manifest header name. */
+		@Override
+		public String get() {
+			return headerName;
+		}
+
+		/** Get the value from either a {@link Manifest} or a {@link Properties}. */
+		String get(Object map) {
+			if (map instanceof Manifest manifest)
+				return manifest.getMainAttributes().getValue(headerName);
+			else if (map instanceof Properties props)
+				return props.getProperty(headerName);
+			else
+				throw new IllegalArgumentException("Unsupported mapping " + map.getClass());
+		}
+
+		/** Put the value into either a {@link Manifest} or a {@link Properties}. */
+		void put(Object map, String value) {
+			if (map instanceof Manifest manifest)
+				manifest.getMainAttributes().putValue(headerName, value);
+			else if (map instanceof Properties props)
+				props.setProperty(headerName, value);
+			else
+				throw new IllegalArgumentException("Unsupported mapping " + map.getClass());
+		}
+	}
+
 }
 
 /**
@@ -1492,115 +1601,6 @@ class A2Origin {
 			for (String msg : deleted)
 				writer.write("- Deleted " + msg + ".\n");
 		}
-	}
-}
-
-/** Standard and Argeo-specific MANIFEST headers. */
-enum ManifestHeader implements Supplier<String> {
-	// OSGi
-	/** OSGi bundle symbolic name. */
-	BUNDLE_SYMBOLICNAME("Bundle-SymbolicName"), //
-	/** OSGi bundle version. */
-	BUNDLE_VERSION("Bundle-Version"), //
-	/** OSGi bundle license. */
-	BUNDLE_LICENSE("Bundle-License"), //
-	/** OSGi exported packages list. */
-	EXPORT_PACKAGE("Export-Package"), //
-	/** OSGi imported packages list. */
-	IMPORT_PACKAGE("Import-Package"), //
-	/** Require capability. */
-	REQUIRE_CAPABILITY("Require-Capability"), //
-//	/** OSGi required bundles. */
-//	REQUIRE_BUNDLE("Require-Bundle"), //
-//	/** OSGi path to embedded jar. */
-//	BUNDLE_CLASSPATH("Bundle-Classpath"), //
-	// Java
-	/** Java module name. */
-	AUTOMATIC_MODULE_NAME("Automatic-Module-Name"), //
-	// Eclipse
-	/** Eclipse source bundle. */
-	ECLIPSE_SOURCE_BUNDLE("Eclipse-SourceBundle"), //
-	// SPDX
-	/**
-	 * SPDX license identifier.
-	 * 
-	 * @see https://spdx.org/licenses/
-	 */
-	SPDX_LICENSE_IDENTIFIER("SPDX-License-Identifier"), //
-	// Argeo Origin
-	/**
-	 * Maven coordinates of the origin, possibly partial when using common.bnd or
-	 * merge.bnd.
-	 */
-	ARGEO_ORIGIN_M2("Argeo-Origin-M2"), //
-	/** List of Maven coordinates to merge. */
-	ARGEO_ORIGIN_M2_MERGE("Argeo-Origin-M2-Merge"), //
-	/** Maven repository, if not the default one. */
-	ARGEO_ORIGIN_M2_REPO("Argeo-Origin-M2-Repo"), //
-	/**
-	 * Do not perform BND analysis of the origin component. Typically Import-Package
-	 * and Export-Package will be kept untouched.
-	 */
-	ARGEO_ORIGIN_NO_METADATA_GENERATION("Argeo-Origin-NoMetadataGeneration"), //
-	/** Keep JPMS module-info */
-	ARGEO_ORIGIN_KEEP_MODULE_INFO("Argeo-Origin-KeepModuleInfo"), //
-//	/**
-//	 * Embed the original jar without modifying it (may be required by some
-//	 * proprietary licenses, such as JCR Day License).
-//	 */
-//	ARGEO_ORIGIN_EMBED("Argeo-Origin-Embed"), //
-	/**
-	 * Do not modify original jar (may be required by some proprietary licenses,
-	 * such as JCR Day License).
-	 */
-	ARGEO_ORIGIN_DO_NOT_MODIFY("Argeo-Origin-Do-Not-Modify"), //
-	/**
-	 * Origin (non-Maven) URI of the component. It may be anything (jar, archive,
-	 * etc.).
-	 */
-	ARGEO_ORIGIN_URI("Argeo-Origin-URI"), //
-	/**
-	 * Origin (non-Maven) URI of the source of the component. It may be anything
-	 * (jar, archive, code repository, etc.).
-	 */
-	ARGEO_ORIGIN_SOURCES_URI("Argeo-Origin-Sources-URI"), //
-	;
-
-	private final String headerName;
-
-	private ManifestHeader(String headerName) {
-		this.headerName = headerName;
-	}
-
-	@Override
-	public String toString() {
-		return get();
-	}
-
-	/** The manifest header name. */
-	@Override
-	public String get() {
-		return headerName;
-	}
-
-	/** Get the value from either a {@link Manifest} or a {@link Properties}. */
-	String get(Object map) {
-		if (map instanceof Manifest manifest)
-			return manifest.getMainAttributes().getValue(headerName);
-		else if (map instanceof Properties props)
-			return props.getProperty(headerName);
-		else
-			throw new IllegalArgumentException("Unsupported mapping " + map.getClass());
-	}
-
-	/** Put the value into either a {@link Manifest} or a {@link Properties}. */
-	void put(Object map, String value) {
-		if (map instanceof Manifest manifest)
-			manifest.getMainAttributes().putValue(headerName, value);
-		else if (map instanceof Properties props)
-			props.setProperty(headerName, value);
-		else
-			throw new IllegalArgumentException("Unsupported mapping " + map.getClass());
 	}
 }
 
