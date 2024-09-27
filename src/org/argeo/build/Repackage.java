@@ -1360,7 +1360,9 @@ public class Repackage {
 		Path srcJarP = srcCategoryDir.resolve(sourceDir.getFileName() + ".jar");
 		Files.createDirectories(srcJarP.getParent());
 
-		String bundleSymbolicName = manifest.getMainAttributes().getValue(BUNDLE_SYMBOLICNAME.get()).toString();
+		String bundleSymbolicName = manifest.getMainAttributes().getValue(BUNDLE_SYMBOLICNAME.get());
+		Objects.requireNonNull(bundleSymbolicName,
+				BUNDLE_SYMBOLICNAME + " not available in manifest related to " + bundleDir);
 		// in case there are additional directives
 		bundleSymbolicName = bundleSymbolicName.split(";")[0];
 		Manifest srcManifest = new Manifest();
