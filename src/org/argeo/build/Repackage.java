@@ -491,7 +491,7 @@ public class Repackage {
 					}
 				}
 			}
-		} catch (IOException e) {
+		} catch (Exception e) {
 			throw new RuntimeException("Cannot process " + duDir, e);
 		}
 	}
@@ -973,7 +973,7 @@ public class Repackage {
 					createJar(bundleDir, origin);
 				}
 			}
-		} catch (IOException e) {
+		} catch (Exception e) {
 			throw new RuntimeException("Cannot process " + duDir, e);
 		}
 
