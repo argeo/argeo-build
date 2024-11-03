@@ -11,8 +11,8 @@ SYSLOGGER_BRANCH=$(build-major).$(build-minor)
 # SDK_BUILD_BASE    the base of the output
 # JAVA_HOME         the base of the JDK used to build
 A2_OUTPUT = $(SDK_BUILD_BASE)/a2
-JVM ?= $(JAVA_HOME)/bin/java
-JAVADOC ?= $(JAVA_HOME)/bin/javadoc
+JVM ?= "$(JAVA_HOME)/bin/java"
+JAVADOC ?= "$(JAVA_HOME)/bin/javadoc"
 
 # GNU defaults
 prefix ?= /usr/local
