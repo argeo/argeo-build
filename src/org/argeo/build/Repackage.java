@@ -1328,8 +1328,7 @@ public class Repackage {
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					if (file.getFileName().toString().equals("MANIFEST.MF"))
 						return super.visitFile(file, attrs);
-					JarEntry entry = new JarEntry(
-							bundleDir.relativize(file).toString().replace(File.separatorChar, '/'));
+					JarEntry entry = new JarEntry(toJarEntryName(bundleDir.relativize(file)));
 					jarOut.putNextEntry(entry);
 					Files.copy(file, jarOut);
 					return super.visitFile(file, attrs);
@@ -1343,6 +1342,14 @@ public class Repackage {
 			createSourceJar(bundleDir, manifest, null);
 
 		return jarPath;
+	}
+
+	/** Portable conversion to a jar entry path. */
+	private static String toJarEntryName(Path relativePath) {
+		StringJoiner sj = new StringJoiner("/");
+		for (Path p : relativePath)
+			sj.add(p.toString());
+		return sj.toString();
 	}
 
 	/** Package sources separately, in the Eclipse-SourceBundle format. */

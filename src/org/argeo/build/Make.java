@@ -544,7 +544,7 @@ public class Make {
 			Files.walkFileTree(binP, new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					jarOut.putNextEntry(new JarEntry(binP.relativize(file).toString()));
+					jarOut.putNextEntry(new JarEntry(toJarEntryName(binP.relativize(file))));
 					Files.copy(file, jarOut);
 					return FileVisitResult.CONTINUE;
 				}
@@ -577,7 +577,7 @@ public class Make {
 					if (sourceBundles && file.getFileName().toString().endsWith(".map"))
 						return FileVisitResult.CONTINUE;
 
-					JarEntry entry = new JarEntry(relativeP.toString());
+					JarEntry entry = new JarEntry(toJarEntryName(relativeP));
 					jarOut.putNextEntry(entry);
 					Files.copy(file, jarOut);
 					return FileVisitResult.CONTINUE;
@@ -601,7 +601,7 @@ public class Make {
 						if (file.getFileName().toString().endsWith(".java")
 								|| file.getFileName().toString().endsWith(".class"))
 							return FileVisitResult.CONTINUE;
-						jarOut.putNextEntry(new JarEntry(srcP.relativize(file).toString()));
+						jarOut.putNextEntry(new JarEntry(toJarEntryName(srcP.relativize(file))));
 						if (!Files.isDirectory(file))
 							Files.copy(file, jarOut);
 						return FileVisitResult.CONTINUE;
@@ -630,6 +630,14 @@ public class Make {
 			Path srcJarP = a2srcJarDirectory.resolve(compiled.getFileName() + "." + major + "." + minor + ".src.jar");
 			createSourceBundle(bundleSymbolicName, manifest, bundleSourceBase, srcP, srcJarP);
 		}
+	}
+
+	/** Portable conversion to a jar entry path. */
+	private static String toJarEntryName(Path relativePath) {
+		StringJoiner sj = new StringJoiner("/");
+		for (Path p : relativePath)
+			sj.add(p.toString());
+		return sj.toString();
 	}
 
 	/** Create a separate bundle containing the sources. */
