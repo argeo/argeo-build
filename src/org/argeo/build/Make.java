@@ -632,14 +632,6 @@ public class Make {
 		}
 	}
 
-	/** Portable conversion to a jar entry path. */
-	private static String toJarEntryName(Path relativePath) {
-		StringJoiner sj = new StringJoiner("/");
-		for (Path p : relativePath)
-			sj.add(p.toString());
-		return sj.toString();
-	}
-
 	/** Create a separate bundle containing the sources. */
 	void createSourceBundle(String bundleSymbolicName, Manifest manifest, Path bundleSourceBase, Path srcP,
 			Path srcJarP) throws IOException {
@@ -717,12 +709,20 @@ public class Make {
 	/*
 	 * UTILITIES
 	 */
+	/** Portable conversion to a jar entry path. */
+	private static String toJarEntryName(Path relativePath) {
+		StringJoiner sj = new StringJoiner("/");
+		for (Path p : relativePath)
+			sj.add(p.toString());
+		return sj.toString();
+	}
+
 	/** Add sources to a jar file */
 	void copySourcesToJar(Path srcP, JarOutputStream srcJarOut, String prefix) throws IOException {
 		Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				srcJarOut.putNextEntry(new JarEntry(prefix + srcP.relativize(file).toString()));
+				srcJarOut.putNextEntry(new JarEntry(prefix + toJarEntryName(srcP.relativize(file))));
 				if (!Files.isDirectory(file))
 					Files.copy(file, srcJarOut);
 				return FileVisitResult.CONTINUE;
