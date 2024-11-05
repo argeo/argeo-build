@@ -51,7 +51,8 @@ DEPS := $(OBJS:.o=.d)
 # Add -I prefix to include directories
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 # Generate dependencies makefiles
-CPPFLAGS := $(INC_FLAGS) -MMD -MP
+# -D__int64="long long" is required on cygwin/MSYS2
+CPPFLAGS := $(INC_FLAGS) -MMD -MP -D__int64="long long"
 
 # Final build step
 $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC): $(OBJS)
