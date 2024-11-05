@@ -6,7 +6,7 @@ include $(ARGEO_BUILD_BASE)common.mk
 # A2_CATEGORY       the (single) a2 category the bundles will belong to
 
 # The following variables have default values which can be overriden
-# DEP_NATIVE        space-separated logical names of named depdencies
+# DEP_NATIVE        space-separated logical names of named dependencies
 # DEP_INCLUDES      additional includes
 # DEP_LIBS          additional native libraries
 DEP_NATIVE ?=
@@ -27,7 +27,7 @@ SRC_DIRS := .
 BUILD_DIR := $(SDK_BUILD_BASE)/jni/$(NATIVE_PACKAGE)
 
 # Include directories
-INC_DIRS := $(shell find $(SRC_DIRS) -type d) "$(JAVA_HOME)/include" "$(JAVA_HOME)/include/linux $(DEP_INCLUDES)"
+INC_DIRS := $(shell find $(SRC_DIRS) -type d) "$(JAVA_HOME)/include" "$(JAVA_HOME)/include/linux" $(DEP_INCLUDES)
 
 all: $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
 
