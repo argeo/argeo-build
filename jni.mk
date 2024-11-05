@@ -27,7 +27,7 @@ SRC_DIRS := .
 BUILD_DIR := $(SDK_BUILD_BASE)/jni/$(NATIVE_PACKAGE)
 
 # Include directories
-INC_DIRS := $(shell find $(SRC_DIRS) -type d) "$(JAVA_HOME)/include" "$(JAVA_HOME)/include/linux" $(DEP_INCLUDES)
+INC_DIRS := $(shell find $(SRC_DIRS) -type d) "$(JAVA_HOME)/include" "$(JAVA_HOME)/include/linux" "$(JAVA_HOME)/include/win32" $(DEP_INCLUDES)
 
 all: $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
 
