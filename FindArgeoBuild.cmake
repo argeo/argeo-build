@@ -78,7 +78,7 @@ endfunction() # a2_osgi_manifest
 
 function(a2_build_bundle BUNDLE)
 	a2_osgi_manifest(${BUNDLE})
-	file(GLOB_RECURSE JAVA_SRC CONFIGURE_DEPENDS "${BUNDLE}/src" "*.java")
+	file(GLOB_RECURSE JAVA_SRC CONFIGURE_DEPENDS "${BUNDLE}/src/*.java")
 	add_jar(${BUNDLE}
 		${JAVA_SRC}
 		MANIFEST ${BUNDLE}/META-INF/MANIFEST.MF
