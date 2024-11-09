@@ -79,11 +79,13 @@ endfunction() # a2_osgi_manifest
 function(a2_build_bundle BUNDLE)
 	a2_osgi_manifest(${BUNDLE})
 	file(GLOB_RECURSE JAVA_SRC CONFIGURE_DEPENDS "${BUNDLE}/src/*.java")
+	string(REPLACE "." "_" BUNDLE_NATIVE ${BUNDLE})
 	add_jar(${BUNDLE}
 		${JAVA_SRC}
 		MANIFEST ${BUNDLE}/META-INF/MANIFEST.MF
 		OUTPUT_NAME ${BUNDLE}.${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
 		OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/../a2/${A2_CATEGORY}
+		GENERATE_NATIVE_HEADERS ${BUNDLE_NATIVE}-include DESTINATION jni/include/${BUNDLE_NATIVE}
 )
 endfunction() # a2_build_bundle
 
