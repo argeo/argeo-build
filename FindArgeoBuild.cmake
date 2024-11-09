@@ -6,6 +6,11 @@ set(A2_JAVA_RELEASE 17)
 endif()
 message (STATUS "A2_JAVA_RELEASE=${A2_JAVA_RELEASE}")
 
+if(NOT A2_BASE)
+set(A2_BASE ${CMAKE_BINARY_DIR}/../a2)
+endif()
+message (STATUS "A2_BASE=${A2_BASE}")
+
 # Java
 find_package(Java ${A2_JAVA_RELEASE} REQUIRED)
 include(UseJava)
@@ -36,6 +41,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		set(A2_TARGET_ARCH "x86_64")
 	endif()
 endif()
+
+if(MINGW)
+   # cmake ../../ -DCMAKE_INSTALL_PREFIX=$MINGW_PREFIX
+   set(CMAKE_SHARED_LIBRARY_PREFIX "")
+endif() # MINGW
 
 if(NOT A2_TARGET_OS)
 	set(A2_TARGET_OS ${CMAKE_SYSTEM_NAME})
