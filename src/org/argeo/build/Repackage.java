@@ -1044,10 +1044,12 @@ public class Repackage {
 				// native libraries
 				boolean removeDllFromJar = true;
 				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
-						|| entry.getName().endsWith(".jnilib") || entry.getName().endsWith(".a"))) {
+						|| entry.getName().endsWith(".dylib") || entry.getName().endsWith(".jnilib")
+						|| entry.getName().endsWith(".a"))) {
 					Path categoryDir = bundleDir.getParent();
 					boolean copyDll = false;
-					Path targetDll = categoryDir.resolve(bundleDir.relativize(target));
+					// copy to the category directory
+					Path targetDll = categoryDir.resolve(target.getFileName());
 					if (nameVersion.getName().equals("com.sun.jna")) {
 						if (arch.equals("x86_64"))
 							arch = "x86-64";
@@ -1057,6 +1059,14 @@ public class Repackage {
 							copyDll = true;
 						}
 						targetDll = categoryDir.resolve(target.getFileName());
+					} else if (nameVersion.getName().equals("com.jogamp")) {
+						if (arch.equals("x86_64"))
+							arch = "amd64";
+						if (os.equals("win32"))
+							os = "windows";
+						if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
+							copyDll = true;
+						}
 					} else {
 						copyDll = true;
 					}
