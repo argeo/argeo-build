@@ -26,6 +26,14 @@ import static org.argeo.build.Repackage.ManifestHeader.IMPORT_PACKAGE;
 import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_CAPABILITY;
 //import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_BUNDLE;
 import static org.argeo.build.Repackage.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
+import static org.argeo.build.Repackage.SupportedArch.aarch64;
+import static org.argeo.build.Repackage.SupportedArch.armv7l;
+import static org.argeo.build.Repackage.SupportedArch.noarch;
+import static org.argeo.build.Repackage.SupportedArch.x86_64;
+import static org.argeo.build.Repackage.SupportedOS.freebsd;
+import static org.argeo.build.Repackage.SupportedOS.linux;
+import static org.argeo.build.Repackage.SupportedOS.macosx;
+import static org.argeo.build.Repackage.SupportedOS.win32;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -129,6 +137,151 @@ public class Repackage {
 	/** Whether sources should be packaged separately */
 	final boolean separateSources;
 
+	/*
+	 * A2 PROVIDER SPECIFIC
+	 */
+	// What should be modified or overridden in order to extend support
+	/** Supported processor architectures (Linux kernel conventions). */
+	enum SupportedArch {
+		x86_64, aarch64, armv7l, noarch
+	}
+
+	/** Supported operating systems. */
+	enum SupportedOS {
+		linux, win32, macosx, freebsd
+	}
+
+	protected Path processNativeEntry(JarEntry entry, A2Origin origin, NameVersion nameVersion, Path bundleDir)
+			throws IOException {
+		Path target = Paths.get(entry.getName());// relative path
+		boolean copySharedLib = false;
+		String multiArchDir = null;
+		arch: for (SupportedArch arch : SupportedArch.values()) {
+			os: for (SupportedOS os : SupportedOS.values()) {
+				String archToUse = arch.name();
+				String osToUse = os.name();
+				// TODO make compiler configurable
+				multiArchDir = arch.name() + "-" + os.name();
+				if (os.equals(linux))
+					multiArchDir = multiArchDir + "-gnu";
+				else
+					multiArchDir = multiArchDir + "-default";
+
+				if (nameVersion.getName().startsWith("org.eclipse.swt")
+						&& nameVersion.getName().contains(os.name() + "." + arch.name())) {
+					copySharedLib = true;
+				} else if (nameVersion.getName().equals("com.sun.jna")) {
+					if (arch.equals(x86_64))
+						archToUse = "x86-64";
+					else if (arch.equals(armv7l))
+						archToUse = "arm";
+					if (os.equals(macosx))
+						osToUse = "darwin";
+					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
+						copySharedLib = true;
+				} else if (nameVersion.getName().equals("com.jogamp")) {
+					if (arch.equals(x86_64))
+						archToUse = "amd64";
+					else if (arch.equals(SupportedArch.armv7l))
+						archToUse = "armv6hf";
+					else if (arch.equals(noarch) && os.equals(macosx))
+						archToUse = "universal";
+					if (os.equals(win32))
+						osToUse = "windows";
+					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
+						copySharedLib = true;
+				} else if (nameVersion.getName().equals("org.jline")) {
+					if (arch.equals(armv7l))
+						archToUse = "armv7";
+					else if (arch.equals(aarch64))
+						archToUse = "arm64";
+					else if (arch.equals(noarch) && os.equals(macosx))
+						archToUse = "universal";
+					if (os.equals(linux))
+						osToUse = "Linux";
+					else if (os.equals(win32))
+						osToUse = "Windows";
+					else if (os.equals(macosx))
+						osToUse = "Mac";
+					else if (os.equals(freebsd))
+						osToUse = "FreeBSD";
+					if (target.getParent().getFileName().toString().equals(archToUse) //
+							&& target.getParent().getParent().getFileName().toString().equals(osToUse))
+						copySharedLib = true;
+				}
+				if (copySharedLib)
+					break os;
+			}
+			if (copySharedLib)
+				break arch;
+		}
+
+		if (!copySharedLib)
+			return null;
+		Path categoryDir = bundleDir.startsWith(a2LibBase) ? bundleDir.getParent()
+				: a2LibBase.resolve(multiArchDir).resolve(a2Base.relativize(bundleDir.getParent()));
+		Path targetSharedLibrary = categoryDir.resolve(target.getFileName());
+		logger.log(TRACE, () -> "Shared library " + targetSharedLibrary);
+		return targetSharedLibrary;
+//		if (copySharedLib) {
+//			return categoryDir.resolve(target.getFileName());
+////			Files.createDirectories(targetSharedLib.getParent());
+////			if (Files.exists(targetSharedLib))
+////				Files.delete(targetSharedLib);
+////			Files.copy(target, targetSharedLib);
+//		} else {
+//			return null;
+//		}
+
+//		if (removeDllFromJar) {
+//			Files.delete(target);
+//			origin.deleted.add(bundleDir.relativize(target).toString());
+//		}
+
+	}
+
+	/** Whether this entry is an embedded native library. */
+	protected boolean isNativeLibrary(JarEntry entry) {
+		String fileName = entry.getName();
+		return fileName.endsWith(".so") //
+				|| entry.getName().endsWith(".dll") //
+				|| entry.getName().endsWith(".dylib") //
+				|| entry.getName().endsWith(".jnilib") //
+				|| entry.getName().endsWith(".a");
+	}
+
+	/**
+	 * Filters out jar entries.
+	 * 
+	 * @param entry  the jar entry
+	 * @param origin in order to register and explain modifications of the
+	 *               third-party software
+	 * @return whether the entry should be skipped
+	 */
+	protected boolean preProcessJarEntry(JarEntry entry, A2Origin origin) {
+		if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".DSA") || entry.getName().endsWith(".SF")) {
+			origin.deleted.add("cryptographic signatures");
+			return true;
+		}
+		if (entry.getName().startsWith("META-INF/versions/")) { // skip multi-version
+			origin.deleted.add("additional Java versions (META-INF/versions)");
+			return true;
+		}
+		if (entry.getName().startsWith("META-INF/maven/")) {
+			origin.deleted.add("Maven information (META-INF/maven)");
+			return true;
+		}
+		// skip file system providers as they cause issues with native image
+		if (entry.getName().startsWith("META-INF/services/java.nio.file.spi.FileSystemProvider")) {
+			origin.deleted.add("file system providers (META-INF/services/java.nio.file.spi.FileSystemProvider)");
+			return true;
+		}
+		return false;
+	}
+
+	/*
+	 * ENTRY POINT
+	 */
 	/** Main entry point. */
 	public static void main(String[] args) {
 		if (sequential)
@@ -161,6 +314,9 @@ public class Repackage {
 		logger.log(INFO, "# License summary:\n" + sb);
 	}
 
+	/*
+	 * GENERIC
+	 */
 	/** Deletes remaining sub directories. */
 	void cleanPreviousFailedBuild(Path categoryPath) {
 		Path outputCategoryPath = a2Base.resolve(categoryPath);
@@ -989,27 +1145,17 @@ public class Repackage {
 			// force Java 9 module name
 			entries.put(AUTOMATIC_MODULE_NAME.get(), nameVersion.getName());
 
-			boolean isNative = false;
-			String os = null;
-			String arch = null;
-			if (bundleDir.startsWith(a2LibBase)) {
-				isNative = true;
-				Path libRelativePath = a2LibBase.relativize(bundleDir);
-				os = libRelativePath.getName(0).toString();
-				arch = libRelativePath.getName(1).toString();
-			}
-
 			// copy entries
 			JarEntry entry;
 			entries: while ((entry = jarIn.getNextJarEntry()) != null) {
 				if (entry.isDirectory())
 					continue entries;
 				if (!doNotModify) {
-					if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".DSA")
-							|| entry.getName().endsWith(".SF")) {
-						origin.deleted.add("cryptographic signatures");
-						continue entries;
-					}
+//					if (entry.getName().endsWith(".RSA") || entry.getName().endsWith(".DSA")
+//							|| entry.getName().endsWith(".SF")) {
+//						origin.deleted.add("cryptographic signatures");
+//						continue entries;
+//					}
 					if (entry.getName().endsWith("module-info.class")) { // skip Java 9 module info
 						if (keepModuleInfo) {
 							entries.remove(AUTOMATIC_MODULE_NAME.get());
@@ -1018,71 +1164,90 @@ public class Repackage {
 							continue entries;
 						}
 					}
-					if (entry.getName().startsWith("META-INF/versions/")) { // skip multi-version
-						origin.deleted.add("additional Java versions (META-INF/versions)");
+					boolean skipJarEntry = preProcessJarEntry(entry, origin);
+					if (skipJarEntry)
 						continue entries;
-					}
-					if (entry.getName().startsWith("META-INF/maven/")) {
-						origin.deleted.add("Maven information (META-INF/maven)");
-						continue entries;
-					}
-					// skip file system providers as they cause issues with native image
-					if (entry.getName().startsWith("META-INF/services/java.nio.file.spi.FileSystemProvider")) {
-						origin.deleted
-								.add("file system providers (META-INF/services/java.nio.file.spi.FileSystemProvider)");
-						continue entries;
-					}
+//					if (entry.getName().startsWith("META-INF/versions/")) { // skip multi-version
+//						origin.deleted.add("additional Java versions (META-INF/versions)");
+//						continue entries;
+//					}
+//					if (entry.getName().startsWith("META-INF/maven/")) {
+//						origin.deleted.add("Maven information (META-INF/maven)");
+//						continue entries;
+//					}
+//					// skip file system providers as they cause issues with native image
+//					if (entry.getName().startsWith("META-INF/services/java.nio.file.spi.FileSystemProvider")) {
+//						origin.deleted
+//								.add("file system providers (META-INF/services/java.nio.file.spi.FileSystemProvider)");
+//						continue entries;
+//					}
 				}
 				if (entry.getName().startsWith("OSGI-OPT/src/")) { // skip embedded sources
 					origin.deleted.add("embedded sources");
 					continue entries;
 				}
-				Path target = bundleDir.resolve(entry.getName());
-				Files.createDirectories(target.getParent());
-				Files.copy(jarIn, target);
+
+				final Path target = isNativeLibrary(entry) ? processNativeEntry(entry, origin, nameVersion, bundleDir)
+						: bundleDir.resolve(entry.getName());
+				if (target != null) {
+					if (isNativeLibrary(entry) && Files.exists(target))
+						Files.delete(target);
+					Files.createDirectories(target.getParent());
+					Files.copy(jarIn, target);
+					logger.log(TRACE, () -> "Copied " + target);
+				}
 
 				// native libraries
-				boolean removeDllFromJar = true;
-				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
-						|| entry.getName().endsWith(".dylib") || entry.getName().endsWith(".jnilib")
-						|| entry.getName().endsWith(".a"))) {
-					Path categoryDir = bundleDir.getParent();
-					boolean copyDll = false;
-					// copy to the category directory
-					Path targetDll = categoryDir.resolve(target.getFileName());
-					if (nameVersion.getName().equals("com.sun.jna")) {
-						if (arch.equals("x86_64"))
-							arch = "x86-64";
-						if (os.equals("macosx"))
-							os = "darwin";
-						if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
-							copyDll = true;
-						}
-						targetDll = categoryDir.resolve(target.getFileName());
-					} else if (nameVersion.getName().equals("com.jogamp")) {
-						if (arch.equals("x86_64"))
-							arch = "amd64";
-						if (os.equals("win32"))
-							os = "windows";
-						if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
-							copyDll = true;
-						}
-					} else {
-						copyDll = true;
-					}
-					if (copyDll) {
-						Files.createDirectories(targetDll.getParent());
-						if (Files.exists(targetDll))
-							Files.delete(targetDll);
-						Files.copy(target, targetDll);
-					}
-
-					if (removeDllFromJar) {
-						Files.delete(target);
-						origin.deleted.add(bundleDir.relativize(target).toString());
-					}
-				}
-				logger.log(TRACE, () -> "Copied " + target);
+//				boolean isNative = false;
+//				String os = null;
+//				String arch = null;
+//				if (bundleDir.startsWith(a2LibBase)) {
+//					isNative = true;
+//					Path libRelativePath = a2LibBase.relativize(bundleDir);
+//					os = libRelativePath.getName(0).toString();
+//					arch = libRelativePath.getName(1).toString();
+//				}
+//
+//				boolean removeDllFromJar = true;
+//				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
+//						|| entry.getName().endsWith(".dylib") || entry.getName().endsWith(".jnilib")
+//						|| entry.getName().endsWith(".a"))) {
+//					Path categoryDir = bundleDir.getParent();
+//					boolean copyDll = false;
+//					// copy to the category directory
+//					Path targetDll = categoryDir.resolve(target.getFileName());
+//					if (nameVersion.getName().equals("com.sun.jna")) {
+//						if (arch.equals("x86_64"))
+//							arch = "x86-64";
+//						if (os.equals("macosx"))
+//							os = "darwin";
+//						if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
+//							copyDll = true;
+//						}
+//						targetDll = categoryDir.resolve(target.getFileName());
+//					} else if (nameVersion.getName().equals("com.jogamp")) {
+//						if (arch.equals("x86_64"))
+//							arch = "amd64";
+//						if (os.equals("win32"))
+//							os = "windows";
+//						if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
+//							copyDll = true;
+//						}
+//					} else {
+//						copyDll = true;
+//					}
+//					if (copyDll) {
+//						Files.createDirectories(targetDll.getParent());
+//						if (Files.exists(targetDll))
+//							Files.delete(targetDll);
+//						Files.copy(target, targetDll);
+//					}
+//
+//					if (removeDllFromJar) {
+//						Files.delete(target);
+//						origin.deleted.add(bundleDir.relativize(target).toString());
+//					}
+//				}
 			}
 		}
 
