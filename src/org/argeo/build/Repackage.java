@@ -402,7 +402,9 @@ public class Repackage {
 					(p) -> Files.isDirectory(p))) {
 				for (Path duDir : dus) {
 					if (duDir.getFileName().toString().startsWith("eclipse-")) {
-						processEclipseArchive(duDir);
+						processArchive(duDir, true);
+					} else if (duDir.getFileName().toString().startsWith("archive-")) {
+						processArchive(duDir, false);
 					} else {
 						processM2BasedDistributionUnit(duDir);
 					}
@@ -781,9 +783,25 @@ public class Repackage {
 				// BND analysis
 				try (Analyzer bndAnalyzer = new Analyzer()) {
 					bndAnalyzer.setProperties(fileProps);
-					Jar jar = new Jar(downloaded.toFile());
+					boolean tempFile = false;
+					File jarFile;
+					try {
+						jarFile = downloaded.toFile();
+					} catch (UnsupportedOperationException e) {
+						// copy to temp
+						Path tmp = Files.createTempFile(downloaded.getFileName().toString(), null);
+						Files.copy(downloaded, tmp, StandardCopyOption.REPLACE_EXISTING);
+						jarFile = tmp.toFile();
+						jarFile.deleteOnExit();
+						tempFile = true;
+					}
+
+					// generate metadata
+					Jar jar = new Jar(jarFile);
 					bndAnalyzer.setJar(jar);
 					Manifest manifest = bndAnalyzer.calcManifest();
+					if (tempFile)
+						jarFile.delete();
 
 					keys: for (Object key : manifest.getMainAttributes().keySet()) {
 						Object value = manifest.getMainAttributes().get(key);
@@ -930,7 +948,7 @@ public class Repackage {
 	 * ECLIPSE ORIGIN
 	 */
 	/** Process an archive in Eclipse format. */
-	void processEclipseArchive(Path duDir) {
+	void processArchive(Path duDir, boolean isEclipse) {
 		try {
 			Path categoryRelativePath = descriptorsBase.relativize(duDir.getParent());
 			Path targetCategoryBase = a2Base.resolve(categoryRelativePath);
@@ -1000,10 +1018,27 @@ public class Repackage {
 								logger.log(DEBUG, () -> "Processed source " + file);
 							} else {
 								Map<String, String> map = new HashMap<>();
-								for (Object key : commonProps.keySet())
-									map.put(key.toString(), commonProps.getProperty(key.toString()));
+								for (Object key : commonProps.keySet()) {
+									if (key.equals(ManifestHeader.BUNDLE_SYMBOLICNAME.get())) {
+										// use as prefix
+										String bsnPrefix = commonProps.getProperty(key.toString());
+										String fileNameBase = file.getFileName().toString().substring(0,
+												file.toString().lastIndexOf('.') - 1);
+										fileNameBase = fileNameBase.replace('-', '.');
+										map.put(BUNDLE_SYMBOLICNAME.get(), bsnPrefix + "." + fileNameBase);
+									} else {
+										map.put(key.toString(), commonProps.getProperty(key.toString()));
+									}
+								}
 								A2Origin origin = new A2Origin();
-								Path bundleDir = processBundleJar(file, targetCategoryBase, map, origin);
+								Path bundleDir;
+								if (isEclipse) {
+									bundleDir = processBundleJar(file, targetCategoryBase, map, origin);
+								} else {
+									Properties props = new Properties();
+									props.putAll(map);
+									bundleDir = processBndJar(file, targetCategoryBase, props, null, origin);
+								}
 								if (bundleDir == null) {
 									logger.log(WARNING, "No bundle dir created for " + file + ", skipping...");
 									return FileVisitResult.CONTINUE;
