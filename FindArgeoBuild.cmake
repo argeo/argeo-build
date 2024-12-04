@@ -140,7 +140,11 @@ endmacro() # a2_build_bundles
 
 # Configure a JNI target according to A2 conventions
 macro(a2_jni_target TARGET)
+	# JNI
 	target_include_directories(${TARGET} PRIVATE ${JNI_INCLUDE_DIRS})
+	# local includes (possibly git submodules)
+	target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/native/include/)
+	# generated include files
 	target_include_directories(${TARGET} PRIVATE 
 		${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY})
 	set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
