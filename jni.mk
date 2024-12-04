@@ -13,7 +13,6 @@ DEP_NATIVE ?=
 DEP_INCLUDES ?= $(foreach dep, $(DEP_NATIVE), /usr/include/$(dep))
 DEP_LIBS ?= $(foreach dep, $(DEP_NATIVE), -l$(dep))
 
-A2_NATIVE_CATEGORY=$(A2_OUTPUT)/lib/$(TARGET_ARCH_CATEGORY_PREFIX)
 TARGET_EXEC := libJava_$(NATIVE_PACKAGE).so
 
 LDFLAGS ?= -shared -fPIC -Wl,-soname,$(TARGET_EXEC).$(major).$(minor).$(micro) $(DEP_LIBS)
@@ -29,14 +28,15 @@ BUILD_DIR := $(SDK_BUILD_BASE)/jni/$(NATIVE_PACKAGE)
 # Include directories
 INC_DIRS := $(shell find $(SRC_DIRS) -type d) "$(JAVA_HOME)/include" "$(JAVA_HOME)/include/linux" "$(JAVA_HOME)/include/win32" $(DEP_INCLUDES)
 
-all: a2-prepare-output $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
+all: a2-prepare-output $(TARGET_NATIVE_OUTPUT)/$(TARGET_EXEC)
 
 clean:
 	$(RM) $(BUILD_DIR)/*.o
-	$(RM) $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
+	$(RM) $(TARGET_NATIVE_CATEGORY)/$(TARGET_EXEC)
 
 install:
-	$(INSTALL) $(A2_NATIVE_INSTALL_TARGET)/$(A2_CATEGORY) $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
+	$(INSTALL) $(A2_NATIVE_INSTALL_TARGET)/$(A2_CATEGORY) $(TARGET_NATIVE_CATEGORY)/$(TARGET_EXEC)
+	cd $(A2_NATIVE_INSTALL_TARGET) && ln -s $(A2_NATIVE_INSTALL_TARGET)/$(A2_CATEGORY)/$(TARGET_EXEC)
 
 uninstall:
 	$(RM) $(A2_NATIVE_INSTALL_TARGET)/$(A2_CATEGORY)/$(TARGET_EXEC)
@@ -55,8 +55,11 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 CPPFLAGS := $(INC_FLAGS) -MMD -MP -D__int64="long long"
 
 # Final build step
-$(A2_NATIVE_CATEGORY)/$(TARGET_EXEC): $(OBJS)
-	mkdir -p $(A2_NATIVE_CATEGORY)
+$(TARGET_NATIVE_OUTPUT)/$(TARGET_EXEC): $(TARGET_NATIVE_CATEGORY)/$(TARGET_EXEC)
+	cd $(TARGET_NATIVE_OUTPUT) && ln -s $(A2_CATEGORY)/$(TARGET_EXEC)
+
+$(TARGET_NATIVE_CATEGORY)/$(TARGET_EXEC): $(OBJS)
+	mkdir -p $(TARGET_NATIVE_CATEGORY)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 # Build step for C source

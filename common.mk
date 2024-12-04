@@ -49,7 +49,7 @@ OS_CATEGORIES=$(filter os/%, $(CATEGORIES))
 
 a2-prepare-output: $(A2_NATIVE_OUTPUT)/local
 
- $(A2_NATIVE_OUTPUT)/local:
+$(A2_NATIVE_OUTPUT)/local:
 	mkdir -p  $(A2_NATIVE_OUTPUT)/${LOCAL_NATIVE_CATEGORY_PREFIX}
 	cd  $(A2_NATIVE_OUTPUT) && ln -s ${LOCAL_NATIVE_CATEGORY_PREFIX} local
 
