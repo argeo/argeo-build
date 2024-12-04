@@ -19,26 +19,22 @@ REPACKAGED_CATEGORIES = $(foreach category, $(CATEGORIES),$(A2_OUTPUT)/$(categor
 all: a2-prepare-output $(BUILD_BASE)/repackaged 
 
 install:
-	@$(foreach category, $(PORTABLE_CATEGORIES), $(INSTALL) $(A2_INSTALL_TARGET)/$(category) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))
-	@echo Installed portable jars \'$(PORTABLE_CATEGORIES)\' to $(A2_INSTALL_TARGET)
-	@$(foreach category, $(OS_CATEGORIES), $(INSTALL) $(A2_INSTALL_TARGET)/$(category:$(TARGET_OS_CATEGORY_PREFIX)/%=%) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))
-	@echo Installed OS-dependent jars \'$(OS_CATEGORIES)\' to $(A2_INSTALL_TARGET)
-	@$(foreach category, $(ARCH_CATEGORIES), $(INSTALL) $(A2_NATIVE_INSTALL_TARGET)/$(category:$(TARGET_ARCH_CATEGORY_PREFIX)/%=%) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))
-	@echo Installed arch-dependent jars \'$(ARCH_CATEGORIES)\' to $(A2_NATIVE_INSTALL_TARGET)
-	@$(foreach category, $(ARCH_CATEGORIES), $(INSTALL) $(A2_NATIVE_INSTALL_TARGET)/$(category:$(TARGET_ARCH_CATEGORY_PREFIX)/%=%) $(wildcard $(A2_OUTPUT)/$(category)/*.so);$(LF))
-	@echo Installed arch binaries \'$(ARCH_CATEGORIES)\' to $(A2_NATIVE_INSTALL_TARGET)
+	@$(foreach category, $(CATEGORIES), $(INSTALL) $(A2_INSTALL_TARGET)/$(category) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))
+	@echo Installed jars from categories \'$(CATEGORIES)\' to $(A2_INSTALL_TARGET)
+	@$(foreach category, $(CATEGORIES),\
+		if [ -d "$(TARGET_NATIVE_OUTPUT)/$(category)" ]; then $(INSTALL) $(A2_NATIVE_INSTALL_TARGET)/$(category) $(wildcard $(TARGET_NATIVE_OUTPUT)/$(category)/*); fi;$(LF)\
+		if [ -d "$(TARGET_NATIVE_OUTPUT)/$(category)" ]; then cd $(A2_NATIVE_INSTALL_TARGET) && find $(category) -type f \( -iname \*.so -o -iname \*.dll -o -iname \*.jnilib -o -iname \*.dylib \) -exec ln -fs {} \; ; fi;$(LF)\
+	)
+	@echo Installed native libraries to $(A2_NATIVE_INSTALL_TARGET)
 
 uninstall:
-	@$(foreach category, $(PORTABLE_CATEGORIES), $(RMDIR) $(A2_INSTALL_TARGET)/$(category);$(LF))
-	@echo Uninstalled portable jars \'$(PORTABLE_CATEGORIES)\' to $(A2_INSTALL_TARGET)
-	@$(foreach category, $(OS_CATEGORIES), $(RMDIR) $(A2_INSTALL_TARGET)/$(category:$(TARGET_OS_CATEGORY_PREFIX)/%=%);$(LF))
-	@echo Uninstalled OS-dependent jars \'$(OS_CATEGORIES)\' to $(A2_INSTALL_TARGET)
-	@$(foreach category, $(ARCH_CATEGORIES), $(RMDIR) $(A2_NATIVE_INSTALL_TARGET)/$(category:$(TARGET_ARCH_CATEGORY_PREFIX)/%=%);$(LF))
-	@echo Uninstalled arch-dependent jars and binaries \'$(ARCH_CATEGORIES)\' to $(A2_NATIVE_INSTALL_TARGET)
-#	@$(foreach category, $(ARCH_CATEGORIES), \
-#	 $(foreach libfile, $(wildcard $(A2_OUTPUT)/$(category)/*.so), $(RMDIR) $(A2_NATIVE_INSTALL_TARGET)/$(notdir $(libfile));$(LF)) \
-#	)
-#	@echo Uninstalled arch binaries \'$(ARCH_CATEGORIES)\' to $(A2_NATIVE_INSTALL_TARGET)
+	@$(foreach category, $(CATEGORIES), $(RMDIR) $(A2_INSTALL_TARGET)/$(category);$(LF))
+	@echo Uninstalled jars from categories \'$(CATEGORIES)\' to $(A2_INSTALL_TARGET)
+	@$(foreach category, $(CATEGORIES),\
+		if [ -d "$(A2_NATIVE_INSTALL_TARGET)/$(category)" ]; then cd $(A2_NATIVE_INSTALL_TARGET)/$(category) && find -type f \( -iname \*.so -o -iname \*.dll -o -iname \*.jnilib -o -iname \*.dylib \) -exec rm $(A2_NATIVE_INSTALL_TARGET)/{} \; ; fi;$(LF)\
+		if [ -d "$(A2_NATIVE_INSTALL_TARGET)/$(category)" ]; then $(RMDIR) $(A2_NATIVE_INSTALL_TARGET)/$(category); fi;$(LF)\
+	)
+	@echo Uninstalled native libraries from $(A2_NATIVE_INSTALL_TARGET)
 	@if [ -d $(A2_INSTALL_TARGET) ]; then find $(A2_INSTALL_TARGET) -empty -type d -delete; fi
 	@if [ -d $(A2_NATIVE_INSTALL_TARGET) ]; then find $(A2_NATIVE_INSTALL_TARGET) -empty -type d -delete; fi
 

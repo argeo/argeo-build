@@ -214,26 +214,11 @@ public class Repackage {
 
 		if (!copySharedLib)
 			return null;
-//		Path categoryDir = bundleDir.startsWith(a2LibBase) ? bundleDir.getParent()
-//				: a2LibBase.resolve(multiArchDir).resolve(a2Base.relativize(bundleDir.getParent()));
-		Path targetSharedLibrary = a2LibBase.resolve(multiArchDir).resolve(target.getFileName());
+		Path categoryDir = bundleDir.startsWith(a2LibBase) ? bundleDir.getParent()
+				: a2LibBase.resolve(multiArchDir).resolve(a2Base.relativize(bundleDir.getParent()));
+		Path targetSharedLibrary = categoryDir.resolve(target.getFileName());
 		logger.log(TRACE, () -> "Shared library " + targetSharedLibrary);
 		return targetSharedLibrary;
-//		if (copySharedLib) {
-//			return categoryDir.resolve(target.getFileName());
-////			Files.createDirectories(targetSharedLib.getParent());
-////			if (Files.exists(targetSharedLib))
-////				Files.delete(targetSharedLib);
-////			Files.copy(target, targetSharedLib);
-//		} else {
-//			return null;
-//		}
-
-//		if (removeDllFromJar) {
-//			Files.delete(target);
-//			origin.deleted.add(bundleDir.relativize(target).toString());
-//		}
-
 	}
 
 	/** Whether this entry is an embedded native library. */
@@ -1207,10 +1192,14 @@ public class Repackage {
 				final Path target = isNativeLibrary(entry) ? processNativeEntry(entry, origin, nameVersion, bundleDir)
 						: bundleDir.resolve(entry.getName());
 				if (target != null) {
-					if (isNativeLibrary(entry) && Files.exists(target))
-						Files.delete(target);
 					Files.createDirectories(target.getParent());
-					Files.copy(jarIn, target);
+					Files.copy(jarIn, target, StandardCopyOption.REPLACE_EXISTING);
+					if (isNativeLibrary(entry)) {
+						Path multiArchDirName = a2LibBase.relativize(target).getName(0);
+						Path linkPath = a2LibBase.resolve(multiArchDirName).resolve(target.getFileName());
+						Files.deleteIfExists(linkPath);
+						Files.createSymbolicLink(linkPath, target);
+					}
 					logger.log(TRACE, () -> "Copied " + target);
 				}
 			}
