@@ -16,7 +16,7 @@ TODOS_REPACKAGE = $(foreach category, $(CATEGORIES),$(BUILD_BASE)/$(category)/to
 BUILD_BASE = $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE))
 REPACKAGED_CATEGORIES = $(foreach category, $(CATEGORIES),$(A2_OUTPUT)/$(category))
 
-all: $(BUILD_BASE)/repackaged 
+all: a2-prepare-output $(BUILD_BASE)/repackaged 
 
 install:
 	@$(foreach category, $(PORTABLE_CATEGORIES), $(INSTALL) $(A2_INSTALL_TARGET)/$(category) $(wildcard $(A2_OUTPUT)/$(category)/*.jar);$(LF))

@@ -44,7 +44,7 @@ JNIDIRS=$(foreach package, $(NATIVE_PACKAGES), jni/$(package))
 # Needed in order to be able to expand $$ variables
 .SECONDEXPANSION:
 
-osgi: $(BUILD_BASE)/built $(MANIFESTS)
+osgi: a2-prepare-output $(BUILD_BASE)/built $(MANIFESTS)
 
 # Actual build (compilation + bundle packaging)
 $(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(strip $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?)))

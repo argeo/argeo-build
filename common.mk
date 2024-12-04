@@ -39,6 +39,12 @@ PORTABLE_CATEGORIES=$(filter-out lib/%, $(CATEGORIES))
 ARCH_CATEGORIES=$(filter $(TARGET_ARCH_CATEGORY_PREFIX)/%, $(CATEGORIES))
 OS_CATEGORIES=$(filter-out $(foreach arch, $(KNOWN_ARCHS), $(TARGET_OS_CATEGORY_PREFIX)/$(arch)/%), $(filter $(TARGET_OS_CATEGORY_PREFIX)/%, $(CATEGORIES)))
 
+a2-prepare-output: $(A2_OUTPUT)/lib/local
+
+$(A2_OUTPUT)/lib/local:
+	mkdir -p $(A2_OUTPUT)/lib
+	cd $(A2_OUTPUT)/lib && ln -s ${TARGET_ARCH_CATEGORY_PREFIX} local
+
 ## Utilities
 # Install to a target directory without executable bit
 INSTALL=install -m644 -D --target-directory
