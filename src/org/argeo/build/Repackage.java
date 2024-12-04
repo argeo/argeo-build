@@ -218,9 +218,9 @@ public class Repackage {
 
 		if (!copySharedLib)
 			return null;
-		Path categoryDir = bundleDir.startsWith(a2LibBase) ? bundleDir.getParent()
-				: a2LibBase.resolve(multiArchDir).resolve(a2Base.relativize(bundleDir.getParent()));
-		Path targetSharedLibrary = categoryDir.resolve(target.getFileName());
+//		Path categoryDir = bundleDir.startsWith(a2LibBase) ? bundleDir.getParent()
+//				: a2LibBase.resolve(multiArchDir).resolve(a2Base.relativize(bundleDir.getParent()));
+		Path targetSharedLibrary = a2LibBase.resolve(multiArchDir).resolve(target.getFileName());
 		logger.log(TRACE, () -> "Shared library " + targetSharedLibrary);
 		return targetSharedLibrary;
 //		if (copySharedLib) {

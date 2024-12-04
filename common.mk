@@ -21,7 +21,6 @@ exec_prefix ?= $(prefix)
 libdir ?= $(exec_prefix)/lib
 
 A2_INSTALL_TARGET ?= $(DESTDIR)$(datarootdir)/a2
-A2_NATIVE_INSTALL_TARGET ?= $(DESTDIR)$(libdir)/a2
 
 # The following variables have default values which can be overriden
 # A2_BASE           the space-separated directories where already built a2 categories can be found
@@ -33,8 +32,9 @@ TARGET_OS ?= linux
 TARGET_ARCH ?= $(shell uname -m)
 TARGET_LIBC ?= gnu
 
-TARGET_OS_CATEGORY_PREFIX=lib/$(TARGET_OS)
-TARGET_ARCH_CATEGORY_PREFIX=$(TARGET_ARCH)-$(TARGET_OS_CATEGORY_PREFIX)-$(TARGET_LIBC)
+#TARGET_OS_CATEGORY_PREFIX=lib/$(TARGET_OS)
+TARGET_ARCH_CATEGORY_PREFIX=$(TARGET_ARCH)-$(TARGET_OS)-$(TARGET_LIBC)
+A2_NATIVE_INSTALL_TARGET ?= $(DESTDIR)$(libdir)/${TARGET_ARCH_CATEGORY_PREFIX}
 PORTABLE_CATEGORIES=$(filter-out lib/%, $(CATEGORIES))
 ARCH_CATEGORIES=$(filter $(TARGET_ARCH_CATEGORY_PREFIX)/%, $(CATEGORIES))
 OS_CATEGORIES=$(filter-out $(foreach arch, $(KNOWN_ARCHS), $(TARGET_OS_CATEGORY_PREFIX)/$(arch)/%), $(filter $(TARGET_OS_CATEGORY_PREFIX)/%, $(CATEGORIES)))
