@@ -24,11 +24,9 @@ import static org.argeo.build.Repackage.ManifestHeader.ECLIPSE_SOURCE_BUNDLE;
 import static org.argeo.build.Repackage.ManifestHeader.EXPORT_PACKAGE;
 import static org.argeo.build.Repackage.ManifestHeader.IMPORT_PACKAGE;
 import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_CAPABILITY;
-//import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_BUNDLE;
 import static org.argeo.build.Repackage.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
 import static org.argeo.build.Repackage.SupportedArch.aarch64;
 import static org.argeo.build.Repackage.SupportedArch.armv7l;
-import static org.argeo.build.Repackage.SupportedArch.noarch;
 import static org.argeo.build.Repackage.SupportedArch.x86_64;
 import static org.argeo.build.Repackage.SupportedOS.freebsd;
 import static org.argeo.build.Repackage.SupportedOS.linux;
@@ -143,7 +141,7 @@ public class Repackage {
 	// What should be modified or overridden in order to extend support
 	/** Supported processor architectures (Linux kernel conventions). */
 	enum SupportedArch {
-		x86_64, aarch64, armv7l, noarch
+		x86_64, aarch64, armv7l
 	}
 
 	/** Supported operating systems. */
@@ -184,7 +182,7 @@ public class Repackage {
 						archToUse = "amd64";
 					else if (arch.equals(SupportedArch.armv7l))
 						archToUse = "armv6hf";
-					else if (arch.equals(noarch) && os.equals(macosx))
+					else if (os.equals(macosx) && (arch.equals(x86_64) || arch.equals(aarch64)))
 						archToUse = "universal";
 					if (os.equals(win32))
 						osToUse = "windows";
@@ -195,8 +193,6 @@ public class Repackage {
 						archToUse = "armv7";
 					else if (arch.equals(aarch64))
 						archToUse = "arm64";
-					else if (arch.equals(noarch) && os.equals(macosx))
-						archToUse = "universal";
 					if (os.equals(linux))
 						osToUse = "Linux";
 					else if (os.equals(win32))
@@ -1202,20 +1198,6 @@ public class Repackage {
 					boolean skipJarEntry = preProcessJarEntry(entry, origin);
 					if (skipJarEntry)
 						continue entries;
-//					if (entry.getName().startsWith("META-INF/versions/")) { // skip multi-version
-//						origin.deleted.add("additional Java versions (META-INF/versions)");
-//						continue entries;
-//					}
-//					if (entry.getName().startsWith("META-INF/maven/")) {
-//						origin.deleted.add("Maven information (META-INF/maven)");
-//						continue entries;
-//					}
-//					// skip file system providers as they cause issues with native image
-//					if (entry.getName().startsWith("META-INF/services/java.nio.file.spi.FileSystemProvider")) {
-//						origin.deleted
-//								.add("file system providers (META-INF/services/java.nio.file.spi.FileSystemProvider)");
-//						continue entries;
-//					}
 				}
 				if (entry.getName().startsWith("OSGI-OPT/src/")) { // skip embedded sources
 					origin.deleted.add("embedded sources");
@@ -1231,58 +1213,6 @@ public class Repackage {
 					Files.copy(jarIn, target);
 					logger.log(TRACE, () -> "Copied " + target);
 				}
-
-				// native libraries
-//				boolean isNative = false;
-//				String os = null;
-//				String arch = null;
-//				if (bundleDir.startsWith(a2LibBase)) {
-//					isNative = true;
-//					Path libRelativePath = a2LibBase.relativize(bundleDir);
-//					os = libRelativePath.getName(0).toString();
-//					arch = libRelativePath.getName(1).toString();
-//				}
-//
-//				boolean removeDllFromJar = true;
-//				if (isNative && (entry.getName().endsWith(".so") || entry.getName().endsWith(".dll")
-//						|| entry.getName().endsWith(".dylib") || entry.getName().endsWith(".jnilib")
-//						|| entry.getName().endsWith(".a"))) {
-//					Path categoryDir = bundleDir.getParent();
-//					boolean copyDll = false;
-//					// copy to the category directory
-//					Path targetDll = categoryDir.resolve(target.getFileName());
-//					if (nameVersion.getName().equals("com.sun.jna")) {
-//						if (arch.equals("x86_64"))
-//							arch = "x86-64";
-//						if (os.equals("macosx"))
-//							os = "darwin";
-//						if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
-//							copyDll = true;
-//						}
-//						targetDll = categoryDir.resolve(target.getFileName());
-//					} else if (nameVersion.getName().equals("com.jogamp")) {
-//						if (arch.equals("x86_64"))
-//							arch = "amd64";
-//						if (os.equals("win32"))
-//							os = "windows";
-//						if (target.getParent().getFileName().toString().equals(os + "-" + arch)) {
-//							copyDll = true;
-//						}
-//					} else {
-//						copyDll = true;
-//					}
-//					if (copyDll) {
-//						Files.createDirectories(targetDll.getParent());
-//						if (Files.exists(targetDll))
-//							Files.delete(targetDll);
-//						Files.copy(target, targetDll);
-//					}
-//
-//					if (removeDllFromJar) {
-//						Files.delete(target);
-//						origin.deleted.add(bundleDir.relativize(target).toString());
-//					}
-//				}
 			}
 		}
 

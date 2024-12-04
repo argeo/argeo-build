@@ -27,23 +27,27 @@ A2_INSTALL_TARGET ?= $(DESTDIR)$(datarootdir)/a2
 A2_BASE ?=$(call uniq, $(A2_OUTPUT) $(A2_INSTALL_TARGET) $(A2_NATIVE_INSTALL_TARGET) /usr/local/share/a2 /usr/local/lib/a2 /usr/share/a2 /usr/lib/a2)
 
 # OS-speciific
-KNOWN_ARCHS ?= x86_64 aarch64
+KNOWN_ARCHS ?= x86_64 aarch64 armv7l
 TARGET_OS ?= linux
 TARGET_ARCH ?= $(shell uname -m)
 TARGET_LIBC ?= gnu
 
 #TARGET_OS_CATEGORY_PREFIX=lib/$(TARGET_OS)
+LOCAL_NATIVE_CATEGORY_PREFIX=$(shell uname -m)-$(TARGET_OS)-$(TARGET_LIBC)
 TARGET_ARCH_CATEGORY_PREFIX=$(TARGET_ARCH)-$(TARGET_OS)-$(TARGET_LIBC)
+A2_NATIVE_OUTPUT=$(A2_OUTPUT)/lib
+TARGET_NATIVE_CATEGORY=$(A2_NATIVE_OUTPUT)/$(TARGET_ARCH_CATEGORY_PREFIX)
 A2_NATIVE_INSTALL_TARGET ?= $(DESTDIR)$(libdir)/${TARGET_ARCH_CATEGORY_PREFIX}
+
 PORTABLE_CATEGORIES=$(filter-out lib/%, $(CATEGORIES))
 ARCH_CATEGORIES=$(filter $(TARGET_ARCH_CATEGORY_PREFIX)/%, $(CATEGORIES))
 OS_CATEGORIES=$(filter-out $(foreach arch, $(KNOWN_ARCHS), $(TARGET_OS_CATEGORY_PREFIX)/$(arch)/%), $(filter $(TARGET_OS_CATEGORY_PREFIX)/%, $(CATEGORIES)))
 
-a2-prepare-output: $(A2_OUTPUT)/lib/local
+a2-prepare-output: $(A2_NATIVE_OUTPUT)/local
 
-$(A2_OUTPUT)/lib/local:
-	mkdir -p $(A2_OUTPUT)/lib
-	cd $(A2_OUTPUT)/lib && ln -s ${TARGET_ARCH_CATEGORY_PREFIX} local
+ $(A2_NATIVE_OUTPUT)/local:
+	mkdir -p  $(A2_NATIVE_OUTPUT)/${LOCAL_NATIVE_CATEGORY_PREFIX}
+	cd  $(A2_NATIVE_OUTPUT) && ln -s ${LOCAL_NATIVE_CATEGORY_PREFIX} local
 
 ## Utilities
 # Install to a target directory without executable bit
