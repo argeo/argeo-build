@@ -109,15 +109,12 @@ endfunction() # a2_osgi_manifest
 function(a2_build_bundle BUNDLE)
 	a2_osgi_manifest(${BUNDLE})
 	file(GLOB_RECURSE JAVA_SRC CONFIGURE_DEPENDS "${BUNDLE}/src/*.java")
-	
-	message (STATUS "DEP_CATEGORIES=${DEP_CATEGORIES}")
 	set(CLASSPATH "")
 	foreach(CATEGORY IN LISTS DEP_CATEGORIES)
-		message (STATUS "${A2_BASE}/${CATEGORY}/*.jar")
+		message (STATUS "CLASSPATH += ${A2_BASE}/${CATEGORY}/*.jar")
 		file(GLOB JARS CONFIGURE_DEPENDS "${A2_BASE}/${CATEGORY}/*.jar")
 		list(APPEND CLASSPATH ${JARS})
 	endforeach()
-	#message (STATUS "CLASSPATH=${CLASSPATH}")
 	
 	add_jar(${BUNDLE}
 		${JAVA_SRC}
