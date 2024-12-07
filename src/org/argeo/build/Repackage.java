@@ -182,7 +182,7 @@ public class Repackage {
 						archToUse = "amd64";
 					else if (arch.equals(SupportedArch.armv7l))
 						archToUse = "armv6hf";
-					else if (os.equals(macosx) && (arch.equals(x86_64) || arch.equals(aarch64)))
+					if (os.equals(macosx) && (arch.equals(x86_64) || arch.equals(aarch64)))
 						archToUse = "universal";
 					if (os.equals(win32))
 						osToUse = "windows";

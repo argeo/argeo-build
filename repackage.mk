@@ -43,7 +43,7 @@ uninstall:
 # so that we don't repackage a category if it hasn't changed
 $(BUILD_BASE)/repackaged : CATEGORIES_TO_REPACKAGE = $(subst $(abspath $(BUILD_BASE))/,, $(subst to-repackage,, $?))
 $(BUILD_BASE)/repackaged : $(TODOS_REPACKAGE)
-	@$(ARGEO_REPACKAGE) $(A2_OUTPUT) $(CATEGORIES_TO_REPACKAGE)
+	$(ARGEO_REPACKAGE) $(A2_OUTPUT) $(CATEGORIES_TO_REPACKAGE)
 	@touch $(BUILD_BASE)/repackaged
 
 $(BUILD_BASE)/%/to-repackage : $$(shell find % -type f )
