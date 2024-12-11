@@ -980,9 +980,26 @@ public class Repackage {
 				}
 			}
 
+			Path zipRoot = zipFs.getRootDirectories().iterator().next();
+
+			List<Path> sourcesBases = new ArrayList<>();
+			Path sourcesFile = duDir.resolve("sources.properties");
+			Path archiveSourcesDir = targetCategoryBase.resolve(duDir.getFileName() + "-src");
+			if (Files.exists(sourcesFile)) {
+				Properties sources = new Properties();
+				try (InputStream in = Files.newInputStream(sourcesFile)) {
+					sources.load(in);
+				}
+				for (Object base : sources.keySet()) {
+					Path path = zipRoot.resolve(base.toString());
+					sourcesBases.add(path);
+				}
+				Files.createDirectories(archiveSourcesDir);
+			}
+
 			// keys are the bundle directories
 			Map<Path, A2Origin> origins = new HashMap<>();
-			Files.walkFileTree(zipFs.getRootDirectories().iterator().next(), new SimpleFileVisitor<Path>() {
+			Files.walkFileTree(zipRoot, new SimpleFileVisitor<Path>() {
 
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -1030,18 +1047,62 @@ public class Repackage {
 							break includeMatchers;
 						}
 					}
+					if (sourcesBases != null)
+						for (Path sourcesBase : sourcesBases) {
+							if (file.startsWith(sourcesBase)) {
+								Path relPath = sourcesBase.relativize(file);
+								if (relPath.getParent() != null)
+									Files.createDirectories(archiveSourcesDir.resolve(relPath.getParent().toString()));
+								Files.copy(file, archiveSourcesDir.resolve(relPath.toString()));
+							}
+						}
 					return FileVisitResult.CONTINUE;
 				}
 			});
 
+			// package bundle directories and sources as jars
 			try (DirectoryStream<Path> dirs = Files.newDirectoryStream(targetCategoryBase, (p) -> Files.isDirectory(p)
 					&& p.getFileName().toString().indexOf('.') >= 0 && !p.getFileName().toString().endsWith(".src"))) {
 				for (Path bundleDir : dirs) {
 					A2Origin origin = origins.get(bundleDir);
 					Objects.requireNonNull(origin, "No A2 origin found for " + bundleDir);
+
+					// sources
+					if (sourcesBases != null) {
+						Path baseSourcesDir = separateSources
+								? bundleDir.getParent().resolve(bundleDir.getFileName() + ".src")
+								: bundleDir.resolve("OSGI-OPT/src");
+						Files.walkFileTree(bundleDir, new SimpleFileVisitor<Path>() {
+
+							@Override
+							public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+								Path relPath = bundleDir.relativize(dir);
+								Path sourcesDir = archiveSourcesDir.resolve(relPath.toString());
+								if (Files.exists(sourcesDir)) {
+									Path targetSourcesDir = baseSourcesDir.resolve(relPath);
+									Files.createDirectories(targetSourcesDir);
+									try (DirectoryStream<Path> files = Files.newDirectoryStream(sourcesDir)) {
+										for (Path file : files) {
+											Path target = targetSourcesDir.resolve(file.getFileName().toString());
+											// do not copy if already in bundle (e.g. images, resources)
+											Path inBundle = dir.resolve(file.getFileName().toString());
+											if (!Files.exists(target) && !Files.exists(inBundle))
+												Files.copy(file, target);
+										}
+									}
+								}
+								return super.postVisitDirectory(dir, exc);
+							}
+						});
+					}
+
+					// create the bundle jar
 					createJar(bundleDir, origin);
 				}
 			}
+
+			if (Files.exists(archiveSourcesDir)) // clean up archive sources
+				deleteDirectory(archiveSourcesDir);
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot process " + duDir, e);
 		}
