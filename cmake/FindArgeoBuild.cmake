@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.11) # UseJava features
 cmake_minimum_required(VERSION 3.12) # CONFIGURE_DEPENDS in GLOB
+cmake_minimum_required(VERSION 3.20) # DESTINATION in JNI GENERATE_NATIVE_HEADERS
+
+if(NOT A2_CATEGORY)
+message(FATAL_ERROR "Variable A2_CATEGORY must be set")
+endif()
 
 if(NOT A2_JAVA_RELEASE)
 set(A2_JAVA_RELEASE 17)
@@ -35,6 +40,9 @@ if (JNI_FOUND)
     message (STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
 endif()
 
+# Use GNU conventions
+include(GNUInstallDirs)
+
 # supported OSes
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	set(A2_TARGET_OS "linux")
@@ -69,6 +77,11 @@ endif()
 
 set(TARGET_NATIVE_CATEGORY_PREFIX "${A2_TARGET_ARCH}-${A2_TARGET_OS}-${A2_TARGET_CLIB}")
 message (STATUS "TARGET_NATIVE_CATEGORY_PREFIX=${TARGET_NATIVE_CATEGORY_PREFIX}")
+
+# Virtual target for all includes
+add_library(${A2_CATEGORY}-includes INTERFACE)
+message (STATUS "INCLUDES=${A2_CATEGORY}-includes")
+
 
 # Generates MANIFEST for a bundle
 function(a2_osgi_manifest BUNDLE)
@@ -123,8 +136,9 @@ function(a2_build_bundle BUNDLE)
 		INCLUDE_JARS ${CLASSPATH}
 		OUTPUT_NAME ${BUNDLE}.${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
 		OUTPUT_DIR ${A2_OUTPUT}/${A2_CATEGORY}
-		GENERATE_NATIVE_HEADERS ${BUNDLE}-include DESTINATION native/include/${A2_CATEGORY}
+		GENERATE_NATIVE_HEADERS ${BUNDLE}-include DESTINATION ${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY}
 	)
+	add_dependencies(${A2_CATEGORY}-includes ${BUNDLE}-include)
 	install_jar(${BUNDLE} ${CMAKE_INSTALL_LIBDIR}/a2/${A2_CATEGORY})
 endfunction() # a2_build_bundle
 
@@ -143,6 +157,7 @@ macro(a2_jni_target TARGET)
 	# local includes (possibly git submodules)
 	target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/native/include/)
 	# generated include files
+	add_dependencies(${TARGET} ${A2_CATEGORY}-includes)
 	target_include_directories(${TARGET} PRIVATE 
 		${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY})
 	set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
