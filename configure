@@ -48,11 +48,26 @@ JAVA_HOME := $JAVA_HOME
 -include \$(SDK_SRC_BASE)/sdk/branches/\$(BRANCH).bnd
 EOF
 
+# Add standard GNU paths
+for i in "$@"; do
+	case $i in
+	--prefix=*)
+		echo "prefix := ${i#*=}" >> sdk.mk
+      	shift
+      	;;
+	--sysconfdir=*)
+		echo "sysconfdir := ${i#*=}" >> sdk.mk
+      	shift
+      	;;
+	--localstatedir=*)
+		echo "localstatedir := ${i#*=}" >> sdk.mk
+      	shift
+      	;;
+  esac
+done
 
 echo SDK was configured.
 echo "JAVA_HOME        : $JAVA_HOME"
 echo "Base for sources : $SDK_SRC_BASE"
 echo "Base for builds  : $SDK_BUILD_BASE"
-exit 0
 fi
-
