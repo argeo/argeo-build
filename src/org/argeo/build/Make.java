@@ -291,14 +291,6 @@ public class Make {
 		if (logger.isLoggable(INFO))
 			compilerArgs.add("-time");
 
-		StringJoiner compilerArgsSj = new StringJoiner(" ");
-		for (String arg : compilerArgs) {
-//			System.out.print(arg);
-//			System.out.print(" ");
-			compilerArgsSj.add(arg);
-		}
-		System.out.print(compilerArgsSj);
-
 		if (logger.isLoggable(DEBUG)) {
 			logger.log(DEBUG, "Compiler arguments:");
 			for (String arg : compilerArgs)
