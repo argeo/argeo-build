@@ -81,8 +81,15 @@ public class Make {
 	 */
 	private final static String ENV_ARGEO_BUILD_CONFIG = "ARGEO_BUILD_CONFIG";
 
-	/** Make file variable (in {@link #SDK_MK}) with a path to the sources base. */
-	private final static String VAR_SDK_SRC_BASE = "SDK_SRC_BASE";
+	/**
+	 * Environment variable to provide the Windows path (for example
+	 * C:\Users\myuser\path\to\output) of the build output base. Overrides reading
+	 * from sdk.mk.
+	 */
+	private final static String ENV_SDK_BUILD_BASE_WIN = "SDK_BUILD_BASE_WIN";
+
+//	/** Make file variable (in {@link #SDK_MK}) with a path to the sources base. */
+//	private final static String VAR_SDK_SRC_BASE = "SDK_SRC_BASE";
 
 	/**
 	 * Make file variable (in {@link #SDK_MK}) with a path to the build output base.
@@ -134,10 +141,11 @@ public class Make {
 		Path sdkMkP = findSdkMk(execDirectory);
 		Objects.requireNonNull(sdkMkP, "No " + SDK_MK + " found under " + execDirectory);
 
-		Map<String, String> context = readMakefileVariables(sdkMkP);
-		sdkSrcBase = Paths.get(context.computeIfAbsent(VAR_SDK_SRC_BASE, (key) -> {
-			throw new IllegalStateException(key + " not found");
-		})).toAbsolutePath();
+		sdkSrcBase = sdkMkP.getParent();
+//		Map<String, String> context = readMakefileVariables(sdkMkP);
+//		sdkSrcBase = Paths.get(context.computeIfAbsent(VAR_SDK_SRC_BASE, (key) -> {
+//			throw new IllegalStateException(key + " not found");
+//		})).toAbsolutePath();
 
 		Path argeoBuildBaseT = sdkSrcBase.resolve("sdk").resolve("argeo-build");
 		if (!Files.exists(argeoBuildBaseT)) {
@@ -152,9 +160,16 @@ public class Make {
 		}
 		argeoBuildBase = argeoBuildBaseT;
 
-		sdkBuildBase = Paths.get(context.computeIfAbsent(VAR_SDK_BUILD_BASE, (key) -> {
-			throw new IllegalStateException(key + " not found");
-		})).toAbsolutePath();
+		String sdkBuildBaseWin = System.getenv(ENV_SDK_BUILD_BASE_WIN);
+		if (sdkBuildBaseWin != null) {
+			sdkBuildBase = Paths.get(sdkBuildBaseWin);
+		} else {
+			Map<String, String> context = readMakefileVariables(sdkMkP);
+			sdkBuildBase = Paths.get(context.computeIfAbsent(VAR_SDK_BUILD_BASE, (key) -> {
+				throw new IllegalStateException(key + " not found");
+			})).toAbsolutePath();
+		}
+
 		buildBase = sdkBuildBase.resolve(sdkSrcBase.getFileName());
 		a2Output = sdkBuildBase.resolve("a2");
 		a2srcOutput = sdkBuildBase.resolve("a2.src");

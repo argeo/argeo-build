@@ -38,13 +38,6 @@ echo "Cannot create $SDK_BUILD_BASE, SDK configuration has failed."
 exit 2
 fi
 
-# MSYS case
-if command -v cygpath 2>&1 >/dev/null
-then
-SDK_SRC_BASE_WIN=$(cygpath -w "$SDK_SRC_BASE")
-SDK_BUILD_BASE_WIN=$(cygpath -w "$SDK_BUILD_BASE")
-fi
-
 # Generate sdk.mk
 cat > "$SDK_MK" <<EOF
 SDK_SRC_BASE := $SDK_SRC_BASE
@@ -72,6 +65,12 @@ for i in "$@"; do
       	;;
   esac
 done
+
+# MSYS case
+if command -v cygpath 2>&1 >/dev/null
+then
+echo "export SDK_BUILD_BASE_WIN=$(cygpath -w "$SDK_BUILD_BASE")" >> sdk.mk
+fi
 
 echo SDK was configured.
 echo "JAVA_HOME        : $JAVA_HOME"
