@@ -242,13 +242,16 @@ public class Make {
 			for (Iterator<A2Jar> it = a2Jars.values().iterator(); it.hasNext();)
 				classPath.add(it.next().path.toString());
 
-			compilerArgs.add("-cp");
-			compilerArgs.add(classPath.toString());
+			String classPathStr = classPath.toString();
+			if (!"".equals(classPathStr)) {
+				compilerArgs.add("-cp");
+				compilerArgs.add(classPathStr);
+			}
 
 			String modulePathStr = modulePath.toString();
 			if (!"".equals(modulePathStr)) {
 				compilerArgs.add("--module-path");
-				compilerArgs.add(modulePath.toString());
+				compilerArgs.add(modulePathStr);
 				compilerArgs.add("--add-modules");
 				compilerArgs.add("org.eclipse.osgi");
 			}
@@ -287,6 +290,14 @@ public class Make {
 
 		if (logger.isLoggable(INFO))
 			compilerArgs.add("-time");
+
+		StringJoiner compilerArgsSj = new StringJoiner(" ");
+		for (String arg : compilerArgs) {
+//			System.out.print(arg);
+//			System.out.print(" ");
+			compilerArgsSj.add(arg);
+		}
+		System.out.print(compilerArgsSj);
 
 		if (logger.isLoggable(DEBUG)) {
 			logger.log(DEBUG, "Compiler arguments:");
@@ -515,9 +526,9 @@ public class Make {
 			Jar jar = new Jar(bundleSymbolicName, binP.toFile());
 			bndAnalyzer.setJar(jar);
 			manifest = bndAnalyzer.calcManifest();
+			jar.setManifest(manifest);
 
 			// JPMS module
-			jar.setManifest(manifest);
 			JPMSModuleInfoPlugin jpmsModuleInfoPlugin = new JPMSModuleInfoPlugin();
 			jpmsModuleInfoPlugin.mainSet(bndAnalyzer, manifest);
 //			jpmsModuleInfoPlugin.verify(bndAnalyzer);
@@ -541,10 +552,14 @@ public class Make {
 		// Write module-info.class
 		if (moduleInfoClass != null) {
 			Path moduleInfoClassP = binP.resolve("module-info.class");
-			Files.createDirectories(moduleInfoClassP.getParent());
-			try (OutputStream out = Files.newOutputStream(moduleInfoClassP)) {
-				moduleInfoClass.write(out);
+			try {
+				if (!Files.exists(moduleInfoClassP) && moduleInfoClass.size() > 0) {
+					Files.createDirectories(moduleInfoClassP.getParent());
+					try (OutputStream out = Files.newOutputStream(moduleInfoClassP)) {
+						moduleInfoClass.write(out);
 //				logger.log(INFO, "Wrote " + moduleInfoClassP);
+					}
+				}
 			} catch (Exception e) {
 				throw new RuntimeException("Cannot write module-info.class");
 			}
