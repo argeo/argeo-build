@@ -52,15 +52,15 @@ EOF
 for i in "$@"; do
 	case $i in
 	--prefix=*)
-		echo "prefix := ${i#*=}" >> sdk.mk
+		echo "prefix := ${i#*=}" >> "$SDK_MK"
       	shift
       	;;
 	--sysconfdir=*)
-		echo "sysconfdir := ${i#*=}" >> sdk.mk
+		echo "sysconfdir := ${i#*=}" >> "$SDK_MK"
       	shift
       	;;
 	--localstatedir=*)
-		echo "localstatedir := ${i#*=}" >> sdk.mk
+		echo "localstatedir := ${i#*=}" >> "$SDK_MK"
       	shift
       	;;
   esac
@@ -69,7 +69,7 @@ done
 # MSYS case
 if command -v cygpath 2>&1 >/dev/null
 then
-echo "export SDK_BUILD_BASE_WIN=$(cygpath -w "$SDK_BUILD_BASE")" >> sdk.mk
+echo "export SDK_BUILD_BASE_WIN=$(cygpath -w "$SDK_BUILD_BASE")" >> "$SDK_MK"
 fi
 
 echo SDK was configured.
