@@ -41,8 +41,8 @@ fi
 # MSYS case
 if command -v cygpath 2>&1 >/dev/null
 then
-SDK_SRC_BASE=$(cygpath -w "$SDK_SRC_BASE")
-SDK_BUILD_BASE=$(cygpath -w "$SDK_BUILD_BASE")
+SDK_SRC_BASE_WIN=$(cygpath -w "$SDK_SRC_BASE")
+SDK_BUILD_BASE_WIN=$(cygpath -w "$SDK_BUILD_BASE")
 fi
 
 # Generate sdk.mk
