@@ -209,13 +209,18 @@ public class Make {
 			// and order by bundle name, for predictability
 			Map<String, A2Jar> a2Jars = new TreeMap<>();
 
-//			StringJoiner modulePath = new StringJoiner(File.pathSeparator);
+			StringJoiner modulePath = new StringJoiner(File.pathSeparator);
 			for (String a2Base : a2Bases) {
 				categories: for (String a2Category : a2Categories) {
 					Path a2Dir = Paths.get(a2Base).resolve(a2Category);
 					if (!Files.exists(a2Dir))
 						continue categories;
-//					modulePath.add(a2Dir.toString());
+
+					// TODO make it more robust
+					if (a2Dir.toString().contains("org.argeo.tp.osgi.framework")) {
+						modulePath.add(a2Dir.toString());
+						continue categories;
+					}
 					for (Path jarP : Files.newDirectoryStream(a2Dir, (p) -> p.getFileName().toString().endsWith(".jar")
 							&& !p.getFileName().toString().endsWith(".src.jar"))) {
 						A2Jar a2Jar = new A2Jar(jarP);
@@ -239,8 +244,14 @@ public class Make {
 
 			compilerArgs.add("-cp");
 			compilerArgs.add(classPath.toString());
-//			compilerArgs.add("--module-path");
-//			compilerArgs.add(modulePath.toString());
+
+			String modulePathStr = modulePath.toString();
+			if (!"".equals(modulePathStr)) {
+				compilerArgs.add("--module-path");
+				compilerArgs.add(modulePath.toString());
+				compilerArgs.add("--add-modules");
+				compilerArgs.add("org.eclipse.osgi");
+			}
 		}
 
 		// sources
