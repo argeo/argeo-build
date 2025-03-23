@@ -139,7 +139,7 @@ public class Make {
 			throw new IllegalStateException(key + " not found");
 		})).toAbsolutePath();
 
-		Path argeoBuildBaseT = sdkSrcBase.resolve("sdk/argeo-build");
+		Path argeoBuildBaseT = sdkSrcBase.resolve("sdk").resolve("argeo-build");
 		if (!Files.exists(argeoBuildBaseT)) {
 			String fromEnv = System.getenv(ENV_ARGEO_BUILD_CONFIG);
 			if (fromEnv != null)
@@ -341,7 +341,7 @@ public class Make {
 		}
 
 		Properties properties = new Properties();
-		Path branchBnd = sdkSrcBase.resolve("sdk/branches/" + branch + ".bnd");
+		Path branchBnd = sdkSrcBase.resolve("sdk").resolve("branches").resolve(branch + ".bnd");
 		if (Files.exists(branchBnd))
 			try (InputStream in = Files.newInputStream(branchBnd)) {
 				properties.load(in);
@@ -461,7 +461,7 @@ public class Make {
 		}
 
 		if (branch != null) {
-			Path branchBnd = sdkSrcBase.resolve("sdk/branches/" + branch + ".bnd");
+			Path branchBnd = sdkSrcBase.resolve("sdk").resolve("branches").resolve(branch + ".bnd");
 			if (Files.exists(branchBnd))
 				try (InputStream in = Files.newInputStream(branchBnd)) {
 					properties.load(in);
@@ -506,7 +506,7 @@ public class Make {
 		Objects.requireNonNull(minor, "'minor' must be set");
 
 		// Write manifest
-		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
+		Path manifestP = compiled.resolve("META-INF").resolve("MANIFEST.MF");
 		Files.createDirectories(manifestP.getParent());
 		try (OutputStream out = Files.newOutputStream(manifestP)) {
 			manifest.write(out);
