@@ -61,6 +61,11 @@ public class Make {
 	private final static Logger logger = System.getLogger(Make.class.getName());
 
 	/**
+	 * Environment variable on whether compilation should fail on errors
+	 */
+	private final static String ENV_FAIL_ON_ERROR = "FAIL_ON_ERROR";
+
+	/**
 	 * Environment variable on whether sources should be packaged separately or
 	 * integrated in the bundles.
 	 */
@@ -123,6 +128,8 @@ public class Make {
 	/** The base of the a2 sources when packaged separately. */
 	final Path a2srcOutput;
 
+	/** Whether compilation should fail on errors. */
+	final boolean failOnError;
 	/** Whether sources should be packaged separately. */
 	final boolean sourceBundles;
 	/** Whether common legal files should be included. */
@@ -130,6 +137,9 @@ public class Make {
 
 	/** Constructor initialises the base directories. */
 	public Make() throws IOException {
+		failOnError = Boolean.parseBoolean(System.getenv(ENV_FAIL_ON_ERROR));
+		if (failOnError)
+			logger.log(Level.INFO, "Compilation will fail on error");
 		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_SOURCE_BUNDLES));
 		if (sourceBundles)
 			logger.log(Level.INFO, "Sources will be packaged separately");
@@ -300,8 +310,11 @@ public class Make {
 		boolean success = org.eclipse.jdt.core.compiler.batch.BatchCompiler.compile(
 				compilerArgs.toArray(new String[compilerArgs.size()]), new PrintWriter(System.out),
 				new PrintWriter(System.err), new MakeCompilationProgress());
-		if (!success) // kill the process if compilation failed
-			throw new IllegalStateException("Compilation failed");
+		if (!success)
+			if (failOnError)
+				throw new IllegalStateException("Compilation failed"); // kill the process if compilation failed
+			else
+				logger.log(ERROR, "!! COMPILATION FAILED !! (but packaging will continue)");
 	}
 
 	/** Package the bundles. */
