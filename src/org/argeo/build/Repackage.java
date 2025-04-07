@@ -1385,9 +1385,12 @@ public class Repackage {
 				spdxLicenceId = "Apache-2.0";
 
 			manifest.getMainAttributes().putValue(SPDX_LICENSE_IDENTIFIER.get(), spdxLicenceId);
-			if (!licensesUsed.containsKey(spdxLicenceId))
-				licensesUsed.put(spdxLicenceId, new TreeSet<>());
-			licensesUsed.get(spdxLicenceId).add(bundleDir.getParent().getFileName() + "/" + bundleDir.getFileName());
+			synchronized (licensesUsed) {
+				if (!licensesUsed.containsKey(spdxLicenceId))
+					licensesUsed.put(spdxLicenceId, new TreeSet<>());
+				licensesUsed.get(spdxLicenceId)
+						.add(bundleDir.getParent().getFileName() + "/" + bundleDir.getFileName());
+			}
 		}
 	}
 
