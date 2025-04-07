@@ -382,7 +382,9 @@ public class Repackage {
 			try (DirectoryStream<Path> dus = Files.newDirectoryStream(targetCategoryBase,
 					(p) -> Files.isDirectory(p))) {
 				for (Path duDir : dus) {
-					if (duDir.getFileName().toString().startsWith("eclipse-")) {
+					if (duDir.getFileName().toString().endsWith("-disabled")) {
+						// skip
+					} else if (duDir.getFileName().toString().startsWith("eclipse-")) {
 						processArchive(duDir, true);
 					} else if (duDir.getFileName().toString().startsWith("archive-")) {
 						processArchive(duDir, false);
