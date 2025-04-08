@@ -758,7 +758,7 @@ public class Repackage {
 					}
 				}
 
-				if (!fileProps.containsKey(EXPORT_PACKAGE.get())) {
+				if (!fileProps.containsKey(EXPORT_PACKAGE.get()) && fileProps.containsKey(BUNDLE_VERSION.get())) {
 					fileProps.put(EXPORT_PACKAGE.get(),
 							"*;version=\"" + fileProps.getProperty(BUNDLE_VERSION.get()) + "\"");
 				}
@@ -1030,13 +1030,14 @@ public class Repackage {
 										map.put(key.toString(), commonProps.getProperty(key.toString()));
 									}
 								}
+								Properties props = new Properties();
+								props.putAll(map);
 								A2Origin origin = new A2Origin();
 								Path bundleDir;
 								if (isEclipse) {
-									bundleDir = processBundleJar(file, targetCategoryBase, map, origin);
+									// bundleDir = processBundleJar(file, targetCategoryBase, map, origin);
+									bundleDir = processBndJar(file, targetCategoryBase, props, null, origin);
 								} else {
-									Properties props = new Properties();
-									props.putAll(map);
 									bundleDir = processBndJar(file, targetCategoryBase, props, null, origin);
 								}
 								if (bundleDir == null) {
@@ -1190,6 +1191,10 @@ public class Repackage {
 			manifest.getEntries().clear();
 
 			String ourSymbolicName = entries.get(BUNDLE_SYMBOLICNAME.get());
+			// make sure there is no directive
+			if (ourSymbolicName != null)
+				ourSymbolicName = ourSymbolicName.split(";")[0];
+
 			String ourVersion = entries.get(BUNDLE_VERSION.get());
 
 			if (ourSymbolicName != null && ourVersion != null) {
@@ -1235,10 +1240,10 @@ public class Repackage {
 //						origin.deleted.add("cryptographic signatures");
 //						continue entries;
 //					}
-					if (entry.getName().endsWith("module-info.class")) { // skip Java 9 module info
+					if (entry.getName().endsWith("module-info.class")) {
 						if (keepModuleInfo) {
 							entries.remove(AUTOMATIC_MODULE_NAME.get());
-						} else {
+						} else { // skip JPMS module info
 							origin.deleted.add("Java module information (module-info.class)");
 							continue entries;
 						}
@@ -1273,7 +1278,9 @@ public class Repackage {
 		Files.createDirectories(manifestPath.getParent());
 
 		if (isSingleton && entries.containsKey(BUNDLE_SYMBOLICNAME.get())) {
-			entries.put(BUNDLE_SYMBOLICNAME.get(), entries.get(BUNDLE_SYMBOLICNAME.get()) + ";singleton:=true");
+			String sn = entries.get(BUNDLE_SYMBOLICNAME.get());
+			if (!sn.contains(";singleton:=true"))
+				entries.put(BUNDLE_SYMBOLICNAME.get(), sn + ";singleton:=true");
 		}
 
 		// Final MANIFEST decisions
