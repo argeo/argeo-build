@@ -26,11 +26,20 @@ A2_INSTALL_TARGET ?= $(DESTDIR)$(datarootdir)/a2
 # A2_BASE           the space-separated directories where already built a2 categories can be found
 A2_BASE ?=$(call uniq, $(A2_OUTPUT) $(A2_INSTALL_TARGET) $(A2_NATIVE_INSTALL_TARGET) /usr/local/share/a2 /usr/local/lib/a2 /usr/share/a2 /usr/lib/a2)
 
-# OS-speciific
+# OS-specific
 KNOWN_ARCHS ?= x86_64 aarch64 armv7l
+
+MSYS_VERSION := $(if $(findstring Msys, $(shell uname -o)),$(word 1, $(subst ., ,$(shell uname -r))),0)
+
+ifeq ($(MSYS_VERSION),0)	
 TARGET_OS ?= linux
 TARGET_ARCH ?= $(shell uname -m)
 TARGET_LIBC ?= gnu
+else
+TARGET_OS ?= win32
+TARGET_ARCH ?= $(shell uname -m)
+TARGET_LIBC ?= default
+endif
 
 #TARGET_OS_CATEGORY_PREFIX=lib/$(TARGET_OS)
 LOCAL_NATIVE_CATEGORY_PREFIX=$(shell uname -m)-$(TARGET_OS)-$(TARGET_LIBC)
