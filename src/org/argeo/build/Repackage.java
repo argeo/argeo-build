@@ -101,9 +101,9 @@ public class Repackage {
 	 * Subdirectory of the jar file where origin informations (changes, legal
 	 * notices etc. are stored)
 	 */
-	final static String ARGEO_ORIGIN = "ARGEO-ORIGIN";
+	final static Path ARGEO_ORIGIN = Paths.get("META-INF", "argeo", "origin");
 	/** File detailing modifications to the original component. */
-	final static String CHANGES = ARGEO_ORIGIN + "/changes";
+	final static Path CHANGES = ARGEO_ORIGIN.resolve("changes");
 	/**
 	 * Name of the file at the root of the repackaged jar, which prominently
 	 * notifies that the component has be repackaged.
