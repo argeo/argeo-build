@@ -1,10 +1,15 @@
 # Convenience Makefile based on default Argeo SDK conventions
+# TODO make it compatible with sdk.mk
+BUILD_BASE=$(abspath ../output/$(notdir $(CURDIR)))
+A2_OUTPUT=$(abspath ../output/a2)
+
+# common Makefile path
+include $(dir $(lastword $(MAKEFILE_LIST)))../common.mk
 
 export JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 # Required on Windows
 
-CMAKE_BUILD_TYPE ?= Debug
+CMAKE_BUILD_TYPE ?= RelWithDebInfo
 
-BUILD_BASE=$(abspath ../output/$(notdir $(CURDIR)))
 
 all:
 	mkdir -p $(BUILD_BASE)
