@@ -10,7 +10,7 @@ if(NOT A2_JAVA_RELEASE)
 set(A2_JAVA_RELEASE 17)
 endif()
 if(NOT A2_CXX_STD)
-set(A2_CXX_STD cxx_std_11)
+set(A2_CXX_STD cxx_std_17)
 endif()
 message (STATUS "A2_JAVA_RELEASE=${A2_JAVA_RELEASE}")
 
@@ -90,7 +90,6 @@ function(a2_osgi_manifest BUNDLE)
 	file(WRITE ${MF} "") # clear
 	file(APPEND ${MF} "Manifest-Version: 1.0\nBundle-ManifestVersion: 2\n") # standard
 	file(APPEND ${MF} "Bundle-SymbolicName: ${BUNDLE}\n")
-	file(APPEND ${MF} "Automatic-Module-Name: ${BUNDLE}\n")
 	file(APPEND ${MF} "Bundle-Version: ${CMAKE_PROJECT_VERSION}\n")
 	file(APPEND ${MF} "Bundle-RequiredExecutionEnvironment: JavaSE-${A2_JAVA_RELEASE}\n")
 	
@@ -107,6 +106,8 @@ function(a2_osgi_manifest BUNDLE)
 			string(REPLACE ";" ",\n " EXPORT_PACKAGE "${EXPORTED_PKGS}")
 			file(APPEND ${MF} "Export-Package: ${EXPORT_PACKAGE}\n")
 		endif() # export packages length
+	else()
+		file(APPEND ${MF} "Automatic-Module-Name: ${BUNDLE}\n")
 	endif() # module-info.java exists
 	
 	# Additional hardcoded directives in bnd.bnd
@@ -165,6 +166,11 @@ macro(a2_jni_target TARGET)
 	set_target_properties(${TARGET} PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 		"${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}"
 	)
+	if(MINGW)
+		set_target_properties(${TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+			"${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}"
+		)
+	endif()
 	install(TARGETS ${TARGET} LIBRARY DESTINATION lib/${CMAKE_LIBRARY_ARCHITECTURE})
 endmacro()
 
