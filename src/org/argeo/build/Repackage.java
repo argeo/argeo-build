@@ -954,7 +954,7 @@ public class Repackage {
 					throw new IllegalStateException("No url available for " + duDir);
 				commonProps.put(ARGEO_ORIGIN_URI.get(), url);
 			}
-			Path downloaded = tryDownloadArchive(url, originBase);
+			Path downloaded = tryDownloadArchive(url, originBase, isEclipse);
 
 			FileSystem zipFs = FileSystems.newFileSystem(downloaded, (ClassLoader) null);
 
@@ -1440,7 +1440,7 @@ public class Repackage {
 	}
 
 	/** Try to download from an URI. */
-	Path tryDownloadArchive(String uriStr, Path dir) throws IOException {
+	Path tryDownloadArchive(String uriStr, Path dir, boolean isEclipse) throws IOException {
 		// find mirror
 		List<String> urlBases = null;
 		String uriPrefix = null;
@@ -1455,7 +1455,7 @@ public class Repackage {
 		}
 		if (urlBases == null)
 			try {
-				return downloadArchive(new URI(uriStr), dir);
+				return downloadArchive(new URI(uriStr), dir, isEclipse);
 			} catch (FileNotFoundException | URISyntaxException e) {
 				throw new FileNotFoundException("Cannot find " + uriStr);
 			}
@@ -1465,7 +1465,7 @@ public class Repackage {
 			String relativePath = uriStr.substring(uriPrefix.length());
 			String uStr = urlBase + relativePath;
 			try {
-				return downloadArchive(new URI(uStr), dir);
+				return downloadArchive(new URI(uStr), dir, isEclipse);
 			} catch (FileNotFoundException | URISyntaxException e) {
 				logger.log(WARNING, "Cannot download " + uStr + ", trying another mirror");
 			}
@@ -1476,8 +1476,14 @@ public class Repackage {
 	/**
 	 * Effectively download an archive.
 	 */
-	Path downloadArchive(URI uri, Path dir) throws IOException {
-		return download(uri, dir, (String) null);
+	Path downloadArchive(URI uri, Path dir, boolean isEclipse) throws IOException {
+		String name = null;
+		if (isEclipse) {
+			// use the actual file name
+			String[] arr = uri.getPath().split("/");
+			name = arr[arr.length - 1];
+		}
+		return download(uri, dir, name);
 	}
 
 	/**
