@@ -32,7 +32,7 @@ fi
 # Create build directory, so that it can be used right away
 # and we check whether we have the rights
 mkdir -p $SDK_BUILD_BASE
-if [ -f "$SDK_MK" ];
+if [ ! -d "$SDK_BUILD_BASE" ];
 then
 echo "Cannot create $SDK_BUILD_BASE, SDK configuration has failed."
 exit 2
@@ -44,15 +44,36 @@ SDK_SRC_BASE := $SDK_SRC_BASE
 SDK_BUILD_BASE := $SDK_BUILD_BASE
 JAVA_HOME := $JAVA_HOME
 
--include \$(SDK_SRC_BASE)/branch.mk
--include \$(SDK_SRC_BASE)/sdk/branches/\$(BRANCH).bnd
+-include branch.mk
+-include sdk/branches/\$(BRANCH).bnd
 EOF
 
+# Add standard GNU paths
+for i in "$@"; do
+	case $i in
+	--prefix=*)
+		echo "prefix := ${i#*=}" >> "$SDK_MK"
+      	shift
+      	;;
+	--sysconfdir=*)
+		echo "sysconfdir := ${i#*=}" >> "$SDK_MK"
+      	shift
+      	;;
+	--localstatedir=*)
+		echo "localstatedir := ${i#*=}" >> "$SDK_MK"
+      	shift
+      	;;
+  esac
+done
+
+# MSYS case
+if command -v cygpath 2>&1 >/dev/null
+then
+echo "export SDK_BUILD_BASE_WIN=$(cygpath -w "$SDK_BUILD_BASE")" >> "$SDK_MK"
+fi
 
 echo SDK was configured.
 echo "JAVA_HOME        : $JAVA_HOME"
 echo "Base for sources : $SDK_SRC_BASE"
 echo "Base for builds  : $SDK_BUILD_BASE"
-exit 0
 fi
-

@@ -61,6 +61,11 @@ public class Make {
 	private final static Logger logger = System.getLogger(Make.class.getName());
 
 	/**
+	 * Environment variable on whether compilation should fail on errors
+	 */
+	private final static String ENV_FAIL_ON_ERROR = "FAIL_ON_ERROR";
+
+	/**
 	 * Environment variable on whether sources should be packaged separately or
 	 * integrated in the bundles.
 	 */
@@ -81,8 +86,15 @@ public class Make {
 	 */
 	private final static String ENV_ARGEO_BUILD_CONFIG = "ARGEO_BUILD_CONFIG";
 
-	/** Make file variable (in {@link #SDK_MK}) with a path to the sources base. */
-	private final static String VAR_SDK_SRC_BASE = "SDK_SRC_BASE";
+	/**
+	 * Environment variable to provide the Windows path (for example
+	 * C:\Users\myuser\path\to\output) of the build output base. Overrides reading
+	 * from sdk.mk.
+	 */
+	private final static String ENV_SDK_BUILD_BASE_WIN = "SDK_BUILD_BASE_WIN";
+
+//	/** Make file variable (in {@link #SDK_MK}) with a path to the sources base. */
+//	private final static String VAR_SDK_SRC_BASE = "SDK_SRC_BASE";
 
 	/**
 	 * Make file variable (in {@link #SDK_MK}) with a path to the build output base.
@@ -116,6 +128,8 @@ public class Make {
 	/** The base of the a2 sources when packaged separately. */
 	final Path a2srcOutput;
 
+	/** Whether compilation should fail on errors. */
+	final boolean failOnError;
 	/** Whether sources should be packaged separately. */
 	final boolean sourceBundles;
 	/** Whether common legal files should be included. */
@@ -123,6 +137,9 @@ public class Make {
 
 	/** Constructor initialises the base directories. */
 	public Make() throws IOException {
+		failOnError = Boolean.parseBoolean(System.getenv(ENV_FAIL_ON_ERROR));
+		if (failOnError)
+			logger.log(Level.INFO, "Compilation will fail on error");
 		sourceBundles = Boolean.parseBoolean(System.getenv(ENV_SOURCE_BUNDLES));
 		if (sourceBundles)
 			logger.log(Level.INFO, "Sources will be packaged separately");
@@ -134,12 +151,13 @@ public class Make {
 		Path sdkMkP = findSdkMk(execDirectory);
 		Objects.requireNonNull(sdkMkP, "No " + SDK_MK + " found under " + execDirectory);
 
-		Map<String, String> context = readMakefileVariables(sdkMkP);
-		sdkSrcBase = Paths.get(context.computeIfAbsent(VAR_SDK_SRC_BASE, (key) -> {
-			throw new IllegalStateException(key + " not found");
-		})).toAbsolutePath();
+		sdkSrcBase = sdkMkP.getParent();
+//		Map<String, String> context = readMakefileVariables(sdkMkP);
+//		sdkSrcBase = Paths.get(context.computeIfAbsent(VAR_SDK_SRC_BASE, (key) -> {
+//			throw new IllegalStateException(key + " not found");
+//		})).toAbsolutePath();
 
-		Path argeoBuildBaseT = sdkSrcBase.resolve("sdk/argeo-build");
+		Path argeoBuildBaseT = sdkSrcBase.resolve("sdk").resolve("argeo-build");
 		if (!Files.exists(argeoBuildBaseT)) {
 			String fromEnv = System.getenv(ENV_ARGEO_BUILD_CONFIG);
 			if (fromEnv != null)
@@ -152,9 +170,16 @@ public class Make {
 		}
 		argeoBuildBase = argeoBuildBaseT;
 
-		sdkBuildBase = Paths.get(context.computeIfAbsent(VAR_SDK_BUILD_BASE, (key) -> {
-			throw new IllegalStateException(key + " not found");
-		})).toAbsolutePath();
+		String sdkBuildBaseWin = System.getenv(ENV_SDK_BUILD_BASE_WIN);
+		if (sdkBuildBaseWin != null) {
+			sdkBuildBase = Paths.get(sdkBuildBaseWin);
+		} else {
+			Map<String, String> context = readMakefileVariables(sdkMkP);
+			sdkBuildBase = Paths.get(context.computeIfAbsent(VAR_SDK_BUILD_BASE, (key) -> {
+				throw new IllegalStateException(key + " not found");
+			})).toAbsolutePath();
+		}
+
 		buildBase = sdkBuildBase.resolve(sdkSrcBase.getFileName());
 		a2Output = sdkBuildBase.resolve("a2");
 		a2srcOutput = sdkBuildBase.resolve("a2.src");
@@ -194,13 +219,18 @@ public class Make {
 			// and order by bundle name, for predictability
 			Map<String, A2Jar> a2Jars = new TreeMap<>();
 
-//			StringJoiner modulePath = new StringJoiner(File.pathSeparator);
+			StringJoiner modulePath = new StringJoiner(File.pathSeparator);
 			for (String a2Base : a2Bases) {
 				categories: for (String a2Category : a2Categories) {
 					Path a2Dir = Paths.get(a2Base).resolve(a2Category);
 					if (!Files.exists(a2Dir))
 						continue categories;
-//					modulePath.add(a2Dir.toString());
+
+					// TODO make it more robust
+					if (a2Dir.toString().contains("org.argeo.tp.osgi.framework")) {
+						modulePath.add(a2Dir.toString());
+						continue categories;
+					}
 					for (Path jarP : Files.newDirectoryStream(a2Dir, (p) -> p.getFileName().toString().endsWith(".jar")
 							&& !p.getFileName().toString().endsWith(".src.jar"))) {
 						A2Jar a2Jar = new A2Jar(jarP);
@@ -222,10 +252,19 @@ public class Make {
 			for (Iterator<A2Jar> it = a2Jars.values().iterator(); it.hasNext();)
 				classPath.add(it.next().path.toString());
 
-			compilerArgs.add("-cp");
-			compilerArgs.add(classPath.toString());
-//			compilerArgs.add("--module-path");
-//			compilerArgs.add(modulePath.toString());
+			String classPathStr = classPath.toString();
+			if (!"".equals(classPathStr)) {
+				compilerArgs.add("-cp");
+				compilerArgs.add(classPathStr);
+			}
+
+			String modulePathStr = modulePath.toString();
+			if (!"".equals(modulePathStr)) {
+				compilerArgs.add("--module-path");
+				compilerArgs.add(modulePathStr);
+				compilerArgs.add("--add-modules");
+				compilerArgs.add("org.eclipse.osgi");
+			}
 		}
 
 		// sources
@@ -271,8 +310,11 @@ public class Make {
 		boolean success = org.eclipse.jdt.core.compiler.batch.BatchCompiler.compile(
 				compilerArgs.toArray(new String[compilerArgs.size()]), new PrintWriter(System.out),
 				new PrintWriter(System.err), new MakeCompilationProgress());
-		if (!success) // kill the process if compilation failed
-			throw new IllegalStateException("Compilation failed");
+		if (!success)
+			if (failOnError)
+				throw new IllegalStateException("Compilation failed"); // kill the process if compilation failed
+			else
+				logger.log(ERROR, "!! COMPILATION FAILED !! (but packaging will continue)");
 	}
 
 	/** Package the bundles. */
@@ -341,7 +383,7 @@ public class Make {
 		}
 
 		Properties properties = new Properties();
-		Path branchBnd = sdkSrcBase.resolve("sdk/branches/" + branch + ".bnd");
+		Path branchBnd = sdkSrcBase.resolve("sdk").resolve("branches").resolve(branch + ".bnd");
 		if (Files.exists(branchBnd))
 			try (InputStream in = Files.newInputStream(branchBnd)) {
 				properties.load(in);
@@ -461,7 +503,7 @@ public class Make {
 		}
 
 		if (branch != null) {
-			Path branchBnd = sdkSrcBase.resolve("sdk/branches/" + branch + ".bnd");
+			Path branchBnd = sdkSrcBase.resolve("sdk").resolve("branches").resolve(branch + ".bnd");
 			if (Files.exists(branchBnd))
 				try (InputStream in = Files.newInputStream(branchBnd)) {
 					properties.load(in);
@@ -489,11 +531,12 @@ public class Make {
 			Jar jar = new Jar(bundleSymbolicName, binP.toFile());
 			bndAnalyzer.setJar(jar);
 			manifest = bndAnalyzer.calcManifest();
+			jar.setManifest(manifest);
 
 			// JPMS module
-			jar.setManifest(manifest);
 			JPMSModuleInfoPlugin jpmsModuleInfoPlugin = new JPMSModuleInfoPlugin();
-			jpmsModuleInfoPlugin.verify(bndAnalyzer);
+			jpmsModuleInfoPlugin.mainSet(bndAnalyzer, manifest);
+//			jpmsModuleInfoPlugin.verify(bndAnalyzer);
 			moduleInfoClass = bndAnalyzer.getJar().getResource("module-info.class");
 		} catch (Exception e) {
 			throw new RuntimeException("Bnd analysis of " + compiled + " failed", e);
@@ -505,7 +548,7 @@ public class Make {
 		Objects.requireNonNull(minor, "'minor' must be set");
 
 		// Write manifest
-		Path manifestP = compiled.resolve("META-INF/MANIFEST.MF");
+		Path manifestP = compiled.resolve("META-INF").resolve("MANIFEST.MF");
 		Files.createDirectories(manifestP.getParent());
 		try (OutputStream out = Files.newOutputStream(manifestP)) {
 			manifest.write(out);
@@ -514,10 +557,14 @@ public class Make {
 		// Write module-info.class
 		if (moduleInfoClass != null) {
 			Path moduleInfoClassP = binP.resolve("module-info.class");
-			Files.createDirectories(moduleInfoClassP.getParent());
-			try (OutputStream out = Files.newOutputStream(moduleInfoClassP)) {
-				moduleInfoClass.write(out);
+			try {
+				if (!Files.exists(moduleInfoClassP) && moduleInfoClass.size() > 0) {
+					Files.createDirectories(moduleInfoClassP.getParent());
+					try (OutputStream out = Files.newOutputStream(moduleInfoClassP)) {
+						moduleInfoClass.write(out);
 //				logger.log(INFO, "Wrote " + moduleInfoClassP);
+					}
+				}
 			} catch (Exception e) {
 				throw new RuntimeException("Cannot write module-info.class");
 			}
@@ -543,7 +590,7 @@ public class Make {
 			Files.walkFileTree(binP, new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					jarOut.putNextEntry(new JarEntry(binP.relativize(file).toString()));
+					jarOut.putNextEntry(new JarEntry(toJarEntryName(binP.relativize(file))));
 					Files.copy(file, jarOut);
 					return FileVisitResult.CONTINUE;
 				}
@@ -576,7 +623,7 @@ public class Make {
 					if (sourceBundles && file.getFileName().toString().endsWith(".map"))
 						return FileVisitResult.CONTINUE;
 
-					JarEntry entry = new JarEntry(relativeP.toString());
+					JarEntry entry = new JarEntry(toJarEntryName(relativeP));
 					jarOut.putNextEntry(entry);
 					Files.copy(file, jarOut);
 					return FileVisitResult.CONTINUE;
@@ -600,7 +647,7 @@ public class Make {
 						if (file.getFileName().toString().endsWith(".java")
 								|| file.getFileName().toString().endsWith(".class"))
 							return FileVisitResult.CONTINUE;
-						jarOut.putNextEntry(new JarEntry(srcP.relativize(file).toString()));
+						jarOut.putNextEntry(new JarEntry(toJarEntryName(srcP.relativize(file))));
 						if (!Files.isDirectory(file))
 							Files.copy(file, jarOut);
 						return FileVisitResult.CONTINUE;
@@ -708,12 +755,20 @@ public class Make {
 	/*
 	 * UTILITIES
 	 */
+	/** Portable conversion to a jar entry path. */
+	private static String toJarEntryName(Path relativePath) {
+		StringJoiner sj = new StringJoiner("/");
+		for (Path p : relativePath)
+			sj.add(p.toString());
+		return sj.toString();
+	}
+
 	/** Add sources to a jar file */
 	void copySourcesToJar(Path srcP, JarOutputStream srcJarOut, String prefix) throws IOException {
 		Files.walkFileTree(srcP, new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				srcJarOut.putNextEntry(new JarEntry(prefix + srcP.relativize(file).toString()));
+				srcJarOut.putNextEntry(new JarEntry(prefix + toJarEntryName(srcP.relativize(file))));
 				if (!Files.isDirectory(file))
 					Files.copy(file, srcJarOut);
 				return FileVisitResult.CONTINUE;

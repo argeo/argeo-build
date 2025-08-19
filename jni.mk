@@ -6,15 +6,14 @@ include $(ARGEO_BUILD_BASE)common.mk
 # A2_CATEGORY       the (single) a2 category the bundles will belong to
 
 # The following variables have default values which can be overriden
-# DEP_NATIVE        space-separated logical names of named depdencies
+# DEP_NATIVE        space-separated logical names of named dependencies
 # DEP_INCLUDES      additional includes
 # DEP_LIBS          additional native libraries
 DEP_NATIVE ?=
 DEP_INCLUDES ?= $(foreach dep, $(DEP_NATIVE), /usr/include/$(dep))
 DEP_LIBS ?= $(foreach dep, $(DEP_NATIVE), -l$(dep))
 
-A2_NATIVE_CATEGORY=$(A2_OUTPUT)/lib/linux/$(shell uname -m)/$(A2_CATEGORY)
-TARGET_EXEC := libJava_$(NATIVE_PACKAGE).$(major).$(minor).so
+TARGET_EXEC := libJava_$(NATIVE_PACKAGE).so
 
 LDFLAGS ?= -shared -fPIC -Wl,-soname,$(TARGET_EXEC).$(major).$(minor).$(micro) $(DEP_LIBS)
 CFLAGS ?= -O3 -fPIC
@@ -27,19 +26,19 @@ SRC_DIRS := .
 BUILD_DIR := $(SDK_BUILD_BASE)/jni/$(NATIVE_PACKAGE)
 
 # Include directories
-INC_DIRS := $(shell find $(SRC_DIRS) -type d) $(JAVA_HOME)/include $(JAVA_HOME)/include/linux $(DEP_INCLUDES)
+INC_DIRS := $(shell find $(SRC_DIRS) -type d) "$(JAVA_HOME)/include" "$(JAVA_HOME)/include/linux" "$(JAVA_HOME)/include/win32" $(DEP_INCLUDES)
 
-all: $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
+all: a2-prepare-output $(TARGET_NATIVE_OUTPUT)/$(TARGET_EXEC)
 
 clean:
 	$(RM) $(BUILD_DIR)/*.o
-	$(RM) $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
+	$(RM) $(TARGET_NATIVE_OUTPUT)/$(TARGET_EXEC)
 
-install:
-	$(INSTALL) $(A2_NATIVE_INSTALL_TARGET)/$(A2_CATEGORY) $(A2_NATIVE_CATEGORY)/$(TARGET_EXEC)
+install: $(TARGET_NATIVE_OUTPUT)/$(TARGET_EXEC)
+	$(INSTALL) $(A2_NATIVE_INSTALL_TARGET) $(TARGET_NATIVE_OUTPUT)/$(TARGET_EXEC)
 
 uninstall:
-	$(RM) $(A2_NATIVE_INSTALL_TARGET)/$(A2_CATEGORY)/$(TARGET_EXEC)
+	$(RM) $(A2_NATIVE_INSTALL_TARGET)/$(TARGET_EXEC)
 	@if [ -d $(A2_NATIVE_INSTALL_TARGET) ]; then find $(A2_NATIVE_INSTALL_TARGET) -empty -type d -delete; fi
 
 # Sources
@@ -51,11 +50,12 @@ DEPS := $(OBJS:.o=.d)
 # Add -I prefix to include directories
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 # Generate dependencies makefiles
-CPPFLAGS := $(INC_FLAGS) -MMD -MP
+# -D__int64="long long" is required on cygwin/MSYS2
+CPPFLAGS := $(INC_FLAGS) -MMD -MP -D__int64="long long"
 
 # Final build step
-$(A2_NATIVE_CATEGORY)/$(TARGET_EXEC): $(OBJS)
-	mkdir -p $(A2_NATIVE_CATEGORY)
+$(TARGET_NATIVE_OUTPUT)/$(TARGET_EXEC): $(OBJS)
+	mkdir -p $(TARGET_NATIVE_OUTPUT)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 # Build step for C source
