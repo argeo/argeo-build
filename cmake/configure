@@ -37,7 +37,8 @@ echo "Cannot create $SDK_BUILD_BASE, SDK configuration has failed."
 exit 2
 fi
 
-(cd $SDK_SRC_BASE && cmake -B $SDK_BUILD_BASE/$(basename SDK_SRC_BASE) -DJAVA_HOME=$JAVA_HOME)
+# -G "Unix Makefiles" not working in all cases
+(cd $SDK_SRC_BASE && cmake -B $SDK_BUILD_BASE/$(basename $SDK_SRC_BASE) -DCMAKE_BUILD_TYPE=Release -DJAVA_HOME=$JAVA_HOME)
 
 echo SDK was configured with CMake.
 echo "JAVA_HOME        : $JAVA_HOME"

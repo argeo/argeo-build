@@ -40,7 +40,7 @@ endif()
 # ARGEO BUILD COMPATIBILITY
 #
 
-function(read_properties PATH PREFIX)
+function(a2_read_properties PATH PREFIX)
 # from https://stackoverflow.com/a/17168870
 file(STRINGS ${PATH} ConfigContents)
 foreach(NameAndValue ${ConfigContents})
@@ -76,8 +76,8 @@ if(MINGW)
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "export SDK_BUILD_BASE_WIN=${SDK_BUILD_BASE_WIN}\n")
 endif()
 
-read_properties(${CMAKE_SOURCE_DIR}/branch.mk "A2_")
-read_properties(${CMAKE_SOURCE_DIR}/sdk/branches/${A2_BRANCH}.bnd "A2_")
+a2_read_properties(${CMAKE_SOURCE_DIR}/branch.mk "A2_")
+a2_read_properties(${CMAKE_SOURCE_DIR}/sdk/branches/${A2_BRANCH}.bnd "A2_")
 message(STATUS "Branch: ${A2_BRANCH} - Version: ${A2_major}.${A2_minor}.${A2_micro}${A2_qualifier}")
 
 if(NOT A2_OUTPUT)
@@ -89,6 +89,10 @@ if(NOT A2_BASE)
 set(A2_BASE ${A2_OUTPUT})
 endif()
 message(STATUS "A2_BASE=${A2_BASE}")
+
+#
+# OS SPECIFIC
+#
 
 # Use GNU conventions
 include(GNUInstallDirs)
@@ -113,10 +117,6 @@ if(MINGW)
    # cmake ../../ -DCMAKE_INSTALL_PREFIX=$MINGW_PREFIX
    set(CMAKE_SHARED_LIBRARY_PREFIX "")
 endif() # MINGW
-
-#
-# OS SPECIFIC
-#
 
 # defaults
 if(NOT A2_TARGET_OS)
@@ -220,13 +220,13 @@ macro(a2_jni_target TARGET)
 		${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY})
 	set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 	target_compile_features(${TARGET} PRIVATE ${A2_CXX_STD})
-	set_target_properties(${TARGET} PROPERTIES LIBRARY_OUTPUT_DIRECTORY
-		"${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}"
-	)
 	if(MINGW)
+		# Used as output directory
 		set_target_properties(${TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-			"${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}"
-		)
+			"${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}/${A2_CATEGORY}")
+	else()
+		set_target_properties(${TARGET} PROPERTIES LIBRARY_OUTPUT_DIRECTORY
+			"${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}/${A2_CATEGORY}")
 	endif()
 	install(TARGETS ${TARGET} LIBRARY DESTINATION lib/${CMAKE_LIBRARY_ARCHITECTURE})
 endmacro()
