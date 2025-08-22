@@ -8,8 +8,7 @@ then
 echo Script variable SDK_SRC_BASE must be set in the calling \'configure\' script,
 echo to the root location of the sources, typically with such a pattern:
 echo 'SDK_SRC_BASE="$(cd "$(dirname "$0")"; pwd -P)"' 
-echo "(see 'configure.template' from the argeo-build directory)"
-echo In order to build Argeo Build itself, explicitly set SDK_SRC_BASE as an environment variable
+echo "(see 'configure.template' from the argeo-build/cmake directory)"
 exit 1
 fi
 
@@ -38,42 +37,9 @@ echo "Cannot create $SDK_BUILD_BASE, SDK configuration has failed."
 exit 2
 fi
 
-# Generate sdk.mk
-cat > "$SDK_MK" <<EOF
-SDK_SRC_BASE := $SDK_SRC_BASE
-SDK_BUILD_BASE := $SDK_BUILD_BASE
-JAVA_HOME := $JAVA_HOME
+(cd $SDK_SRC_BASE && cmake -B $SDK_BUILD_BASE/$(basename SDK_SRC_BASE) -DJAVA_HOME=$JAVA_HOME)
 
--include branch.mk
--include sdk/branches/\$(BRANCH).bnd
-EOF
-
-# Add standard GNU paths
-for i in "$@"; do
-	case $i in
-	--prefix=*)
-		echo "prefix := ${i#*=}" >> "$SDK_MK"
-      	shift
-      	;;
-	--sysconfdir=*)
-		echo "sysconfdir := ${i#*=}" >> "$SDK_MK"
-      	shift
-      	;;
-	--localstatedir=*)
-		echo "localstatedir := ${i#*=}" >> "$SDK_MK"
-      	shift
-      	;;
-  esac
-done
-
-# Even when building in MSYS (that is, with proper '/' paths)
-# we still need at some places the Windows '\' path to output
-if command -v cygpath 2>&1 >/dev/null
-then
-echo "export SDK_BUILD_BASE_WIN=$(cygpath -w "$SDK_BUILD_BASE")" >> "$SDK_MK"
-fi
-
-echo SDK was configured.
+echo SDK was configured with CMake.
 echo "JAVA_HOME        : $JAVA_HOME"
 echo "Base for sources : $SDK_SRC_BASE"
 echo "Base for builds  : $SDK_BUILD_BASE"

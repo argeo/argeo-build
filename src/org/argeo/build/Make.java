@@ -89,7 +89,7 @@ public class Make {
 	/**
 	 * Environment variable to provide the Windows path (for example
 	 * C:\Users\myuser\path\to\output) of the build output base. Overrides reading
-	 * from sdk.mk.
+	 * SDK_BUILD_BASE from sdk.mk (where it will usually be exported).
 	 */
 	private final static String ENV_SDK_BUILD_BASE_WIN = "SDK_BUILD_BASE_WIN";
 
