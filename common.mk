@@ -35,10 +35,20 @@ ifeq ($(MSYS_VERSION),0)
 TARGET_OS ?= linux
 TARGET_ARCH ?= $(shell uname -m)
 TARGET_LIBC ?= gnu
+SHLIB_PREFIX=lib
+SHLIB_SUFFIX=.so
 else
 TARGET_OS ?= win32
 TARGET_ARCH ?= $(shell uname -m)
 TARGET_LIBC ?= default
+SHLIB_PREFIX=
+SHLIB_SUFFIX=.dll
+endif
+
+ifeq ("$(TARGET_ARCH)","aarch64")
+TARGET_DEB_ARCH=arm64
+else # we only support two architectures
+TARGET_DEB_ARCH=amd64
 endif
 
 #TARGET_OS_CATEGORY_PREFIX=lib/$(TARGET_OS)
@@ -55,6 +65,24 @@ PORTABLE_CATEGORIES=$(filter-out lib/% os/%, $(CATEGORIES))
 NATIVE_CATEGORIES=$(filter $(TARGET_NATIVE_CATEGORY_PREFIX)/%, $(CATEGORIES))
 OS_CATEGORIES=$(filter os/%, $(CATEGORIES))
 #OS_CATEGORIES=$(filter-out $(foreach arch, $(KNOWN_ARCHS), $(TARGET_OS_CATEGORY_PREFIX)/$(arch)/%), $(filter $(TARGET_OS_CATEGORY_PREFIX)/%, $(CATEGORIES)))
+
+# JLINK
+JLINK_HOME ?= $(JAVA_HOME)
+JLINK_JMODS ?= $(JLINK_HOME)/jmods
+A2_JMODS=$(A2_OUTPUT)/jmods
+# Note: replacing $${MODULES// /,} is bash specific
+JLINK_MODULES ?= $(shell . $(JLINK_HOME)/release && echo $${MODULES// /,})
+JLINK_JAVA_VERSION = $(shell . $(JLINK_HOME)/release && echo $$JAVA_VERSION)
+ifeq ("$(shell . $(JLINK_HOME)/release && echo $$JVM_VARIANT)","Openj9")
+JLINK_JVM_VARIANT=openj9
+else
+ifneq ("$(shell . $(JLINK_HOME)/release && echo $$GRAALVM_VERSION)",)
+JLINK_JVM_VARIANT=graalvm
+else
+JLINK_JVM_VARIANT=hotspot
+endif
+endif
+JLINK_JAVA_RELEASE = $(firstword $(subst .,$(space),$(JLINK_JAVA_VERSION)))
 
 a2-prepare-output: $(A2_NATIVE_OUTPUT)/local
 
