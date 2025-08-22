@@ -12,33 +12,83 @@ endif()
 if(NOT A2_CXX_STD)
 set(A2_CXX_STD cxx_std_17)
 endif()
-message (STATUS "A2_JAVA_RELEASE=${A2_JAVA_RELEASE}")
-
-if(NOT A2_OUTPUT)
-file(REAL_PATH "../a2" A2_OUTPUT BASE_DIRECTORY	"${CMAKE_BINARY_DIR}")
-endif()
-message (STATUS "A2_OUTPUT=${A2_OUTPUT}")
-
-if(NOT A2_BASE)
-set(A2_BASE ${A2_OUTPUT})
-endif()
-message (STATUS "A2_BASE=${A2_BASE}")
+message(STATUS "A2_JAVA_RELEASE=${A2_JAVA_RELEASE}")
 
 # Java
 find_package(Java ${A2_JAVA_RELEASE} REQUIRED)
 include(UseJava)
 set(CMAKE_JAVA_COMPILE_FLAGS "--release" "${A2_JAVA_RELEASE}")
 if (Java_FOUND)
-    message (STATUS "Java_JAVA_EXECUTABLE=${Java_JAVA_EXECUTABLE}")
-    message (STATUS "Java_VERSION_MAJOR=${Java_VERSION_MAJOR}")
+    message(STATUS "Java_JAVA_EXECUTABLE=${Java_JAVA_EXECUTABLE}")
+    message(STATUS "Java_VERSION_MAJOR=${Java_VERSION_MAJOR}")
 endif()
 
 # JNI
 find_package(JNI)
 if (JNI_FOUND)
-    message (STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
-    message (STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
+    message(STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
+    message(STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
 endif()
+
+if(NOT JAVA_HOME)
+# TODO check whether it is actually working
+file(REAL_PATH "${Java_JAVA_EXECUTABLE}/../.." JAVA_HOME)
+message(STATUS "JAVA_HOME=${JAVA_HOME}")
+endif()
+
+#
+# ARGEO BUILD COMPATIBILITY
+#
+
+function(read_properties PATH PREFIX)
+# from https://stackoverflow.com/a/17168870
+file(STRINGS ${PATH} ConfigContents)
+foreach(NameAndValue ${ConfigContents})
+  # Strip leading spaces
+  string(REGEX REPLACE "^[ ]+" "" NameAndValue ${NameAndValue})
+  # Find variable name
+  string(REGEX MATCH "^[^=]+" Name ${NameAndValue})
+  # Find the value
+  string(REPLACE "${Name}=" "" Value ${NameAndValue})
+  # Set the variable
+  set(${PREFIX}${Name} "${Value}" CACHE INTERNAL ${PREFIX}${Name})
+endforeach()
+endfunction() # read_properties
+
+if(MINGW)
+file(REAL_PATH ".." SDK_BUILD_BASE_WIN BASE_DIRECTORY "${CMAKE_BINARY_DIR}")
+execute_process(COMMAND cygpath -u ${SDK_BUILD_BASE_WIN} OUTPUT_VARIABLE SDK_BUILD_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND cygpath -u ${CMAKE_SOURCE_DIR} OUTPUT_VARIABLE SDK_SRC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND cygpath -u ${JAVA_HOME} OUTPUT_VARIABLE SDK_JAVA_HOME OUTPUT_STRIP_TRAILING_WHITESPACE)
+else()
+file(REAL_PATH ".." SDK_BUILD_BASE BASE_DIRECTORY "${CMAKE_BINARY_DIR}")
+SET(SDK_SRC_BASE ${CMAKE_SOURCE_DIR})
+SET(SDK_JAVA_HOME ${JAVA_HOME})
+endif()
+file(WRITE ${CMAKE_SOURCE_DIR}/sdk.mk "SDK_SRC_BASE=${SDK_SRC_BASE}\n")
+file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "SDK_BUILD_BASE=${SDK_BUILD_BASE}\n")
+file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "JAVA_HOME=${SDK_JAVA_HOME}\n")
+file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "\n")
+file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "include sdk/argeo-build/cmake/default.mk\n")
+file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "-include branch.mk\n")
+file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "-include sdk/branches/$(BRANCH).bnd\n")
+if(MINGW)
+file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "export SDK_BUILD_BASE_WIN=${SDK_BUILD_BASE_WIN}\n")
+endif()
+
+read_properties(${CMAKE_SOURCE_DIR}/branch.mk "A2_")
+read_properties(${CMAKE_SOURCE_DIR}/sdk/branches/${A2_BRANCH}.bnd "A2_")
+message(STATUS "Branch: ${A2_BRANCH} - Version: ${A2_major}.${A2_minor}.${A2_micro}${A2_qualifier}")
+
+if(NOT A2_OUTPUT)
+SET(A2_OUTPUT ${SDK_BUILD_BASE}/a2)
+endif()
+message(STATUS "A2_OUTPUT=${A2_OUTPUT}")
+
+if(NOT A2_BASE)
+set(A2_BASE ${A2_OUTPUT})
+endif()
+message(STATUS "A2_BASE=${A2_BASE}")
 
 # Use GNU conventions
 include(GNUInstallDirs)
@@ -64,6 +114,10 @@ if(MINGW)
    set(CMAKE_SHARED_LIBRARY_PREFIX "")
 endif() # MINGW
 
+#
+# OS SPECIFIC
+#
+
 # defaults
 if(NOT A2_TARGET_OS)
 	set(A2_TARGET_OS ${CMAKE_SYSTEM_NAME})
@@ -76,12 +130,15 @@ if(NOT A2_TARGET_CLIB)
 endif()
 
 set(TARGET_NATIVE_CATEGORY_PREFIX "${A2_TARGET_ARCH}-${A2_TARGET_OS}-${A2_TARGET_CLIB}")
-message (STATUS "TARGET_NATIVE_CATEGORY_PREFIX=${TARGET_NATIVE_CATEGORY_PREFIX}")
+message(STATUS "TARGET_NATIVE_CATEGORY_PREFIX=${TARGET_NATIVE_CATEGORY_PREFIX}")
 
 # Virtual target for all includes
 add_library(${A2_CATEGORY}-includes INTERFACE)
-message (STATUS "INCLUDES=${A2_CATEGORY}-includes")
+message(STATUS "INCLUDES=${A2_CATEGORY}-includes")
 
+#
+# UTILITIES
+#
 
 # Generates MANIFEST for a bundle
 function(a2_osgi_manifest BUNDLE)
@@ -90,7 +147,7 @@ function(a2_osgi_manifest BUNDLE)
 	file(WRITE ${MF} "") # clear
 	file(APPEND ${MF} "Manifest-Version: 1.0\nBundle-ManifestVersion: 2\n") # standard
 	file(APPEND ${MF} "Bundle-SymbolicName: ${BUNDLE}\n")
-	file(APPEND ${MF} "Bundle-Version: ${CMAKE_PROJECT_VERSION}\n")
+	file(APPEND ${MF} "Bundle-Version: ${A2_major}.${A2_minor}.${A2_micro}${A2_qualifier}\n")
 	file(APPEND ${MF} "Bundle-RequiredExecutionEnvironment: JavaSE-${A2_JAVA_RELEASE}\n")
 	
 	# exported packages, based on module-info.java
@@ -116,7 +173,7 @@ function(a2_osgi_manifest BUNDLE)
 		file(APPEND ${MF} "${CONTENT}")
 	endif() # append.MF exists
 	
-	message (STATUS "Wrote OSGi manifest to ${MF}")
+	message(STATUS "Wrote OSGi manifest to ${MF}")
 endfunction() # a2_osgi_manifest
 
 # Build a bundle
@@ -125,7 +182,7 @@ function(a2_build_bundle BUNDLE)
 	file(GLOB_RECURSE JAVA_SRC CONFIGURE_DEPENDS "${BUNDLE}/src/*.java")
 	set(CLASSPATH "")
 	foreach(CATEGORY IN LISTS DEP_CATEGORIES)
-		message (STATUS "CLASSPATH += ${A2_BASE}/${CATEGORY}/*.jar")
+		message(STATUS "CLASSPATH += ${A2_BASE}/${CATEGORY}/*.jar")
 		file(GLOB JARS CONFIGURE_DEPENDS "${A2_BASE}/${CATEGORY}/*.jar")
 		list(APPEND CLASSPATH ${JARS})
 	endforeach()
@@ -135,7 +192,7 @@ function(a2_build_bundle BUNDLE)
 		CMAKE_JAVA_COMPILE_FLAGS "--release ${A2_JAVA_RELEASE}"
 		MANIFEST ${BUNDLE}/META-INF/MANIFEST.MF
 		INCLUDE_JARS ${CLASSPATH}
-		OUTPUT_NAME ${BUNDLE}.${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+		OUTPUT_NAME ${BUNDLE}.${A2_major}.${A2_minor}
 		OUTPUT_DIR ${A2_OUTPUT}/${A2_CATEGORY}
 		GENERATE_NATIVE_HEADERS ${BUNDLE}-include DESTINATION ${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY}
 	)
@@ -145,7 +202,7 @@ endfunction() # a2_build_bundle
 
 # Build a list of bundles
 macro(a2_build_bundles BUNDLES)
-	message (STATUS "DEP_CATEGORIES=${DEP_CATEGORIES}")
+	message(STATUS "DEP_CATEGORIES=${DEP_CATEGORIES}")
 	foreach(BUNDLE IN LISTS BUNDLES)
 		a2_build_bundle(${BUNDLE})
 	endforeach()
@@ -175,4 +232,4 @@ macro(a2_jni_target TARGET)
 endmacro()
 
 set(ArgeoBuild_FOUND 1)
-message (STATUS "Argeo Build configured")
+message(STATUS "Argeo Build configured")
