@@ -24,7 +24,7 @@ if (Java_FOUND)
 endif()
 
 # JNI
-find_package(JNI)
+find_package(JNI REQUIRED)
 if (JNI_FOUND)
     message(STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
     message(STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
@@ -36,6 +36,8 @@ file(REAL_PATH "${Java_JAVA_EXECUTABLE}/../.." JAVA_HOME)
 message(STATUS "JAVA_HOME=${JAVA_HOME}")
 endif()
 
+# Git
+find_package(Git)
 #
 # ARGEO BUILD COMPATIBILITY
 #
@@ -55,6 +57,19 @@ foreach(NameAndValue ${ConfigContents})
 endforeach()
 endfunction() # read_properties
 
+function(a2_replace_next_qualifier)
+if(A2_qualifier STREQUAL ".next")
+if (Git_FOUND)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" rev-list --count ${A2_major}.${A2_minor}.${A2_micro}..HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE GitRevCount
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set(A2_qualifier ".${GitRevCount}" CACHE INTERNAL A2_qualifier)
+endif()
+endif()
+endfunction()
+
 if(MINGW)
 file(REAL_PATH ".." SDK_BUILD_BASE_WIN BASE_DIRECTORY "${CMAKE_BINARY_DIR}")
 execute_process(COMMAND cygpath -u ${SDK_BUILD_BASE_WIN} OUTPUT_VARIABLE SDK_BUILD_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -62,14 +77,13 @@ execute_process(COMMAND cygpath -u ${CMAKE_SOURCE_DIR} OUTPUT_VARIABLE SDK_SRC_B
 execute_process(COMMAND cygpath -u ${JAVA_HOME} OUTPUT_VARIABLE SDK_JAVA_HOME OUTPUT_STRIP_TRAILING_WHITESPACE)
 else()
 file(REAL_PATH ".." SDK_BUILD_BASE BASE_DIRECTORY "${CMAKE_BINARY_DIR}")
-SET(SDK_SRC_BASE ${CMAKE_SOURCE_DIR})
-SET(SDK_JAVA_HOME ${JAVA_HOME})
+set(SDK_SRC_BASE ${CMAKE_SOURCE_DIR})
+set(SDK_JAVA_HOME ${JAVA_HOME})
 endif()
 file(WRITE ${CMAKE_SOURCE_DIR}/sdk.mk "SDK_SRC_BASE=${SDK_SRC_BASE}\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "SDK_BUILD_BASE=${SDK_BUILD_BASE}\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "JAVA_HOME=${SDK_JAVA_HOME}\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "\n")
-file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "include sdk/argeo-build/cmake/default.mk\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "-include branch.mk\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "-include sdk/branches/$(BRANCH).bnd\n")
 if(MINGW)
@@ -78,10 +92,12 @@ endif()
 
 a2_read_properties(${CMAKE_SOURCE_DIR}/branch.mk "A2_")
 a2_read_properties(${CMAKE_SOURCE_DIR}/sdk/branches/${A2_BRANCH}.bnd "A2_")
-message(STATUS "Branch: ${A2_BRANCH} - Version: ${A2_major}.${A2_minor}.${A2_micro}${A2_qualifier}")
+a2_replace_next_qualifier()
+set(A2_LAYER_VERSION "${A2_major}.${A2_minor}.${A2_micro}${A2_qualifier}")
+message(STATUS "Branch: ${A2_BRANCH} - Version: ${A2_LAYER_VERSION}")
 
 if(NOT A2_OUTPUT)
-SET(A2_OUTPUT ${SDK_BUILD_BASE}/a2)
+set(A2_OUTPUT ${SDK_BUILD_BASE}/a2)
 endif()
 message(STATUS "A2_OUTPUT=${A2_OUTPUT}")
 
@@ -147,7 +163,7 @@ function(a2_osgi_manifest BUNDLE)
 	file(WRITE ${MF} "") # clear
 	file(APPEND ${MF} "Manifest-Version: 1.0\nBundle-ManifestVersion: 2\n") # standard
 	file(APPEND ${MF} "Bundle-SymbolicName: ${BUNDLE}\n")
-	file(APPEND ${MF} "Bundle-Version: ${A2_major}.${A2_minor}.${A2_micro}${A2_qualifier}\n")
+	file(APPEND ${MF} "Bundle-Version: ${A2_LAYER_VERSION}\n")
 	file(APPEND ${MF} "Bundle-RequiredExecutionEnvironment: JavaSE-${A2_JAVA_RELEASE}\n")
 	
 	# exported packages, based on module-info.java
@@ -218,10 +234,14 @@ macro(a2_jni_target TARGET)
 	add_dependencies(${TARGET} ${A2_CATEGORY}-includes)
 	target_include_directories(${TARGET} PRIVATE 
 		${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY})
-	set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+	set_target_properties(${TARGET} PROPERTIES
+	 POSITION_INDEPENDENT_CODE ON
+	 VERSION ${A2_LAYER_VERSION}
+	 SOVERSION ${A2_major}
+	)
 	target_compile_features(${TARGET} PRIVATE ${A2_CXX_STD})
 	if(MINGW)
-		# Used as output directory
+		# bin is used as output directory in MSYS
 		set_target_properties(${TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
 			"${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}/${A2_CATEGORY}")
 	else()
