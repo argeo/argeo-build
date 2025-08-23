@@ -1,4 +1,14 @@
 #
+# GLOBAL REFERENCES
+#
+
+# see https://www.iana.org/assignments/enterprise-numbers/?q=48308
+ARGEO_ENTERPRISE_NUMBER_OID=1.3.6.1.4.1.48308
+# see https://www.rfc-editor.org/rfc/rfc9562
+# uuidgen --sha1 --namespace 6ba7b812-9dad-11d1-80b4-00c04fd430c8 --name 1.3.6.1.4.1.48308 
+ARGEO_ENTERPRISE_NUMBER_UUID=58873947-460c-59a6-a7b4-28a97def5f27
+
+#
 # VERSIONING
 #
 build-major=2
