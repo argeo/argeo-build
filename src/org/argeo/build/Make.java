@@ -61,21 +61,25 @@ public class Make {
 	private final static Logger logger = System.getLogger(Make.class.getName());
 
 	/**
-	 * Environment variable on whether compilation should fail on errors
+	 * Environment variable on whether compilation should fail on errors (if set to
+	 * <code>true</code> case-insensitive). Default is <b>not</b> to fail on error
+	 * so that a MANIFEST can in most cases be generate; one should therefore be
+	 * careful with false positives, or set this variable (typically for releases).
 	 */
 	private final static String ENV_FAIL_ON_ERROR = "FAIL_ON_ERROR";
 
 	/**
-	 * Environment variable on whether sources should be packaged separately or
-	 * integrated in the bundles.
+	 * Environment variable on whether sources should be packaged separately (if set
+	 * to <code>true</code> case-insensitive) or integrated in the bundles (if other
+	 * value or not set).
 	 */
 	private final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
 
 	/**
 	 * Environment variable on whether legal files at the root of the sources should
-	 * be included in the generated bundles. Should be set to true when building
-	 * third-party software in order no to include the build harness license into
-	 * the generated bundles.
+	 * be included in the generated bundles. Should be set to <code>true</code>
+	 * (case-insensitive) when building third-party software in order no to include
+	 * the build harness license into the generated bundles.
 	 */
 	private final static String ENV_NO_SDK_LEGAL = "NO_SDK_LEGAL";
 
