@@ -101,6 +101,10 @@ set(A2_OUTPUT ${SDK_BUILD_BASE}/a2)
 endif()
 message(STATUS "A2_OUTPUT=${A2_OUTPUT}")
 
+if(NOT A2_SRC_OUTPUT)
+set(A2_SRC_OUTPUT ${SDK_BUILD_BASE}/a2.src)
+endif()
+
 if(NOT A2_BASE)
 set(A2_BASE ${A2_OUTPUT})
 endif()
@@ -155,6 +159,7 @@ message(STATUS "INCLUDES=${A2_CATEGORY}-includes")
 #
 # UTILITIES
 #
+
 # Generates MANIFEST for a bundle
 function(a2_osgi_manifest BUNDLE)
 	set(MF ${BUNDLE}/META-INF/MANIFEST.MF)
@@ -191,16 +196,40 @@ function(a2_osgi_manifest BUNDLE)
 	message(STATUS "Wrote OSGi manifest to ${MF}")
 endfunction() # a2_osgi_manifest
 
-macro(a2_list_packages result curdir)
+# Generates Eclipse source bundle MANIFEST
+function(a2_osgi_manifest_src BUNDLE)
+	set(MF ${BUNDLE}/META-INF/MANIFEST.src.MF)
+
+	file(WRITE ${MF} "") # clear
+	file(APPEND ${MF} "Manifest-Version: 1.0\nBundle-ManifestVersion: 2\n") # standard
+	file(APPEND ${MF} "Bundle-SymbolicName: ${BUNDLE}.src\n")
+	file(APPEND ${MF} "Bundle-Version: ${A2_LAYER_VERSION}\n")
+	file(APPEND ${MF} "Eclipse-SourceBundle: ${BUNDLE};version=${A2_LAYER_VERSION}\n")
+	
+	message(STATUS "Wrote Eclipse source manifest to ${MF}")
+endfunction() # a2_osgi_manifest
+
+# Set result with the list of sources in add_jar RESOURCES format
+macro(a2_add_sources_as_resources result curdir prefix)
 	file(GLOB_RECURSE children LIST_DIRECTORIES false RELATIVE "${curdir}" "${curdir}/*")
 	set(packages "")
 	foreach(child ${children})
 		cmake_path(GET child PARENT_PATH dir)
+		# add '/' so that root with module-info.java is considered
 		list(APPEND packages "/${dir}")
-		message(STATUS "/${dir}")
+		#message(STATUS "/${dir}")
 	endforeach()
 	list(REMOVE_DUPLICATES packages)
-	set(${result} ${packages})
+	set(resources "")
+	foreach(package ${packages})
+		list(APPEND resources "NAMESPACE")
+		list(APPEND resources "${prefix}${package}")
+		file(GLOB files LIST_DIRECTORIES false "${curdir}${package}/*")
+		foreach(file ${files})
+			list(APPEND resources "${file}")
+		endforeach()
+	endforeach()
+	set(${result} ${resources})
 endmacro()
 
 # Build a bundle
@@ -208,20 +237,27 @@ function(a2_build_bundle BUNDLE)
 	a2_osgi_manifest(${BUNDLE})
 	file(GLOB_RECURSE JAVA_SRC CONFIGURE_DEPENDS "${BUNDLE}/src/*.java")
 	
-	# resources and embedded sources
-	set(RESOURCES "")
-	a2_list_packages(namespaces "${CMAKE_SOURCE_DIR}/${BUNDLE}/src")
-	message(STATUS "namespaces=${namespaces}")
-	foreach(namespace ${namespaces})
-		set(lst "")
-		list(APPEND RESOURCES "NAMESPACE")
-		list(APPEND RESOURCES "OSGI-INF/src${namespace}")
-		file(GLOB files "${BUNDLE}/src${namespace}/*")
-		foreach(file ${files})
-			list(APPEND RESOURCES "${file}")
-		endforeach()
-	endforeach()
+	# sources as resources
+	string(TOLOWER "$ENV{SOURCE_BUNDLES}" check_source_bundles)
+	if(NOT "${check_source_bundles}" STREQUAL "true")
+		a2_add_sources_as_resources(SOURCES_AS_RESOURCES
+		 "${CMAKE_SOURCE_DIR}/${BUNDLE}/src"
+		 "OSGI-INF/src")
+	else() # separate source bundles
+		a2_add_sources_as_resources(SRC_AS_RESOURCES
+		 "${CMAKE_SOURCE_DIR}/${BUNDLE}/src"
+		 ".")
+		a2_osgi_manifest_src(${BUNDLE})
+		add_jar(${BUNDLE}.src
+			SOURCES
+			RESOURCES ${SRC_AS_RESOURCES}
+			MANIFEST ${BUNDLE}/META-INF/MANIFEST.src.MF
+			OUTPUT_NAME ${BUNDLE}.${A2_major}.${A2_minor}.src
+			OUTPUT_DIR ${A2_SRC_OUTPUT}/${A2_CATEGORY}
+		)
+	endif()
 	
+	# compilation
 	set(CLASSPATH "")
 	foreach(CATEGORY IN LISTS DEP_CATEGORIES)
 		message(STATUS "CLASSPATH += ${A2_BASE}/${CATEGORY}/*.jar")
@@ -233,12 +269,13 @@ function(a2_build_bundle BUNDLE)
 	add_jar(${BUNDLE}
 		CMAKE_JAVA_COMPILE_FLAGS "--release ${A2_JAVA_RELEASE}"
 		SOURCES ${JAVA_SRC}
-		RESOURCES ${RESOURCES}
+		RESOURCES ${SOURCES_AS_RESOURCES}
 		INCLUDE_JARS ${CLASSPATH}
 		MANIFEST ${BUNDLE}/META-INF/MANIFEST.MF
 		OUTPUT_NAME ${BUNDLE}.${A2_major}.${A2_minor}
 		OUTPUT_DIR ${A2_OUTPUT}/${A2_CATEGORY}
-		GENERATE_NATIVE_HEADERS ${BUNDLE}-include DESTINATION ${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY}
+		GENERATE_NATIVE_HEADERS ${BUNDLE}-include
+		 DESTINATION ${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY}
 	)
 	add_dependencies(${A2_CATEGORY}-includes ${BUNDLE}-include)
 	install_jar(${BUNDLE} ${CMAKE_INSTALL_LIBDIR}/a2/${A2_CATEGORY})
