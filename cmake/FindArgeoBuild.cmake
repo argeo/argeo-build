@@ -155,7 +155,6 @@ message(STATUS "INCLUDES=${A2_CATEGORY}-includes")
 #
 # UTILITIES
 #
-
 # Generates MANIFEST for a bundle
 function(a2_osgi_manifest BUNDLE)
 	set(MF ${BUNDLE}/META-INF/MANIFEST.MF)
@@ -192,10 +191,37 @@ function(a2_osgi_manifest BUNDLE)
 	message(STATUS "Wrote OSGi manifest to ${MF}")
 endfunction() # a2_osgi_manifest
 
+macro(a2_list_packages result curdir)
+	file(GLOB_RECURSE children LIST_DIRECTORIES false RELATIVE "${curdir}" "${curdir}/*")
+	set(packages "")
+	foreach(child ${children})
+		cmake_path(GET child PARENT_PATH dir)
+		list(APPEND packages "/${dir}")
+		message(STATUS "/${dir}")
+	endforeach()
+	list(REMOVE_DUPLICATES packages)
+	set(${result} ${packages})
+endmacro()
+
 # Build a bundle
 function(a2_build_bundle BUNDLE)
 	a2_osgi_manifest(${BUNDLE})
 	file(GLOB_RECURSE JAVA_SRC CONFIGURE_DEPENDS "${BUNDLE}/src/*.java")
+	
+	# resources and embedded sources
+	set(RESOURCES "")
+	a2_list_packages(namespaces "${CMAKE_SOURCE_DIR}/${BUNDLE}/src")
+	message(STATUS "namespaces=${namespaces}")
+	foreach(namespace ${namespaces})
+		set(lst "")
+		list(APPEND RESOURCES "NAMESPACE")
+		list(APPEND RESOURCES "OSGI-INF/src${namespace}")
+		file(GLOB files "${BUNDLE}/src${namespace}/*")
+		foreach(file ${files})
+			list(APPEND RESOURCES "${file}")
+		endforeach()
+	endforeach()
+	
 	set(CLASSPATH "")
 	foreach(CATEGORY IN LISTS DEP_CATEGORIES)
 		message(STATUS "CLASSPATH += ${A2_BASE}/${CATEGORY}/*.jar")
@@ -203,11 +229,13 @@ function(a2_build_bundle BUNDLE)
 		list(APPEND CLASSPATH ${JARS})
 	endforeach()
 	
+	# !! CMAKE_JAVA_COMPILE_FLAGS must be first
 	add_jar(${BUNDLE}
-		${JAVA_SRC}
 		CMAKE_JAVA_COMPILE_FLAGS "--release ${A2_JAVA_RELEASE}"
-		MANIFEST ${BUNDLE}/META-INF/MANIFEST.MF
+		SOURCES ${JAVA_SRC}
+		RESOURCES ${RESOURCES}
 		INCLUDE_JARS ${CLASSPATH}
+		MANIFEST ${BUNDLE}/META-INF/MANIFEST.MF
 		OUTPUT_NAME ${BUNDLE}.${A2_major}.${A2_minor}
 		OUTPUT_DIR ${A2_OUTPUT}/${A2_CATEGORY}
 		GENERATE_NATIVE_HEADERS ${BUNDLE}-include DESTINATION ${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY}
