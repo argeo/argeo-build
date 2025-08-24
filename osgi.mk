@@ -41,6 +41,10 @@ TODOS = $(foreach bundle, $(BUNDLES),$(BUILD_BASE)/$(bundle)/to-build)
 # Native
 JNIDIRS=$(foreach package, $(NATIVE_PACKAGES), jni/$(package))
 
+ifneq (,$(qualifier)) # not a release
+QUALIFIER_ARG=--qualifier $(qualifier)
+endif
+
 # Needed in order to be able to expand $$ variables
 .SECONDEXPANSION:
 
@@ -50,12 +54,14 @@ osgi: a2-prepare-output $(BUILD_BASE)/built $(MANIFESTS)
 $(BUILD_BASE)/built : BUNDLES_TO_BUILD = $(strip $(subst $(abspath $(BUILD_BASE))/,, $(subst to-build,, $?)))
 $(BUILD_BASE)/built : $(TODOS)
 	@echo "| A2 category  : $(A2_CATEGORY)"
+	@echo "| Version      : $(major).$(minor).$(micro)$(qualifier)"
 	@echo "| Bundles      : $(BUNDLES_TO_BUILD)"
 	@echo "| Dependencies : $(DEP_CATEGORIES)"
 	@echo "| Compiler     : $(notdir $(ECJ_JAR))"
 	@$(ARGEO_MAKE) \
 	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) \
-	 --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD)
+	 --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD) \
+	 $(QUALIFIER_ARG)
 	@touch $(BUILD_BASE)/built 
 
 $(A2_OUTPUT)/%.$(major).$(minor).jar : $(BUILD_BASE)/$$(subst $(A2_CATEGORY)/,,$$*)/to-build

@@ -335,6 +335,11 @@ public class Make {
 			throw new IllegalArgumentException("One and only one --category must be specified");
 		String category = categories.get(0);
 
+		StringJoiner qualifier = new StringJoiner("-");
+		for (String q : options.getOrDefault("--qualifier", new ArrayList<>())) {
+			qualifier.add(q);
+		}
+
 		final String branch;
 		Path branchMk = sdkSrcBase.resolve(BRANCH_MK);
 		if (Files.exists(branchMk)) {
@@ -350,7 +355,7 @@ public class Make {
 		for (String bundle : bundles) {
 			toDos.add(CompletableFuture.runAsync(() -> {
 				try {
-					createBundle(branch, bundle, category);
+					createBundle(branch, bundle, category, qualifier.toString());
 				} catch (IOException e) {
 					throw new RuntimeException("Packaging of " + bundle + " failed", e);
 				}
@@ -485,7 +490,7 @@ public class Make {
 	}
 
 	/** Package a single bundle. */
-	void createBundle(String branch, String bundle, String category) throws IOException {
+	void createBundle(String branch, String bundle, String category, String qualifier) throws IOException {
 		final Path bundleSourceBase;
 		if (!Files.exists(execDirectory.resolve(bundle))) {
 			logger.log(WARNING,
@@ -513,6 +518,10 @@ public class Make {
 					properties.load(in);
 				}
 		}
+
+		// override qualifier
+		if (!"".equals(qualifier) && !".".equals(qualifier))
+			properties.setProperty("qualifier", qualifier);
 
 		Path bndBnd = bundleSourceBase.resolve("bnd.bnd");
 		if (Files.exists(bndBnd))

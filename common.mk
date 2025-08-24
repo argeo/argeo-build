@@ -21,9 +21,15 @@ SYSLOGGER_BRANCH=$(build-major).$(build-minor)
 
 # Layer version
 ifeq ($(qualifier),.next)
-ifneq (,$(shell which git))
+ifneq ($(shell which git),)
+ifeq ($(shell git rev-parse --is-inside-work-tree),true)
+git_commit_count=$(shell git rev-list --count $(major).$(minor).$(micro)..HEAD)
+git_head_shorthash=$(shell git rev-parse --short=7 HEAD)
+ifneq ($(git_commit_count),)
 undefine qualifier
-qualifier=.$(shell git rev-list --count $(major).$(minor).$(micro)..HEAD)
+qualifier=.$(shell printf "%04d" $(git_commit_count))-$(git_head_shorthash)
+endif
+endif
 endif
 endif
 A2_LAYER_VERSION=${major}.${minor}.${micro}$(qualifier)
