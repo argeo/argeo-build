@@ -32,4 +32,5 @@ install:
 describe:
 	echo SDK_BUILD_BASE=$(SDK_BUILD_BASE)
 	echo BUILD_BASE=$(BUILD_BASE)
-	
+
+.PHONY: configure all clean install describe
