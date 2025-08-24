@@ -19,20 +19,21 @@ find_package(Java ${A2_JAVA_RELEASE} REQUIRED)
 include(UseJava)
 set(CMAKE_JAVA_COMPILE_FLAGS "--release" "${A2_JAVA_RELEASE}")
 if (Java_FOUND)
-    message(STATUS "Java_JAVA_EXECUTABLE=${Java_JAVA_EXECUTABLE}")
-    message(STATUS "Java_VERSION_MAJOR=${Java_VERSION_MAJOR}")
+message(STATUS "Java_JAVA_EXECUTABLE=${Java_JAVA_EXECUTABLE}")
+message(STATUS "Java_VERSION_MAJOR=${Java_VERSION_MAJOR}")
 endif()
 
 # JNI
 find_package(JNI REQUIRED)
 if (JNI_FOUND)
-    message(STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
-    message(STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
+message(STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
+message(STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
 endif()
 
 if(NOT JAVA_HOME)
 # TODO check whether it is actually working
-file(REAL_PATH "${Java_JAVA_EXECUTABLE}/../.." JAVA_HOME)
+file(REAL_PATH "${Java_JAVA_EXECUTABLE}" Java_JAVA_EXECUTABLE_SymLinksResolved)
+file(REAL_PATH "${Java_JAVA_EXECUTABLE_SymLinksResolved}/../.." JAVA_HOME)
 message(STATUS "JAVA_HOME=${JAVA_HOME}")
 endif()
 
@@ -61,16 +62,26 @@ function(a2_replace_next_qualifier)
 if(A2_qualifier STREQUAL ".next")
 if (Git_FOUND)
 execute_process(COMMAND "${GIT_EXECUTABLE}" rev-list --count ${A2_major}.${A2_minor}.${A2_micro}..HEAD
-WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-OUTPUT_VARIABLE GitRevCount
-OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-if(NOT "${GitRevCount}" STREQUAL "")
-set(A2_qualifier ".${GitRevCount}" CACHE INTERNAL A2_qualifier)
+ WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+ OUTPUT_VARIABLE GitRevCount OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT "${GitRevCount}" STREQUAL "") # will also be empty if not a working copy
+execute_process(COMMAND "${GIT_EXECUTABLE}" rev-parse --short=7 HEAD
+ WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+ OUTPUT_VARIABLE GitShortHash OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(GitRevCount LESS 10)
+set(GitRevCountPadded "000${GitRevCount}")
+elseif(GitRevCount LESS 100)
+set(GitRevCountPadded "00${GitRevCount}")
+elseif(GitRevCount LESS 1000)
+set(GitRevCountPadded "0${GitRevCount}")
+else()
+set(GitRevCountPadded "${GitRevCount}")
+endif() # GitRevCountPadded
+set(A2_qualifier ".${GitRevCountPadded}-${GitShortHash}" CACHE INTERNAL A2_qualifier)
 endif() # GitRevCount
 endif() # Git_FOUND
 endif() # A2_qualifier
-endfunction()
+endfunction() # a2_replace_next_qualifier
 
 if(MINGW)
 file(REAL_PATH ".." SDK_BUILD_BASE_WIN BASE_DIRECTORY "${CMAKE_BINARY_DIR}")
@@ -82,6 +93,7 @@ file(REAL_PATH ".." SDK_BUILD_BASE BASE_DIRECTORY "${CMAKE_BINARY_DIR}")
 set(SDK_SRC_BASE ${CMAKE_SOURCE_DIR})
 set(SDK_JAVA_HOME ${JAVA_HOME})
 endif()
+
 file(WRITE ${CMAKE_SOURCE_DIR}/sdk.mk "SDK_SRC_BASE=${SDK_SRC_BASE}\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "SDK_BUILD_BASE=${SDK_BUILD_BASE}\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "JAVA_HOME=${SDK_JAVA_HOME}\n")
