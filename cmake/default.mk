@@ -15,6 +15,9 @@ export JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 # Required on Windows
 
 CMAKE_BUILD_TYPE ?= Release
 
+configure:
+	(cd $(SDK_SRC_BASE) && cmake -B $(SDK_BUILD_BASE)/$(shell basename $(SDK_SRC_BASE)) \
+	 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DJAVA_HOME=$(JAVA_HOME))
 
 all:
 	mkdir -p $(BUILD_BASE)
