@@ -100,7 +100,10 @@ file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "JAVA_HOME=${SDK_JAVA_HOME}\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "-include branch.mk\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "-include sdk/branches/$(BRANCH).bnd\n")
+
 if(MINGW)
+file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "export SDK_BUILD_BASE_WIN=${SDK_BUILD_BASE_WIN}\n")
+elseif(MSVC)
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "export SDK_BUILD_BASE_WIN=${SDK_BUILD_BASE_WIN}\n")
 endif()
 
@@ -150,9 +153,8 @@ endif() # CMAKE_SYSTEM_PROCESSOR
 endif() # CMAKE_SYSTEM_NAME
 
 if(MINGW)
-# cmake ../../ -DCMAKE_INSTALL_PREFIX=$MINGW_PREFIX
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
-endif() # MINGW
+endif()
 
 # defaults
 if(NOT A2_TARGET_OS)
@@ -333,6 +335,10 @@ set_target_properties(${TARGET} PROPERTIES
 target_compile_features(${TARGET} PRIVATE ${A2_CXX_STD})
 if(MINGW)
 # bin is used as output directory in MSYS
+set_target_properties(${TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+ "${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}/${A2_CATEGORY}")
+elseif(MSVC)
+# bin is used as output directory in MSVC
 set_target_properties(${TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
  "${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}/${A2_CATEGORY}")
 else()

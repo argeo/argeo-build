@@ -63,14 +63,18 @@ ifeq ($(MSYS_VERSION),0)
 TARGET_OS ?= linux
 TARGET_ARCH ?= $(shell uname -m)
 TARGET_LIBC ?= gnu
-SHLIB_PREFIX=lib
-SHLIB_SUFFIX=.so
+shlib_prefix=lib
+shlib_suffix=.so
+file_sep=/
+file_path_sep=:
 else
 TARGET_OS ?= win32
 TARGET_ARCH ?= $(shell uname -m)
 TARGET_LIBC ?= default
-SHLIB_PREFIX=
-SHLIB_SUFFIX=.dll
+shlib_prefix=
+shlib_suffix=.dll
+file_sep=\\
+file_path_sep=;
 endif
 
 ifeq ("$(TARGET_ARCH)","aarch64")
