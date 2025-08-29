@@ -154,6 +154,7 @@ else
 endif
 
 jmod-os-libs: a2-prepare-os-libs
+	mkdir -p $(A2_JMODS)
 	mkdir -p $(JMODS_BASE)/$(JMOD_OS_LIBS)/lib
 ifeq ($(MSYS_VERSION),0)
 # TODO copy only when standalone
