@@ -41,8 +41,13 @@ if [ -z "$CMAKE_BUILD_TYPE" ]
 then
 CMAKE_BUILD_TYPE=Release
 fi
-# -G "Unix Makefiles" not working in all cases
-(cd $SDK_SRC_BASE && cmake -B $SDK_BUILD_BASE/$(basename $SDK_SRC_BASE) -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DJAVA_HOME=$JAVA_HOME)
+
+(cd $SDK_SRC_BASE && \
+cmake -B $SDK_BUILD_BASE/$(basename $SDK_SRC_BASE) \
+ -DA2_INSTALL_MODE=a2 \
+ -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
+ -DJAVA_HOME=$JAVA_HOME
+)
 
 echo SDK was configured with CMake.
 echo "JAVA_HOME        : $JAVA_HOME"
