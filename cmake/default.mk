@@ -17,8 +17,10 @@ export JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 # Required on Windows
 CMAKE_BUILD_TYPE ?= Release
 
 all:
-	cmake -B $(BUILD_BASE) . -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
-	$(CMAKE) --build $(BUILD_BASE) -j $(shell nproc)
+	cmake -B $(BUILD_BASE) . \
+	 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) \
+	 -DJAVA_HOME=$(JAVA_HOME)
+	$(CMAKE) --build $(BUILD_BASE) --config $(CMAKE_BUILD_TYPE) -j $(shell nproc)
 
 clean:
 	-if [ -d $(BUILD_BASE) ]; then $(CMAKE) --build $(BUILD_BASE) --target clean; fi;
@@ -34,5 +36,7 @@ describe:
 	echo SDK_SRC_BASE=$(SDK_SRC_BASE)
 	echo SDK_BUILD_BASE=$(SDK_BUILD_BASE)
 	echo BUILD_BASE=$(BUILD_BASE)
+	echo JAVA_HOME=$(JAVA_HOME)
+	echo A2_OUTPUT=$(A2_OUTPUT)
 
-.PHONY: configure all clean install describe
+.PHONY: all clean distclean install describe
