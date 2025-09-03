@@ -103,7 +103,8 @@ JLINK_HOME ?= $(JAVA_HOME)
 JLINK_JMODS ?= $(JLINK_HOME)/jmods
 A2_JMODS=$(TARGET_NATIVE_OUTPUT)/jmods
 # Note: replacing $${MODULES// /,} is bash specific
-JLINK_MODULES ?= $(shell . $(JLINK_HOME)/release && echo $${MODULES// /,})
+#JLINK_MODULES ?= $(shell . $(JLINK_HOME)/release && echo $${MODULES// /,})
+JLINK_MODULES ?= $(subst $(space),$(comma),$(shell . $(JLINK_HOME)/release && echo $$MODULES))
 JLINK_JAVA_VERSION = $(shell . $(JLINK_HOME)/release && echo $$JAVA_VERSION)
 ifeq ("$(shell . $(JLINK_HOME)/release && echo $$JVM_VARIANT)","Openj9")
 JLINK_JVM_VARIANT=openj9
@@ -119,8 +120,10 @@ JLINK_JAVA_RELEASE = $(firstword $(subst .,$(space),$(JLINK_JAVA_VERSION)))
 JMODS_BASE=$(SDK_BUILD_BASE)/jmods
 
 define a2_jmod_bare_module
-	$(RM) -r $(JMODS_BASE)/$(1)/{java,classes}
-	mkdir -p $(JMODS_BASE)/$(1)/{java,classes}
+	$(RM) -r $(JMODS_BASE)/$(1)/java
+	$(RM) -r $(JMODS_BASE)/$(1)/classes
+	mkdir -p $(JMODS_BASE)/$(1)/java
+	mkdir -p $(JMODS_BASE)/$(1)/classes
 	echo "module $(1) {}" > $(JMODS_BASE)/$(1)/java/module-info.java
 	$(JLINK_HOME)/bin/javac --release 11 -d $(JMODS_BASE)/$(1)/classes \
 	 $(JMODS_BASE)/$(1)/java/module-info.java
@@ -131,7 +134,16 @@ A2_OS_LIBS_CATEGORY=org.argeo.os.libs
 JMOD_OS_LIBS=$(A2_OS_LIBS_CATEGORY)
 
 ifeq ($(MSYS_VERSION),0)
-# FIXME copy linux base libraries
+A2_OS_LIBS=\
+/usr/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/ld-linux-x86-64.so.* \
+/usr/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/libc.so.* \
+/usr/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/libstdc++.so.* \
+/usr/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/libz.so.* \
+/usr/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/libm.so.* \
+/usr/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/libgcc_s.so.*
+
+# TODO make it more robust
+A2_OS_LIBS_VERSION = $(shell gcc -dumpversion).0.0
 else
 UCRT_BASE ?= /ucrt64
 A2_OS_LIBS=\
@@ -203,6 +215,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # for example: CLASSPATH = $(subst $(space),$(pathsep),$(strip $(JARS)))
 null  :=
 space := $(null) #
+comma:= ,
 pathsep := :
 define LF
 
