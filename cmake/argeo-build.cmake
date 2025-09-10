@@ -168,8 +168,17 @@ function(a2_build_bundle BUNDLE)
 	 GENERATE_NATIVE_HEADERS ${BUNDLE}-include
 	  DESTINATION ${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY}
 	)
+
+	# Modules as CMake dependencies
+	# TODO virtual dependencies for java. modules and external modules
+	# TODO generate OSGi metadata too ?	
+#	foreach(MODULE IN LISTS REQUIRED_MODULES)
+#		add_dependencies(${BUNDLE} ${MODULE})
+#	endforeach()
 	
+	# JNI includes
 	add_dependencies(${A2_CATEGORY}-includes ${BUNDLE}-include)
+	
 	install_jar(${BUNDLE} ${BUNDLE_INSTALL_DIR})
 endfunction() # a2_build_bundle
 
