@@ -15,7 +15,9 @@ endif()
 message(STATUS "A2_JAVA_RELEASE=${A2_JAVA_RELEASE}")
 
 if(NOT JAVA_HOME)
+if(NOT ANDROID)
 message(FATAL_ERROR "JAVA_HOME must be explicitly set")
+endif()
 endif()
 
 # Java
@@ -28,6 +30,12 @@ message(STATUS "Java_VERSION_MAJOR=${Java_VERSION_MAJOR}")
 endif()
 
 # JNI
+if(ANDROID)
+set(JAVA_AWT_LIBRARY NotNeeded)
+set(JAVA_JVM_LIBRARY NotNeeded)
+set(JAVA_INCLUDE_PATH2 NotNeeded)
+set(JAVA_AWT_INCLUDE_PATH NotNeeded)
+endif() # ANDROID
 find_package(JNI REQUIRED)
 if (JNI_FOUND)
 message(STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
