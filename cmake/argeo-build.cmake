@@ -206,9 +206,13 @@ macro(a2_jni_target TARGET)
 	 ${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY})
 	set_target_properties(${TARGET} PROPERTIES
 	 POSITION_INDEPENDENT_CODE ON
-	 VERSION ${A2_LAYER_VERSION}
-	 SOVERSION ${A2_major}
+	 SOVERSION ${A2_major}.${A2_minor}
 	)
+	if(A2_RELEASING)
+	set_target_properties(${TARGET} PROPERTIES
+	 VERSION ${A2_LAYER_VERSION}
+	)
+	endif()
 	target_compile_features(${TARGET} PRIVATE ${A2_CXX_STD})
 	
 	# TODO simplify/factorize this
