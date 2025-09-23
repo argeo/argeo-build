@@ -19,6 +19,7 @@ CMAKE_BUILD_TYPE ?= Release
 all:
 	cmake -B $(BUILD_BASE) . \
 	 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) \
+	 -DA2_INSTALL_MODE=a2 \
 	 -DJAVA_HOME=$(JAVA_HOME)
 	$(CMAKE) --build $(BUILD_BASE) --config $(CMAKE_BUILD_TYPE) -j $(shell nproc)
 

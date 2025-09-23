@@ -29,11 +29,10 @@ function(a2_osgi_manifest BUNDLE)
 	foreach(LINE IN LISTS LINES)
 		string(REPLACE "exports" "" STRIPPED ${LINE})
 		string(STRIP ${STRIPPED} PCK)
-		LIST(APPEND EXPORTED_PKGS ${PCK})
+		list(APPEND EXPORTED_PKGS ${PCK})
 	endforeach()
 	
 	list(LENGTH EXPORTED_PKGS EXPORTED_PKGS_N)
-	
 	if(${EXPORTED_PKGS_N} GREATER 0) 
 		string(REPLACE ";" ",\n " EXPORT_PACKAGE "${EXPORTED_PKGS}")
 		file(APPEND ${MF} "Export-Package: ${EXPORT_PACKAGE}\n")
@@ -122,13 +121,33 @@ function(a2_build_bundle BUNDLE)
 		)
 	endif() # check_source_bundles
 	
-	# compilation
+	# required modules
+	file (STRINGS ${BUNDLE}/src/module-info.java REQUIRES_LINES REGEX "requires transitive .*;")
+	foreach(LINE IN LISTS REQUIRES_LINES)
+		string(REPLACE "requires transitive" "" STRIPPED ${LINE})
+		string(STRIP ${STRIPPED} MODULE)
+		list(APPEND REQUIRED_MODULES ${MODULE})
+	endforeach()
+
+	message(STATUS "REQUIRED_MODULES=${REQUIRED_MODULES}")
+	list(LENGTH REQUIRED_MODULES REQUIRED_MODULES_N)	
+	if(${REQUIRED_MODULES_N} GREATER 0) 
+		string(REPLACE ";" "," REQUIRED_MODULES_STR "${REQUIRED_MODULES}")
+		list(APPEND ADD_MODULES "--add-modules")
+		list(APPEND ADD_MODULES ${REQUIRED_MODULES_STR})
+	endif() # export packages length
+	
+	# classpath
 	set(CLASSPATH "")
+	cmake_path(APPEND MODULEPATH_DIRS ${A2_OUTPUT}/${A2_CATEGORY})
 	foreach(CATEGORY IN LISTS DEP_CATEGORIES)
 		message(STATUS "CLASSPATH += ${A2_BASE}/${CATEGORY}/*.jar")
 		file(GLOB JARS CONFIGURE_DEPENDS "${A2_BASE}/${CATEGORY}/*.jar")
 		list(APPEND CLASSPATH ${JARS})
+		cmake_path(APPEND MODULEPATH_DIRS ${A2_BASE}/${CATEGORY})
 	endforeach()
+	cmake_path(CONVERT ${MODULEPATH_DIRS} TO_NATIVE_PATH_LIST MODULEPATH)
+	message(STATUS "MODULEPATH=${MODULEPATH}")
 	
 	if(${A2_INSTALL_MODE} STREQUAL "a2")
 		set(BUNDLE_OUTPUT_NAME ${BUNDLE}.${A2_major}.${A2_minor})
@@ -138,9 +157,8 @@ function(a2_build_bundle BUNDLE)
 		set(BUNDLE_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/java)
 	endif()
 	
-	# !! CMAKE_JAVA_COMPILE_FLAGS must be first
-	add_jar(${BUNDLE}
-	 CMAKE_JAVA_COMPILE_FLAGS "--release ${A2_JAVA_RELEASE}"
+	set(CMAKE_JAVA_COMPILE_FLAGS --release ${A2_JAVA_RELEASE} --module-path ${MODULEPATH} ${ADD_MODULES})
+	add_jar(${BUNDLE} 
 	 SOURCES ${JAVA_SRC}
 	 RESOURCES ${SOURCES_AS_RESOURCES}
 	 INCLUDE_JARS ${CLASSPATH}
@@ -150,8 +168,17 @@ function(a2_build_bundle BUNDLE)
 	 GENERATE_NATIVE_HEADERS ${BUNDLE}-include
 	  DESTINATION ${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY}
 	)
+
+	# Modules as CMake dependencies
+	# TODO virtual dependencies for java. modules and external modules
+	# TODO generate OSGi metadata too ?	
+#	foreach(MODULE IN LISTS REQUIRED_MODULES)
+#		add_dependencies(${BUNDLE} ${MODULE})
+#	endforeach()
 	
+	# JNI includes
 	add_dependencies(${A2_CATEGORY}-includes ${BUNDLE}-include)
+	
 	install_jar(${BUNDLE} ${BUNDLE_INSTALL_DIR})
 endfunction() # a2_build_bundle
 
@@ -179,9 +206,13 @@ macro(a2_jni_target TARGET)
 	 ${CMAKE_SOURCE_DIR}/native/include/${A2_CATEGORY})
 	set_target_properties(${TARGET} PROPERTIES
 	 POSITION_INDEPENDENT_CODE ON
-	 VERSION ${A2_LAYER_VERSION}
-	 SOVERSION ${A2_major}
+	 SOVERSION ${A2_major}.${A2_minor}
 	)
+	if(A2_RELEASING)
+	set_target_properties(${TARGET} PROPERTIES
+	 VERSION ${A2_LAYER_VERSION}
+	)
+	endif()
 	target_compile_features(${TARGET} PRIVATE ${A2_CXX_STD})
 	
 	# TODO simplify/factorize this
