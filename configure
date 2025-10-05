@@ -41,8 +41,8 @@ fi
 # Generate sdk.mk
 cat > "$SDK_MK" <<EOF
 SDK_SRC_BASE := $SDK_SRC_BASE
-SDK_BUILD_BASE := $SDK_BUILD_BASE
-JAVA_HOME := $JAVA_HOME
+SDK_BUILD_BASE ?= $SDK_BUILD_BASE
+JAVA_HOME ?= $JAVA_HOME
 
 -include branch.mk
 -include sdk/branches/\$(BRANCH).bnd
