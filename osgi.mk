@@ -57,7 +57,7 @@ $(BUILD_BASE)/built : $(TODOS)
 	@echo "| Version      : $(major).$(minor).$(micro)$(qualifier)"
 	@echo "| Bundles      : $(BUNDLES_TO_BUILD)"
 	@echo "| Dependencies : $(DEP_CATEGORIES)"
-	@echo "| Compiler     : $(notdir $(ECJ_JAR))"
+	@echo "| Compiler     : $(notdir $(ECJ_JAR)) ($(JAVA_HOME))"
 	@$(ARGEO_MAKE) \
 	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) \
 	 --category $(A2_CATEGORY) --bundles $(BUNDLES_TO_BUILD) \

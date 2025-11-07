@@ -56,9 +56,10 @@ set(SDK_JAVA_HOME ${JAVA_HOME})
 endif()
 
 # Generate sdk.mk file for Argeo Build Make compatibility
-file(WRITE ${CMAKE_SOURCE_DIR}/sdk.mk "SDK_SRC_BASE=${SDK_SRC_BASE}\n")
-file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "SDK_BUILD_BASE=${SDK_BUILD_BASE}\n")
-file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "JAVA_HOME=${SDK_JAVA_HOME}\n")
+# TODO make it more robust
+file(WRITE ${CMAKE_SOURCE_DIR}/sdk.mk "SDK_SRC_BASE := ${SDK_SRC_BASE}\n")
+file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "SDK_BUILD_BASE ?= ${SDK_BUILD_BASE}\n")
+file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "JAVA_HOME ?= ${SDK_JAVA_HOME}\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "-include branch.mk\n")
 file(APPEND ${CMAKE_SOURCE_DIR}/sdk.mk "-include sdk/branches/$(BRANCH).bnd\n")

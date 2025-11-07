@@ -1,6 +1,6 @@
 Bundle-Version: ${major}.${minor}.${micro}${qualifier}
 Export-Package: !*.internal.*, !config.*, !icons.*, !css.*, !swt.*, !rap.*, *
-Bundle-RequiredExecutionEnvironment=JavaSE-17
+Bundle-RequiredExecutionEnvironment=JavaSE-21
 
 #-consumer-policy : ${range;[==,=+)}
 -contract: !JavaServlet,*

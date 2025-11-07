@@ -7,7 +7,7 @@ message(FATAL_ERROR "Variable A2_CATEGORY must be set")
 endif()
 
 if(NOT A2_JAVA_RELEASE)
-set(A2_JAVA_RELEASE 17)
+set(A2_JAVA_RELEASE 21)
 endif()
 if(NOT A2_CXX_STD)
 set(A2_CXX_STD cxx_std_17)
