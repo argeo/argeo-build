@@ -57,6 +57,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -87,15 +88,15 @@ public class Repackage {
 	 * integrated in the bundles.
 	 */
 	public final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
-	/** Environment variable on whether operations should be parallelised. */
+	/** Environment variable on whether operations should be parallelized. */
 	public final static String ENV_ARGEO_BUILD_SEQUENTIAL = "ARGEO_BUILD_SEQUENTIAL";
 
 	/** Whether repackaging should run in parallel (default) or sequentially. */
 	final static boolean sequential = Boolean.parseBoolean(System.getenv(ENV_ARGEO_BUILD_SEQUENTIAL));
 
-	/** Name of the file centralising information for multiple M2 artifacts. */
+	/** Name of the file centralizing information for multiple M2 artifacts. */
 	final static String COMMON_BND = "common.bnd";
-	/** Name of the file centralising information for mergin M2 artifacts. */
+	/** Name of the file centralizing information for merging M2 artifacts. */
 	final static String MERGE_BND = "merge.bnd";
 	/**
 	 * Subdirectory of the jar file where origin informations (changes, legal
@@ -113,6 +114,8 @@ public class Repackage {
 	// cache
 	/** Summary of all license seen during the repackaging. */
 	final static Map<String, Set<String>> licensesUsed = new TreeMap<>();
+	/** Native libraries used per bundle dir name. */
+	final static Map<String, Set<Path>> nativeLibrariesUsed = new TreeMap<>();
 
 	/** Directory where to download archives */
 	final Path originBase;
@@ -158,7 +161,7 @@ public class Repackage {
 			os: for (SupportedOS os : SupportedOS.values()) {
 				String archToUse = arch.name();
 				String osToUse = os.name();
-				// TODO make compiler configurable
+				// TODO make C runtime configurable
 				multiArchDir = arch.name() + "-" + os.name();
 				if (os.equals(linux))
 					multiArchDir = multiArchDir + "-gnu";
@@ -214,8 +217,10 @@ public class Repackage {
 
 		if (!copySharedLib)
 			return null;
-		Path categoryDir = bundleDir.startsWith(a2LibBase) ? bundleDir.getParent()
-				: a2LibBase.resolve(multiArchDir).resolve(a2Base.relativize(bundleDir.getParent()));
+		Path categoryDir = bundleDir.startsWith(a2LibBase.resolve(multiArchDir)) ? bundleDir.getParent() //
+				: bundleDir.startsWith(a2LibBase) ? //
+						a2LibBase.resolve(multiArchDir).resolve(a2LibBase.relativize(bundleDir.getParent())) //
+						: a2LibBase.resolve(multiArchDir).resolve(a2Base.relativize(bundleDir.getParent()));
 		Path targetSharedLibrary = categoryDir.resolve(target.getFileName());
 		logger.log(TRACE, () -> "Shared library " + targetSharedLibrary);
 		return targetSharedLibrary;
@@ -317,7 +322,7 @@ public class Repackage {
 		}
 	}
 
-	/** Constructor initialising the various variables. */
+	/** Constructor initializing the various variables. */
 	Repackage(Path a2Base, Path descriptorsBase) {
 		separateSources = Boolean.parseBoolean(System.getenv(ENV_SOURCE_BUNDLES));
 		if (separateSources)
@@ -1257,16 +1262,24 @@ public class Repackage {
 					continue entries;
 				}
 
-				final Path target = isNativeLibrary(entry) ? processNativeEntry(entry, origin, nameVersion, bundleDir)
+				boolean isNativeLibrary = isNativeLibrary(entry);
+				final Path target = isNativeLibrary ? processNativeEntry(entry, origin, nameVersion, bundleDir)
 						: bundleDir.resolve(entry.getName());
 				if (target != null) {
 					Files.createDirectories(target.getParent());
 					Files.copy(jarIn, target, StandardCopyOption.REPLACE_EXISTING);
-					if (isNativeLibrary(entry)) {
+					if (isNativeLibrary) {
 						Path multiArchDirName = a2LibBase.relativize(target).getName(0);
 						Path linkPath = a2LibBase.resolve(multiArchDirName).resolve(target.getFileName());
 						Files.deleteIfExists(linkPath);
-						Files.createSymbolicLink(linkPath, target);
+						Path relativeLink = linkPath.getParent().relativize(target);
+						Files.createSymbolicLink(linkPath, relativeLink);
+
+						// register
+						String bundleKey = bundleDir.getFileName().toString();
+						if (!nativeLibrariesUsed.containsKey(bundleKey))
+							nativeLibrariesUsed.put(bundleKey, new HashSet<Path>());
+						nativeLibrariesUsed.get(bundleKey).add(target.getParent());
 					}
 					logger.log(TRACE, () -> "Copied " + target);
 				}
@@ -1487,7 +1500,7 @@ public class Repackage {
 	}
 
 	/**
-	 * Effectively download. Synchronised in order to avoid downloading twice in
+	 * Effectively download. Synchronized in order to avoid downloading twice in
 	 * parallel.
 	 */
 	synchronized Path download(URI uri, Path dir, String name) throws IOException {
@@ -1548,6 +1561,19 @@ public class Repackage {
 
 		if (separateSources)
 			createSourceJar(bundleDir, manifest, null);
+
+		// OS/arch dependent
+		String bundleKey = bundleDir.getFileName().toString();
+		if (nativeLibrariesUsed.containsKey(bundleKey)) {
+			nativeDirs: for (Path targetDir : nativeLibrariesUsed.get(bundleKey)) {
+				if (Files.isSameFile(targetDir, jarPath.getParent()))
+					continue nativeDirs; // jar is OS specific (e.g. SWT)
+				Path linkPath = targetDir.resolve(jarPath.getFileName());
+				Files.deleteIfExists(linkPath);
+				Path relativeLink = targetDir.relativize(jarPath);
+				Files.createSymbolicLink(linkPath, relativeLink);
+			}
+		}
 
 		return jarPath;
 	}
