@@ -39,6 +39,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.lang.System.Logger;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -399,7 +400,7 @@ public class Repackage {
 				}
 			}
 		} catch (IOException e) {
-			throw new RuntimeException("Cannot process category " + categoryRelativePath, e);
+			throw new UncheckedIOException("Cannot process category " + categoryRelativePath, e);
 		}
 	}
 
@@ -1268,6 +1269,8 @@ public class Repackage {
 				if (target != null) {
 					Files.createDirectories(target.getParent());
 					Files.copy(jarIn, target, StandardCopyOption.REPLACE_EXISTING);
+
+					// native
 					if (isNativeLibrary) {
 						Path multiArchDirName = a2LibBase.relativize(target).getName(0);
 						Path linkPath = a2LibBase.resolve(multiArchDirName).resolve(target.getFileName());
@@ -1275,11 +1278,26 @@ public class Repackage {
 						Path relativeLink = linkPath.getParent().relativize(target);
 						Files.createSymbolicLink(linkPath, relativeLink);
 
-						// register
+						// register, so that we know later where to symlink the jar
 						String bundleKey = bundleDir.getFileName().toString();
 						if (!nativeLibrariesUsed.containsKey(bundleKey))
 							nativeLibrariesUsed.put(bundleKey, new HashSet<Path>());
 						nativeLibrariesUsed.get(bundleKey).add(target.getParent());
+
+						// prepare native jmods
+						String jmodName;
+						if (nameVersion.getName().startsWith("org.eclipse.swt"))
+							jmodName = "org.eclipse.swt.nativelibs";
+						else
+							jmodName = nameVersion.getName() + ".nativelibs";
+						Path jmodsLibsDir = a2LibBase.resolve(multiArchDirName).resolve("jmods").resolve(jmodName)
+								.resolve("lib");
+						Files.createDirectories(jmodsLibsDir);
+						Path jmodsLib = jmodsLibsDir.resolve(target.getFileName());
+						if (Files.exists(jmodsLib))
+							Files.delete(jmodsLib);
+						Files.copy(target, jmodsLib);
+
 					}
 					logger.log(TRACE, () -> "Copied " + target);
 				}
