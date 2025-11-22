@@ -14,6 +14,10 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.spi.ToolProvider;
 
+/**
+ * Package some artifacts (typically JNI libraries) as jmod, in order to be able
+ * to create custom Java runtimes with jlink.
+ */
 public class PackageJmods {
 	/** A2 repository base for binary bundles */
 	final Path a2Base;
@@ -23,7 +27,7 @@ public class PackageJmods {
 	private final ToolProvider jmodTool;
 	private final ToolProvider javacTool;
 
-	public PackageJmods(Path a2Base) {
+	PackageJmods(Path a2Base) {
 		this.a2Base = a2Base;
 		this.a2LibBase = a2Base.resolve("lib");
 
@@ -31,7 +35,7 @@ public class PackageJmods {
 		this.javacTool = ToolProvider.findFirst("javac").orElseThrow();
 	}
 
-	public void processJmods() {
+	void processJmods() {
 		try {
 			try (DirectoryStream<Path> multiArchDirs = Files.newDirectoryStream(a2LibBase)) {
 				multiArchDirs: for (Path multiArchDir : multiArchDirs) {
@@ -46,7 +50,7 @@ public class PackageJmods {
 						jmodDirs: for (Path jmodDir : jmodDirs) {
 							String moduleName = jmodDir.getFileName().toString();
 							if (moduleName.indexOf('.') < 0)
-								continue jmodDirs;
+								continue jmodDirs; // skip Java version dirs
 							Path jmodJavaDir = jmodDir.resolve("java");
 							Files.createDirectories(jmodJavaDir);
 							Path jmodClassesDir = jmodDir.resolve("classes");
@@ -58,7 +62,9 @@ public class PackageJmods {
 									moduleInfoJava.toString());
 
 							Path jmodLibDir = jmodDir.resolve("lib");
-							Path jmodPath = jmodsDir.resolve(moduleName + ".jmod");
+							Path jmodsJavaVersionDir = jmodsDir.resolve(Integer.toString(Runtime.version().feature()));
+							Files.createDirectories(jmodsJavaVersionDir);
+							Path jmodPath = jmodsJavaVersionDir.resolve(moduleName + ".jmod");
 							if (Files.exists(jmodPath))
 								Files.delete(jmodPath);
 							jmodTool.run(System.out, System.err, "create", //

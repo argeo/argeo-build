@@ -26,9 +26,7 @@ import static org.argeo.build.Repackage.ManifestHeader.IMPORT_PACKAGE;
 import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_CAPABILITY;
 import static org.argeo.build.Repackage.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
 import static org.argeo.build.Repackage.SupportedArch.aarch64;
-import static org.argeo.build.Repackage.SupportedArch.armv7l;
 import static org.argeo.build.Repackage.SupportedArch.x86_64;
-import static org.argeo.build.Repackage.SupportedOS.freebsd;
 import static org.argeo.build.Repackage.SupportedOS.linux;
 import static org.argeo.build.Repackage.SupportedOS.macosx;
 import static org.argeo.build.Repackage.SupportedOS.win32;
@@ -111,6 +109,10 @@ public class Repackage {
 	 * notifies that the component has be repackaged.
 	 */
 	final static String README_REPACKAGED = "README.repackaged";
+	/**
+	 * Suffix of jmods containing only JNI libraries and no Java classes.
+	 */
+	final static String JMOD_JNI_SUFFIX = ".jni";
 
 	// cache
 	/** Summary of all license seen during the repackaging. */
@@ -145,12 +147,12 @@ public class Repackage {
 	// What should be modified or overridden in order to extend support
 	/** Supported processor architectures (Linux kernel conventions). */
 	enum SupportedArch {
-		x86_64, aarch64, armv7l
+		x86_64, aarch64
 	}
 
 	/** Supported operating systems. */
 	enum SupportedOS {
-		linux, win32, macosx, freebsd
+		linux, win32, macosx
 	}
 
 	protected Path processNativeEntry(JarEntry entry, A2Origin origin, NameVersion nameVersion, Path bundleDir)
@@ -175,8 +177,8 @@ public class Repackage {
 				} else if (nameVersion.getName().equals("com.sun.jna")) {
 					if (arch.equals(x86_64))
 						archToUse = "x86-64";
-					else if (arch.equals(armv7l))
-						archToUse = "arm";
+//					else if (arch.equals(armv7l))
+//						archToUse = "arm";
 					if (os.equals(macosx))
 						osToUse = "darwin";
 					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
@@ -184,8 +186,8 @@ public class Repackage {
 				} else if (nameVersion.getName().equals("com.jogamp")) {
 					if (arch.equals(x86_64))
 						archToUse = "amd64";
-					else if (arch.equals(SupportedArch.armv7l))
-						archToUse = "armv6hf";
+//					else if (arch.equals(SupportedArch.armv7l))
+//						archToUse = "armv6hf";
 					if (os.equals(macosx) && (arch.equals(x86_64) || arch.equals(aarch64)))
 						archToUse = "universal";
 					if (os.equals(win32))
@@ -193,9 +195,10 @@ public class Repackage {
 					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
 						copySharedLib = true;
 				} else if (nameVersion.getName().equals("org.jline")) {
-					if (arch.equals(armv7l))
-						archToUse = "armv7";
-					else if (arch.equals(aarch64))
+//					if (arch.equals(armv7l))
+//						archToUse = "armv7";
+//					else
+					if (arch.equals(aarch64))
 						archToUse = "arm64";
 					if (os.equals(linux))
 						osToUse = "Linux";
@@ -203,8 +206,8 @@ public class Repackage {
 						osToUse = "Windows";
 					else if (os.equals(macosx))
 						osToUse = "Mac";
-					else if (os.equals(freebsd))
-						osToUse = "FreeBSD";
+//					else if (os.equals(freebsd))
+//						osToUse = "FreeBSD";
 					if (target.getParent().getFileName().toString().equals(archToUse) //
 							&& target.getParent().getParent().getFileName().toString().equals(osToUse))
 						copySharedLib = true;
@@ -1287,9 +1290,9 @@ public class Repackage {
 						// prepare native jmods
 						String jmodName;
 						if (nameVersion.getName().startsWith("org.eclipse.swt"))
-							jmodName = "org.eclipse.swt.nativelibs";
+							jmodName = "org.eclipse.swt" + JMOD_JNI_SUFFIX;
 						else
-							jmodName = nameVersion.getName() + ".nativelibs";
+							jmodName = nameVersion.getName() + JMOD_JNI_SUFFIX;
 						Path jmodsLibsDir = a2LibBase.resolve(multiArchDirName).resolve("jmods").resolve(jmodName)
 								.resolve("lib");
 						Files.createDirectories(jmodsLibsDir);
