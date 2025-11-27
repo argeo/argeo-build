@@ -21,7 +21,7 @@ NATIVE_PACKAGES ?=
 # that is, an older version in /usr/local/share would have priority on a newer one in /usr/share.
 ECJ_JAR=$(firstword \
 	$(foreach base, $(A2_BASE), \
-		$(call reverse, $(sort $(wildcard $(base)/org.argeo.tp.build/org.eclipse.jdt.core.compiler.batch.$(ECJ_MAJOR).*.jar))) \
+		$(call reverse, $(sort $(filter-out %.src.jar, $(wildcard $(base)/org.argeo.tp.build/org.eclipse.jdt.core.compiler.batch.$(ECJ_MAJOR).*.jar)))) \
 	) \
 )
 

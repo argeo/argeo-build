@@ -26,9 +26,7 @@ import static org.argeo.build.Repackage.ManifestHeader.IMPORT_PACKAGE;
 import static org.argeo.build.Repackage.ManifestHeader.REQUIRE_CAPABILITY;
 import static org.argeo.build.Repackage.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
 import static org.argeo.build.Repackage.SupportedArch.aarch64;
-import static org.argeo.build.Repackage.SupportedArch.armv7l;
 import static org.argeo.build.Repackage.SupportedArch.x86_64;
-import static org.argeo.build.Repackage.SupportedOS.freebsd;
 import static org.argeo.build.Repackage.SupportedOS.linux;
 import static org.argeo.build.Repackage.SupportedOS.macosx;
 import static org.argeo.build.Repackage.SupportedOS.win32;
@@ -39,6 +37,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.lang.System.Logger;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -57,6 +56,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -87,15 +87,15 @@ public class Repackage {
 	 * integrated in the bundles.
 	 */
 	public final static String ENV_SOURCE_BUNDLES = "SOURCE_BUNDLES";
-	/** Environment variable on whether operations should be parallelised. */
+	/** Environment variable on whether operations should be parallelized. */
 	public final static String ENV_ARGEO_BUILD_SEQUENTIAL = "ARGEO_BUILD_SEQUENTIAL";
 
 	/** Whether repackaging should run in parallel (default) or sequentially. */
 	final static boolean sequential = Boolean.parseBoolean(System.getenv(ENV_ARGEO_BUILD_SEQUENTIAL));
 
-	/** Name of the file centralising information for multiple M2 artifacts. */
+	/** Name of the file centralizing information for multiple M2 artifacts. */
 	final static String COMMON_BND = "common.bnd";
-	/** Name of the file centralising information for mergin M2 artifacts. */
+	/** Name of the file centralizing information for merging M2 artifacts. */
 	final static String MERGE_BND = "merge.bnd";
 	/**
 	 * Subdirectory of the jar file where origin informations (changes, legal
@@ -109,10 +109,16 @@ public class Repackage {
 	 * notifies that the component has be repackaged.
 	 */
 	final static String README_REPACKAGED = "README.repackaged";
+	/**
+	 * Suffix of jmods containing only JNI libraries and no Java classes.
+	 */
+	final static String JMOD_JNI_SUFFIX = ".jni";
 
 	// cache
 	/** Summary of all license seen during the repackaging. */
 	final static Map<String, Set<String>> licensesUsed = new TreeMap<>();
+	/** Native libraries used per bundle dir name. */
+	final static Map<String, Set<Path>> nativeLibrariesUsed = new TreeMap<>();
 
 	/** Directory where to download archives */
 	final Path originBase;
@@ -141,12 +147,12 @@ public class Repackage {
 	// What should be modified or overridden in order to extend support
 	/** Supported processor architectures (Linux kernel conventions). */
 	enum SupportedArch {
-		x86_64, aarch64, armv7l
+		x86_64, aarch64
 	}
 
 	/** Supported operating systems. */
 	enum SupportedOS {
-		linux, win32, macosx, freebsd
+		linux, win32, macosx
 	}
 
 	protected Path processNativeEntry(JarEntry entry, A2Origin origin, NameVersion nameVersion, Path bundleDir)
@@ -158,7 +164,7 @@ public class Repackage {
 			os: for (SupportedOS os : SupportedOS.values()) {
 				String archToUse = arch.name();
 				String osToUse = os.name();
-				// TODO make compiler configurable
+				// TODO make C runtime configurable
 				multiArchDir = arch.name() + "-" + os.name();
 				if (os.equals(linux))
 					multiArchDir = multiArchDir + "-gnu";
@@ -171,8 +177,8 @@ public class Repackage {
 				} else if (nameVersion.getName().equals("com.sun.jna")) {
 					if (arch.equals(x86_64))
 						archToUse = "x86-64";
-					else if (arch.equals(armv7l))
-						archToUse = "arm";
+//					else if (arch.equals(armv7l))
+//						archToUse = "arm";
 					if (os.equals(macosx))
 						osToUse = "darwin";
 					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
@@ -180,8 +186,8 @@ public class Repackage {
 				} else if (nameVersion.getName().equals("com.jogamp")) {
 					if (arch.equals(x86_64))
 						archToUse = "amd64";
-					else if (arch.equals(SupportedArch.armv7l))
-						archToUse = "armv6hf";
+//					else if (arch.equals(SupportedArch.armv7l))
+//						archToUse = "armv6hf";
 					if (os.equals(macosx) && (arch.equals(x86_64) || arch.equals(aarch64)))
 						archToUse = "universal";
 					if (os.equals(win32))
@@ -189,9 +195,10 @@ public class Repackage {
 					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
 						copySharedLib = true;
 				} else if (nameVersion.getName().equals("org.jline")) {
-					if (arch.equals(armv7l))
-						archToUse = "armv7";
-					else if (arch.equals(aarch64))
+//					if (arch.equals(armv7l))
+//						archToUse = "armv7";
+//					else
+					if (arch.equals(aarch64))
 						archToUse = "arm64";
 					if (os.equals(linux))
 						osToUse = "Linux";
@@ -199,8 +206,8 @@ public class Repackage {
 						osToUse = "Windows";
 					else if (os.equals(macosx))
 						osToUse = "Mac";
-					else if (os.equals(freebsd))
-						osToUse = "FreeBSD";
+//					else if (os.equals(freebsd))
+//						osToUse = "FreeBSD";
 					if (target.getParent().getFileName().toString().equals(archToUse) //
 							&& target.getParent().getParent().getFileName().toString().equals(osToUse))
 						copySharedLib = true;
@@ -214,8 +221,10 @@ public class Repackage {
 
 		if (!copySharedLib)
 			return null;
-		Path categoryDir = bundleDir.startsWith(a2LibBase) ? bundleDir.getParent()
-				: a2LibBase.resolve(multiArchDir).resolve(a2Base.relativize(bundleDir.getParent()));
+		Path categoryDir = bundleDir.startsWith(a2LibBase.resolve(multiArchDir)) ? bundleDir.getParent() //
+				: bundleDir.startsWith(a2LibBase) ? //
+						a2LibBase.resolve(multiArchDir).resolve(a2LibBase.relativize(bundleDir.getParent())) //
+						: a2LibBase.resolve(multiArchDir).resolve(a2Base.relativize(bundleDir.getParent()));
 		Path targetSharedLibrary = categoryDir.resolve(target.getFileName());
 		logger.log(TRACE, () -> "Shared library " + targetSharedLibrary);
 		return targetSharedLibrary;
@@ -317,7 +326,7 @@ public class Repackage {
 		}
 	}
 
-	/** Constructor initialising the various variables. */
+	/** Constructor initializing the various variables. */
 	Repackage(Path a2Base, Path descriptorsBase) {
 		separateSources = Boolean.parseBoolean(System.getenv(ENV_SOURCE_BUNDLES));
 		if (separateSources)
@@ -394,7 +403,7 @@ public class Repackage {
 				}
 			}
 		} catch (IOException e) {
-			throw new RuntimeException("Cannot process category " + categoryRelativePath, e);
+			throw new UncheckedIOException("Cannot process category " + categoryRelativePath, e);
 		}
 	}
 
@@ -1257,16 +1266,41 @@ public class Repackage {
 					continue entries;
 				}
 
-				final Path target = isNativeLibrary(entry) ? processNativeEntry(entry, origin, nameVersion, bundleDir)
+				boolean isNativeLibrary = isNativeLibrary(entry);
+				final Path target = isNativeLibrary ? processNativeEntry(entry, origin, nameVersion, bundleDir)
 						: bundleDir.resolve(entry.getName());
 				if (target != null) {
 					Files.createDirectories(target.getParent());
 					Files.copy(jarIn, target, StandardCopyOption.REPLACE_EXISTING);
-					if (isNativeLibrary(entry)) {
+
+					// native
+					if (isNativeLibrary) {
 						Path multiArchDirName = a2LibBase.relativize(target).getName(0);
 						Path linkPath = a2LibBase.resolve(multiArchDirName).resolve(target.getFileName());
 						Files.deleteIfExists(linkPath);
-						Files.createSymbolicLink(linkPath, target);
+						Path relativeLink = linkPath.getParent().relativize(target);
+						Files.createSymbolicLink(linkPath, relativeLink);
+
+						// register, so that we know later where to symlink the jar
+						String bundleKey = bundleDir.getFileName().toString();
+						if (!nativeLibrariesUsed.containsKey(bundleKey))
+							nativeLibrariesUsed.put(bundleKey, new HashSet<Path>());
+						nativeLibrariesUsed.get(bundleKey).add(target.getParent());
+
+						// prepare native jmods
+						String jmodName;
+						if (nameVersion.getName().startsWith("org.eclipse.swt"))
+							jmodName = "org.eclipse.swt" + JMOD_JNI_SUFFIX;
+						else
+							jmodName = nameVersion.getName() + JMOD_JNI_SUFFIX;
+						Path jmodsLibsDir = a2LibBase.resolve(multiArchDirName).resolve("jmods").resolve(jmodName)
+								.resolve("lib");
+						Files.createDirectories(jmodsLibsDir);
+						Path jmodsLib = jmodsLibsDir.resolve(target.getFileName());
+						if (Files.exists(jmodsLib))
+							Files.delete(jmodsLib);
+						Files.copy(target, jmodsLib);
+
 					}
 					logger.log(TRACE, () -> "Copied " + target);
 				}
@@ -1487,7 +1521,7 @@ public class Repackage {
 	}
 
 	/**
-	 * Effectively download. Synchronised in order to avoid downloading twice in
+	 * Effectively download. Synchronized in order to avoid downloading twice in
 	 * parallel.
 	 */
 	synchronized Path download(URI uri, Path dir, String name) throws IOException {
@@ -1548,6 +1582,19 @@ public class Repackage {
 
 		if (separateSources)
 			createSourceJar(bundleDir, manifest, null);
+
+		// OS/arch dependent
+		String bundleKey = bundleDir.getFileName().toString();
+		if (nativeLibrariesUsed.containsKey(bundleKey)) {
+			nativeDirs: for (Path targetDir : nativeLibrariesUsed.get(bundleKey)) {
+				if (Files.isSameFile(targetDir, jarPath.getParent()))
+					continue nativeDirs; // jar is OS specific (e.g. SWT)
+				Path linkPath = targetDir.resolve(jarPath.getFileName());
+				Files.deleteIfExists(linkPath);
+				Path relativeLink = targetDir.relativize(jarPath);
+				Files.createSymbolicLink(linkPath, relativeLink);
+			}
+		}
 
 		return jarPath;
 	}
