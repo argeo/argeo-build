@@ -59,22 +59,50 @@ KNOWN_ARCHS ?= x86_64 aarch64 armv7l
 
 MSYS_VERSION := $(if $(findstring Msys, $(shell uname -o)),$(word 1, $(subst ., ,$(shell uname -r))),0)
 
-ifeq ($(MSYS_VERSION),0)	
+ifneq ($(OS),Windows_NT)
+file_sep=/
+file_path_sep=:
+
+# Linux
+ifeq ($(shell uname -s),Linux)
 TARGET_OS ?= linux
 TARGET_ARCH ?= $(shell uname -m)
 TARGET_LIBC ?= gnu
 shlib_prefix=lib
 shlib_suffix=.so
-file_sep=/
-file_path_sep=:
+endif
+
+# MacOS
+ifeq ($(shell uname -s),Darwin)
+TARGET_OS ?= macosx
+TARGET_LIBC ?= default
+shlib_prefix=lib
+shlib_suffix=.dylib
+ifeq ($(shell uname -m),arm64)
+HOST_ARCH = aarch64
 else
-TARGET_OS ?= win32
-TARGET_ARCH ?= $(shell uname -m)
+HOST_ARCH = x86_64
+endif
+TARGET_ARCH ?= $(HOST_ARCH)
+endif
+
+else
+# Windows
+HOST_OS ?= win32
+TARGET_OS ?= $(HOST_OS)
 TARGET_LIBC ?= default
 shlib_prefix=
 shlib_suffix=.dll
 file_sep=\\
 file_path_sep=;
+
+# TODO detect MinGW/MSYS with env variable MSYSTEM ?
+ifeq ($(MSYS_VERSION),0)
+# assume Intel
+TARGET_ARCH ?= x86_64
+else # MSYS
+TARGET_ARCH ?= $(shell uname -m)
+endif
 endif
 
 ifeq ("$(TARGET_ARCH)","aarch64")

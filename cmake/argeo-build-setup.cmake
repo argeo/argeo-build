@@ -118,6 +118,9 @@ endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 set(A2_TARGET_OS "macosx")
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+set(A2_TARGET_ARCH "aarch64")
+endif() # CMAKE_SYSTEM_PROCESSOR
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
