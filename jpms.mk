@@ -35,11 +35,16 @@ define a2_jmod_bare_module
 	 $(JMODS_BASE)/$(1)/java/module-info.java
 endef
 
+#
+# MINIMAL OS DEPENDENCIES
+#
+
 # Minimal required OS libs for distribution
 A2_OS_LIBS_CATEGORY=org.argeo.os.libs
 JMOD_OS_LIBS=$(A2_OS_LIBS_CATEGORY)
 
 ifeq ($(MSYS_VERSION),0)
+ifeq ($(HOST_OS),linux)
 A2_OS_LIBS=\
 /usr/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/ld-linux-x86-64.so.* \
 /usr/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/libc.so.* \
@@ -50,6 +55,7 @@ A2_OS_LIBS=\
 
 # TODO make it more robust
 A2_OS_LIBS_VERSION = $(shell gcc -dumpversion).0.0
+endif
 else
 UCRT_BASE ?= /ucrt64
 A2_OS_LIBS=\
@@ -63,7 +69,9 @@ endif
 
 a2-prepare-os-libs: a2-prepare-output
 	mkdir -p $(TARGET_NATIVE_OUTPUT)/$(A2_OS_LIBS_CATEGORY)
+ifneq ($(A2_OS_LIBS),)
 	cp $(A2_OS_LIBS) $(TARGET_NATIVE_OUTPUT)/$(A2_OS_LIBS_CATEGORY)
+endif
 ifeq ($(MSYS_VERSION),0)
 # No need to link on Linux
 else

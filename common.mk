@@ -136,8 +136,13 @@ endif
 ##
 # Install to a target directory without executable bit
 INSTALL=install -m644 -D --target-directory
-# Always try copy-on-write
+
+ifeq ($(HOST_OS),linux) # always try copy-on-write
 COPY=cp --reflink=auto
+else # MSYS, MacOS
+COPY=cp
+endif
+
 # Recursively delete directories
 RMDIR=$(RM) -r
 
