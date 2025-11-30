@@ -51,7 +51,7 @@ shlib_suffix=.so
 
 ifeq ($(TARGET_ARCH),aarch64)
 TARGET_DEB_ARCH=arm64
-JMOD_TARGET_PLATFORM = linux-arm64
+JMOD_TARGET_PLATFORM = linux-aarch64
 else # we only support two architectures
 TARGET_DEB_ARCH=amd64
 JMOD_TARGET_PLATFORM = linux-amd64
@@ -72,9 +72,10 @@ endif
 
 TARGET_ARCH ?= $(HOST_ARCH)
 ifeq ($(TARGET_ARCH),aarch64)
-JMOD_TARGET_PLATFORM = osx-arm64
+JMOD_TARGET_PLATFORM = macos-aarch64
 else
-JMOD_TARGET_PLATFORM = osx-amd64
+# TODO verify
+JMOD_TARGET_PLATFORM = macos-amd64
 endif
 
 endif
@@ -98,7 +99,8 @@ TARGET_ARCH ?= $(shell uname -m)
 endif
 
 ifeq ($(TARGET_ARCH),aarch64)
-JMOD_TARGET_PLATFORM = windows-arm64
+# TODO verify
+JMOD_TARGET_PLATFORM = windows-aarch64
 else
 JMOD_TARGET_PLATFORM = windows-amd64
 endif
