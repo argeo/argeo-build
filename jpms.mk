@@ -22,6 +22,10 @@ JLINK_JVM_VARIANT=hotspot
 endif
 endif
 JLINK_JAVA_RELEASE = $(firstword $(subst .,$(space),$(JLINK_JAVA_VERSION)))
+ifeq ($(JLINK_JAVA_RELEASE),)
+# FIXME make it work with Windows gmake
+JLINK_JAVA_RELEASE = 21
+endif
 
 JMODS_BASE=$(SDK_BUILD_BASE)/jmods
 
