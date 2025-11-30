@@ -43,10 +43,19 @@ file_path_sep=:
 # Linux
 ifeq ($(shell uname -s),Linux)
 TARGET_OS ?= linux
-TARGET_ARCH ?= $(shell uname -m)
+HOST_ARCH ?= $(shell uname -m)
+TARGET_ARCH ?= $(HOST_ARCH)
 TARGET_LIBC ?= gnu
 shlib_prefix=lib
 shlib_suffix=.so
+
+ifeq ($(TARGET_ARCH),aarch64)
+TARGET_DEB_ARCH=arm64
+JMOD_TARGET_PLATFORM = linux-arm64
+else # we only support two architectures
+TARGET_DEB_ARCH=amd64
+JMOD_TARGET_PLATFORM = linux-amd64
+endif
 endif
 
 # MacOS
@@ -60,7 +69,14 @@ HOST_ARCH = aarch64
 else
 HOST_ARCH = x86_64
 endif
+
 TARGET_ARCH ?= $(HOST_ARCH)
+ifeq ($(TARGET_ARCH),aarch64)
+JMOD_TARGET_PLATFORM = osx-arm64
+else
+JMOD_TARGET_PLATFORM = osx-amd64
+endif
+
 endif
 
 else
@@ -80,12 +96,12 @@ TARGET_ARCH ?= x86_64
 else # MSYS
 TARGET_ARCH ?= $(shell uname -m)
 endif
-endif
 
-ifeq ("$(TARGET_ARCH)","aarch64")
-TARGET_DEB_ARCH=arm64
-else # we only support two architectures
-TARGET_DEB_ARCH=amd64
+ifeq ($(TARGET_ARCH),aarch64)
+JMOD_TARGET_PLATFORM = windows-arm64
+else
+JMOD_TARGET_PLATFORM = windows-amd64
+endif
 endif
 
 LOCAL_NATIVE_CATEGORY_PREFIX=$(shell uname -m)-$(TARGET_OS)-$(TARGET_LIBC)
