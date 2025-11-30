@@ -60,7 +60,7 @@ endif
 
 # MacOS
 ifeq ($(shell uname -s),Darwin)
-TARGET_OS ?= macosx
+TARGET_OS ?= macos
 TARGET_LIBC ?= default
 shlib_prefix=lib
 shlib_suffix=.dylib

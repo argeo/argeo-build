@@ -28,7 +28,7 @@ import static org.argeo.build.Repackage.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
 import static org.argeo.build.Repackage.SupportedArch.aarch64;
 import static org.argeo.build.Repackage.SupportedArch.x86_64;
 import static org.argeo.build.Repackage.SupportedOS.linux;
-import static org.argeo.build.Repackage.SupportedOS.macosx;
+import static org.argeo.build.Repackage.SupportedOS.macos;
 import static org.argeo.build.Repackage.SupportedOS.win32;
 
 import java.io.BufferedWriter;
@@ -152,7 +152,7 @@ public class Repackage {
 
 	/** Supported operating systems. */
 	enum SupportedOS {
-		linux, win32, macosx
+		linux, win32, macos
 	}
 
 	protected Path processNativeEntry(JarEntry entry, A2Origin origin, NameVersion nameVersion, Path bundleDir)
@@ -171,24 +171,28 @@ public class Repackage {
 				else
 					multiArchDir = multiArchDir + "-default";
 
-				if (nameVersion.getName().startsWith("org.eclipse.swt")
-						&& nameVersion.getName().contains(os.name() + "." + arch.name())) {
-					copySharedLib = true;
+				if (nameVersion.getName().startsWith("org.eclipse.swt")) {
+					if (os.equals(macos))
+						osToUse = "macosx";
+					if (nameVersion.getName().contains(osToUse + "." + arch.name()))
+						copySharedLib = true;
 				} else if (nameVersion.getName().equals("com.sun.jna")) {
 					if (arch.equals(x86_64))
 						archToUse = "x86-64";
 //					else if (arch.equals(armv7l))
 //						archToUse = "arm";
-					if (os.equals(macosx))
+					if (os.equals(macos))
 						osToUse = "darwin";
 					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
 						copySharedLib = true;
 				} else if (nameVersion.getName().equals("com.jogamp")) {
+					if (os.equals(macos))
+						osToUse = "macosx";
 					if (arch.equals(x86_64))
 						archToUse = "amd64";
 //					else if (arch.equals(SupportedArch.armv7l))
 //						archToUse = "armv6hf";
-					if (os.equals(macosx) && (arch.equals(x86_64) || arch.equals(aarch64)))
+					if (os.equals(macos) && (arch.equals(x86_64) || arch.equals(aarch64)))
 						archToUse = "universal";
 					if (os.equals(win32))
 						osToUse = "windows";
@@ -204,7 +208,7 @@ public class Repackage {
 						osToUse = "Linux";
 					else if (os.equals(win32))
 						osToUse = "Windows";
-					else if (os.equals(macosx))
+					else if (os.equals(macos))
 						osToUse = "Mac";
 //					else if (os.equals(freebsd))
 //						osToUse = "FreeBSD";
