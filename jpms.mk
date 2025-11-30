@@ -7,7 +7,6 @@ include $(ARGEO_BUILD_BASE)common.mk
 JLINK_HOME ?= $(JAVA_HOME)
 JLINK_JMODS ?= $(JLINK_HOME)/jmods
 
-A2_JMODS=$(TARGET_NATIVE_OUTPUT)/jmods
 # Note: replacing $${MODULES// /,} is bash specific
 #JLINK_MODULES ?= $(shell . $(JLINK_HOME)/release && echo $${MODULES// /,})
 JLINK_MODULES ?= $(subst $(space),$(comma),$(shell . $(JLINK_HOME)/release && echo $$MODULES))
