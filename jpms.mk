@@ -9,12 +9,12 @@ JLINK_JMODS ?= $(JLINK_HOME)/jmods
 
 # Note: replacing $${MODULES// /,} is bash specific
 #JLINK_MODULES ?= $(shell . $(JLINK_HOME)/release && echo $${MODULES// /,})
-JLINK_MODULES ?= $(subst $(space),$(comma),$(shell . $(JLINK_HOME)/release && echo $$MODULES))
-JLINK_JAVA_VERSION = $(shell . $(JLINK_HOME)/release && echo $$JAVA_VERSION)
-ifeq ("$(shell . $(JLINK_HOME)/release && echo $$JVM_VARIANT)","Openj9")
+JLINK_MODULES ?= $(subst $(space),$(comma),$(shell . "$(JLINK_HOME)/release" && echo $$MODULES))
+JLINK_JAVA_VERSION = $(shell . "$(JLINK_HOME)/release" && echo $$JAVA_VERSION)
+ifeq ("$(shell . "$(JLINK_HOME)/release" && echo $$JVM_VARIANT)","Openj9")
 JLINK_JVM_VARIANT=openj9
 else
-ifneq ("$(shell . $(JLINK_HOME)/release && echo $$GRAALVM_VERSION)",)
+ifneq ("$(shell . "$(JLINK_HOME)/release" && echo $$GRAALVM_VERSION)",)
 JLINK_JVM_VARIANT=graalvm
 else
 JLINK_JVM_VARIANT=hotspot
