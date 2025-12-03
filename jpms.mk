@@ -129,7 +129,7 @@ define a2_jpackage_create_msi # (rtName,description,vendor,winUpgradeUuid)
 	"$(JLINK_HOME)/bin/jpackage" \
 	 --runtime-image "$(JDK_JJML_DIR)" \
 	 --type msi \
-	 --name "$(1)" \
+	 --name "$(1)-$(JLINK_JAVA_RELEASE)-$(JLINK_JVM_VARIANT)" \
 	 --app-version $(A2_LAYER_VERSION) \
 	 --dest "$(BUILD_BASE)" \
 	 --description "$(2)" \
@@ -149,7 +149,7 @@ define a2_jpackage_create_pkg # (rtName,description,vendor)
 	$(JLINK_HOME)/bin/jpackage \
 	 --runtime-image "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)" \
 	 --type pkg \
-	 --name "$(1)" \
+	 --name "$(1)-$(JLINK_JAVA_RELEASE)-$(JLINK_JVM_VARIANT)" \
 	 --app-version $(major).$(minor).$(micro) \
 	 --dest "$(BUILD_BASE)" \
 	 --description "$(2)" \
