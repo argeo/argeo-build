@@ -12,20 +12,22 @@ JLINK_RT_MODULES ?= java.base
 # Note: replacing $${MODULES// /,} is bash specific
 JLINK_JAVA_MODULES ?= $(subst $(space),$(comma),$(shell . "$(JLINK_HOME)/release" && echo $$MODULES))
 JLINK_JAVA_VERSION = $(shell . "$(JLINK_HOME)/release" && echo $$JAVA_VERSION)
-ifeq ("$(shell . "$(JLINK_HOME)/release" && echo $$IMPLEMENTOR)","Eclipse OpenJ9")
+
+# JVM variant
+ifeq ("$(shell . "$(JLINK_HOME)/release" && echo $$IMPLEMENTOR)","Eclipse OpenJ9") # Linux
 JLINK_JVM_VARIANT=openj9
-else
+endif
+ifeq ("$(shell . $(JLINK_HOME)/release && echo $$JVM_VARIANT)","Openj9") # Windows, MacOS
+JLINK_JVM_VARIANT=openj9
+endif
 ifneq ("$(shell . "$(JLINK_HOME)/release" && echo $$GRAALVM_VERSION)",)
 JLINK_JVM_VARIANT=graalvm
-else
-JLINK_JVM_VARIANT=hotspot
 endif
+ifeq ($(JLINK_JVM_VARIANT),)
+JLINK_JVM_VARIANT=hotspot # default
 endif
+
 JLINK_JAVA_RELEASE = $(firstword $(subst .,$(space),$(JLINK_JAVA_VERSION)))
-ifeq ($(JLINK_JAVA_RELEASE),)
-# FIXME make it work with Windows gmake
-JLINK_JAVA_RELEASE = 21
-endif
 
 #
 # JMOD CREATION
@@ -37,7 +39,7 @@ JLINK_SUFFIX = $(JLINK_JAVA_RELEASE)-$(JLINK_JVM_VARIANT)-$(TARGET_NATIVE_CATEGO
 
 define a2_jmod_bare_module # (moduleName)
 	echo "module $(1) {}" > $(JMODS_BASE)/$(1)/java/module-info.java
-	$(JLINK_HOME)/bin/javac --release $(JLINK_JAVA_RELEASE) -d $(JMODS_BASE)/$(1)/classes \
+	"$(JLINK_HOME)/bin/javac" --release $(JLINK_JAVA_RELEASE) -d $(JMODS_BASE)/$(1)/classes \
 	 $(JMODS_BASE)/$(1)/java/module-info.java
 endef
 
@@ -57,7 +59,7 @@ define a2_jmod_create # (bundle)
 	$(RM) $(JLINK_A2_JMODS)/$(1).jmod
 	mkdir -p $(JLINK_A2_JMODS)
 	
-	$(JLINK_HOME)/bin/jmod create \
+	"$(JLINK_HOME)/bin/jmod" create \
 	 --module-version $(A2_LAYER_VERSION) \
 	 --class-path $(A2_OUTPUT)/$(A2_CATEGORY)/$(1).$(major).$(minor).jar$(file_path_sep)$(JMODS_BASE)/$(1)/classes \
 	 --config $(JMODS_BASE)/$(1)/config \
@@ -70,7 +72,7 @@ define a2_jmod_create_native # (moduleName)
 	$(RM) $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
 	mkdir -p $(JLINK_A2_JMODS)
 	
-	$(JLINK_HOME)/bin/jmod create \
+	"$(JLINK_HOME)/bin/jmod" create \
 	 --class-path $(JMODS_BASE)/$(1)/classes \
 	 --target-platform $(JMOD_TARGET_PLATFORM) \
 	 --config $(JMODS_BASE)/$(1)/config \
@@ -82,7 +84,7 @@ define a2_jmod_create_native # (moduleName)
 	 $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
 	
 	# list content
-	$(JLINK_HOME)/bin/jmod list $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
+	"$(JLINK_HOME)/bin/jmod" list $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
 endef
 
 #
