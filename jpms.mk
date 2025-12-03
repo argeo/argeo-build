@@ -17,14 +17,14 @@ JLINK_JAVA_VERSION = $(shell . "$(JLINK_HOME)/release" && echo $$JAVA_VERSION)
 ifeq ("$(shell . "$(JLINK_HOME)/release" && echo $$IMPLEMENTOR)","Eclipse OpenJ9") # Linux
 JLINK_JVM_VARIANT=openj9
 endif
-ifeq ("$(shell . $(JLINK_HOME)/release && echo $$JVM_VARIANT)","Openj9") # Windows, MacOS
+ifeq ("$(shell . "$(JLINK_HOME)/release" && echo $$JVM_VARIANT)","Openj9") # Windows, MacOS
 JLINK_JVM_VARIANT=openj9
 endif
 ifneq ("$(shell . "$(JLINK_HOME)/release" && echo $$GRAALVM_VERSION)","")
 JLINK_JVM_VARIANT=graalvm
 endif
-ifeq ("$(JLINK_JVM_VARIANT)","")
-JLINK_JVM_VARIANT=hotspot # default
+ifeq ("$(JLINK_JVM_VARIANT)","") # default
+JLINK_JVM_VARIANT=hotspot
 endif
 
 JLINK_JAVA_RELEASE = $(firstword $(subst .,$(space),$(JLINK_JAVA_VERSION)))
