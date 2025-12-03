@@ -20,10 +20,10 @@ endif
 ifeq ("$(shell . $(JLINK_HOME)/release && echo $$JVM_VARIANT)","Openj9") # Windows, MacOS
 JLINK_JVM_VARIANT=openj9
 endif
-ifneq ("$(shell . "$(JLINK_HOME)/release" && echo $$GRAALVM_VERSION)",)
+ifneq ("$(shell . "$(JLINK_HOME)/release" && echo $$GRAALVM_VERSION)","")
 JLINK_JVM_VARIANT=graalvm
 endif
-ifeq ($(JLINK_JVM_VARIANT),)
+ifeq ("$(JLINK_JVM_VARIANT)","")
 JLINK_JVM_VARIANT=hotspot # default
 endif
 
@@ -65,7 +65,7 @@ define a2_jmod_create # (bundle)
 	 --config $(JMODS_BASE)/$(1)/config \
 	 --man-pages $(JMODS_BASE)/$(1)/man \
 	 --legal-notices $(JMODS_BASE)/$(1)/legal \
-	 $(JLINK_A2_JMODS)/$(1).jmod
+	 "$(JLINK_A2_JMODS)/$(1).jmod"
 endef
 
 define a2_jmod_create_native # (moduleName)
@@ -81,10 +81,10 @@ define a2_jmod_create_native # (moduleName)
 	 --libs $(JMODS_BASE)/$(1)/lib \
 	 --cmds $(JMODS_BASE)/$(1)/bin \
 	 --header-files $(JMODS_BASE)/$(1)/include \
-	 $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
+	 "$(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
 	
 	# list content
-	"$(JLINK_HOME)/bin/jmod" list $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
+	"$(JLINK_HOME)/bin/jmod" list "$(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
 endef
 
 #
