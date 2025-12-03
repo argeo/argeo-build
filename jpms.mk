@@ -127,7 +127,7 @@ endef
 #
 define a2_jpackage_create_msi # (rtName,description,vendor,winUpgradeUuid)	
 	"$(JLINK_HOME)/bin/jpackage" \
-	 --runtime-image "$(JDK_JJML_DIR)" \
+	 --runtime-image "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)" \
 	 --type msi \
 	 --name "$(1)-$(JLINK_JAVA_RELEASE)-$(JLINK_JVM_VARIANT)" \
 	 --app-version $(A2_LAYER_VERSION) \
@@ -140,7 +140,7 @@ define a2_jpackage_create_msi # (rtName,description,vendor,winUpgradeUuid)
 	 --win-upgrade-uuid $(4) \
 	 --install-dir "$(1)" \
 	
-	mv $(BUILD_BASE)/$(1)-$(A2_LAYER_VERSION).msi \
+	mv $(BUILD_BASE)/$(1)-$(JLINK_JAVA_RELEASE)-$(JLINK_JVM_VARIANT)-$(A2_LAYER_VERSION).msi \
 	 $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)-$(A2_LAYER_VERSION).msi
 endef
 
@@ -156,7 +156,7 @@ define a2_jpackage_create_pkg # (rtName,description,vendor)
 	 --vendor "$(3)" \
 	 --license-file "$(SDK_SRC_BASE)/NOTICE" \
 	
-	mv $(BUILD_BASE)/$(1)-$(major).$(minor).$(micro).pkg \
+	mv $(BUILD_BASE)/$(1)-$(JLINK_JAVA_RELEASE)-$(JLINK_JVM_VARIANT)-$(major).$(minor).$(micro).pkg \
 	 $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)-$(A2_LAYER_VERSION).pkg
 endef
 
