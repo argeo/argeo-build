@@ -61,10 +61,10 @@ define a2_jmod_create # (bundle)
 	
 	"$(JLINK_HOME)/bin/jmod" create \
 	 --module-version $(A2_LAYER_VERSION) \
-	 --class-path $(A2_OUTPUT)/$(A2_CATEGORY)/$(1).$(major).$(minor).jar$(file_path_sep)$(JMODS_BASE)/$(1)/classes \
-	 --config $(JMODS_BASE)/$(1)/config \
-	 --man-pages $(JMODS_BASE)/$(1)/man \
-	 --legal-notices $(JMODS_BASE)/$(1)/legal \
+	 --class-path "$(A2_OUTPUT)/$(A2_CATEGORY)/$(1).$(major).$(minor).jar$(file_path_sep)$(JMODS_BASE)/$(1)/classes" \
+	 --config "$(JMODS_BASE)/$(1)/config" \
+	 --man-pages "$(JMODS_BASE)/$(1)/man" \
+	 --legal-notices "$(JMODS_BASE)/$(1)/legal" \
 	 "$(JLINK_A2_JMODS)/$(1).jmod"
 endef
 
@@ -73,14 +73,14 @@ define a2_jmod_create_native # (moduleName)
 	mkdir -p $(JLINK_A2_JMODS)
 	
 	"$(JLINK_HOME)/bin/jmod" create \
-	 --class-path $(JMODS_BASE)/$(1)/classes \
-	 --target-platform $(JMOD_TARGET_PLATFORM) \
-	 --config $(JMODS_BASE)/$(1)/config \
-	 --man-pages $(JMODS_BASE)/$(1)/man \
-	 --legal-notices $(JMODS_BASE)/$(1)/legal \
-	 --libs $(JMODS_BASE)/$(1)/lib \
-	 --cmds $(JMODS_BASE)/$(1)/bin \
-	 --header-files $(JMODS_BASE)/$(1)/include \
+	 --class-path "$(JMODS_BASE)/$(1)/classes" \
+	 --target-platform "$(JMOD_TARGET_PLATFORM)" \
+	 --config "$(JMODS_BASE)/$(1)/config" \
+	 --man-pages "$(JMODS_BASE)/$(1)/man" \
+	 --legal-notices "$(JMODS_BASE)/$(1)/legal" \
+	 --libs "$(JMODS_BASE)/$(1)/lib" \
+	 --cmds "$(JMODS_BASE)/$(1)/bin" \
+	 --header-files "$(JMODS_BASE)/$(1)/include" \
 	 "$(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
 	
 	# list content
@@ -121,6 +121,49 @@ define a2_jlink_create_rt # (rtName)
 	 --add-modules $(JLINK_RT_MODULES),$(subst $(space),$(comma),$(MODULES) $(JLINK_NATIVE_JMODS)) \
 	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
 endef
+
+#
+# OS PACKAGES
+#
+define a2_jpackage_create_msi # (rtName,description,vendor,winUpgradeUuid)	
+	"$(JLINK_HOME)/bin/jpackage" \
+	 --runtime-image "$(JDK_JJML_DIR)" \
+	 --type msi \
+	 --name "$(1)" \
+	 --app-version $(A2_LAYER_VERSION) \
+	 --dest "$(BUILD_BASE)" \
+	 --description "$(2)" \
+	 --vendor "$(3)" \
+	 --license-file "$(SDK_SRC_BASE)/NOTICE" \
+	 --win-dir-chooser \
+	 --win-per-user-install \
+	 --win-upgrade-uuid $(4) \
+	 --install-dir "$(1)" \
+	
+	mv $(BUILD_BASE)/$(1)-$(A2_LAYER_VERSION).msi \
+	 $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)-$(A2_LAYER_VERSION).msi
+endef
+
+define a2_jpackage_create_pkg # (rtName,description,vendor)	
+# .pkg format does not support versions with more than 3 components
+	$(JLINK_HOME)/bin/jpackage \
+	 --runtime-image "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)" \
+	 --type pkg \
+	 --name "$(1)" \
+	 --app-version $(major).$(minor).$(micro) \
+	 --dest "$(BUILD_BASE)" \
+	 --description "$(2)" \
+	 --vendor "$(3)" \
+	 --license-file "$(SDK_SRC_BASE)/NOTICE" \
+	
+	mv $(BUILD_BASE)/$(1)-$(major).$(minor).$(micro).pkg \
+	 $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)-$(A2_LAYER_VERSION).pkg
+endef
+
+define a2_jpackage_install_pkg # (rtName)	
+	sudo installer -store -pkg "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)-$(A2_LAYER_VERSION).pkg" -target /
+endef
+
 #
 # MINIMAL OS DEPENDENCIES
 #
