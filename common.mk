@@ -177,8 +177,8 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # Make variables used to replace spaces by a separator, typically in order to generate classpaths
 # for example: CLASSPATH = $(subst $(space),$(pathsep),$(strip $(JARS)))
 null  :=
-space := $(null) #
-comma:= ,
+space := $(null) $(null)
+comma := ,
 pathsep := :
 define LF
 

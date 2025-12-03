@@ -4,14 +4,15 @@ include $(ARGEO_BUILD_BASE)common.mk
 # The following variables have default values which can be overriden
 # JLINK_HOME        the Java runtime providing the jmod and jlink tools
 # JLINK_JMODS       the directory where to find the Java jmods
+# JLINK_RT_MODULES  minimal set of modules when creating a runtime
 JLINK_HOME ?= $(JAVA_HOME)
 JLINK_JMODS ?= $(JLINK_HOME)/jmods
+JLINK_RT_MODULES ?= java.base
 
 # Note: replacing $${MODULES// /,} is bash specific
-#JLINK_MODULES ?= $(shell . $(JLINK_HOME)/release && echo $${MODULES// /,})
-JLINK_MODULES ?= $(subst $(space),$(comma),$(shell . "$(JLINK_HOME)/release" && echo $$MODULES))
+JLINK_JAVA_MODULES ?= $(subst $(space),$(comma),$(shell . "$(JLINK_HOME)/release" && echo $$MODULES))
 JLINK_JAVA_VERSION = $(shell . "$(JLINK_HOME)/release" && echo $$JAVA_VERSION)
-ifeq ("$(shell . "$(JLINK_HOME)/release" && echo $$JVM_VARIANT)","Openj9")
+ifeq ("$(shell . "$(JLINK_HOME)/release" && echo $$IMPLEMENTOR)","Eclipse OpenJ9")
 JLINK_JVM_VARIANT=openj9
 else
 ifneq ("$(shell . "$(JLINK_HOME)/release" && echo $$GRAALVM_VERSION)",)
@@ -26,18 +27,98 @@ ifeq ($(JLINK_JAVA_RELEASE),)
 JLINK_JAVA_RELEASE = 21
 endif
 
+#
+# JMOD CREATION
+#
+JLINK_A2_JMODS=$(A2_JMODS)/$(JLINK_JAVA_RELEASE)
 JMODS_BASE=$(SDK_BUILD_BASE)/jmods
 
-define a2_jmod_bare_module
-	$(RM) -r $(JMODS_BASE)/$(1)/java
-	$(RM) -r $(JMODS_BASE)/$(1)/classes
-	mkdir -p $(JMODS_BASE)/$(1)/java
-	mkdir -p $(JMODS_BASE)/$(1)/classes
+JLINK_SUFFIX = $(JLINK_JAVA_RELEASE)-$(JLINK_JVM_VARIANT)-$(TARGET_NATIVE_CATEGORY_PREFIX)
+
+define a2_jmod_bare_module # (moduleName)
 	echo "module $(1) {}" > $(JMODS_BASE)/$(1)/java/module-info.java
-	$(JLINK_HOME)/bin/javac --release 11 -d $(JMODS_BASE)/$(1)/classes \
+	$(JLINK_HOME)/bin/javac --release $(JLINK_JAVA_RELEASE) -d $(JMODS_BASE)/$(1)/classes \
 	 $(JMODS_BASE)/$(1)/java/module-info.java
 endef
 
+define a2_jmod_prepare_output # (moduleName)
+	@$(RM) -r $(JMODS_BASE)/$(1)
+	@mkdir -p $(JMODS_BASE)/$(1)/java
+	@mkdir -p $(JMODS_BASE)/$(1)/classes
+	@mkdir -p $(JMODS_BASE)/$(1)/config
+	@mkdir -p $(JMODS_BASE)/$(1)/legal
+	@mkdir -p $(JMODS_BASE)/$(1)/man
+	@mkdir -p $(JMODS_BASE)/$(1)/bin
+	@mkdir -p $(JMODS_BASE)/$(1)/lib
+	@mkdir -p $(JMODS_BASE)/$(1)/include
+endef
+
+define a2_jmod_create # (bundle)
+	$(RM) $(JLINK_A2_JMODS)/$(1).jmod
+	mkdir -p $(JLINK_A2_JMODS)
+	
+	$(JLINK_HOME)/bin/jmod create \
+	 --module-version $(A2_LAYER_VERSION) \
+	 --class-path $(A2_OUTPUT)/$(A2_CATEGORY)/$(1).$(major).$(minor).jar$(file_path_sep)$(JMODS_BASE)/$(1)/classes \
+	 --config $(JMODS_BASE)/$(1)/config \
+	 --man-pages $(JMODS_BASE)/$(1)/man \
+	 --legal-notices $(JMODS_BASE)/$(1)/legal \
+	 $(JLINK_A2_JMODS)/$(1).jmod
+endef
+
+define a2_jmod_create_native # (moduleName)
+	$(RM) $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
+	mkdir -p $(JLINK_A2_JMODS)
+	
+	$(JLINK_HOME)/bin/jmod create \
+	 --class-path $(JMODS_BASE)/$(1)/classes \
+	 --target-platform $(JMOD_TARGET_PLATFORM) \
+	 --config $(JMODS_BASE)/$(1)/config \
+	 --man-pages $(JMODS_BASE)/$(1)/man \
+	 --legal-notices $(JMODS_BASE)/$(1)/legal \
+	 --libs $(JMODS_BASE)/$(1)/lib \
+	 --cmds $(JMODS_BASE)/$(1)/bin \
+	 --header-files $(JMODS_BASE)/$(1)/include \
+	 $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
+	
+	# list content
+	$(JLINK_HOME)/bin/jmod list $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
+endef
+
+#
+# JDK/JRE CREATION
+#
+define a2_jlink_create_jdk # (jdkName)	
+	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
+	"$(JLINK_HOME)/bin/jlink" \
+	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)" \
+	 --add-modules $(JLINK_RT_MODULES),$(JLINK_JAVA_MODULES),$(subst $(space),$(comma),$(MODULES) $(JLINK_NATIVE_JMODS)) \
+	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
+	
+	cp $(JLINK_HOME)/lib/src.zip $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib
+	
+	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src
+	$(foreach module,$(MODULES),cp -r $(module)/src $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src/$(module))
+	"$(JLINK_HOME)/bin/jar" -u -f $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/src.zip \
+	 -C $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src $(MODULES)
+	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src
+	
+	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods
+	$(foreach module,$(MODULES) $(JLINK_NATIVE_JMODS),\
+	 $(COPY) $(JLINK_A2_JMODS)/*$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
+	)
+
+	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
+	$(COPY) -v $(A2_OUTPUT)/$(A2_CATEGORY)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
+endef
+
+define a2_jlink_create_rt # (rtName)	
+	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
+	"$(JLINK_HOME)/bin/jlink" \
+	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)" \
+	 --add-modules $(JLINK_RT_MODULES),$(subst $(space),$(comma),$(MODULES) $(JLINK_NATIVE_JMODS)) \
+	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
+endef
 #
 # MINIMAL OS DEPENDENCIES
 #
