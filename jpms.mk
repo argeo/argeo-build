@@ -73,7 +73,7 @@ define a2_jmod_create # (bundle)
 endef
 
 define a2_jmod_create_native # (moduleName,moduleVersion)
-	$(RM) $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
+	$(RM) $(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
 	mkdir -p $(JLINK_A2_JMODS_NATIVE)
 	
 	"$(JLINK_HOME)/bin/jmod" create \
@@ -89,7 +89,7 @@ define a2_jmod_create_native # (moduleName,moduleVersion)
 	 "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
 	
 	# list content
-	"$(JLINK_HOME)/bin/jmod" list "$(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
+	"$(JLINK_HOME)/bin/jmod" list "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
 endef
 
 #
@@ -111,8 +111,11 @@ define a2_jlink_create_jdk # (jdkName)
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src
 	
 	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods
-	$(foreach module,$(MODULES) $(JLINK_NATIVE_JMODS),\
+	$(foreach module,$(MODULES),\
 	 $(COPY) $(JLINK_A2_JMODS)/*$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
+	)
+	$(foreach module,$(JLINK_NATIVE_JMODS),\
+	 $(COPY) $(JLINK_A2_JMODS_NATIVE)/*$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	)
 
 	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
