@@ -96,7 +96,7 @@ TARGET_ARCH ?= x86_64
 TARGET_OS_LIBS ?= std
 else # MSYS
 TARGET_ARCH ?= $(shell uname -m)
-TARGET_OS_LIBS ?= gnu
+TARGET_OS_LIBS ?= std
 endif
 
 ifeq ($(TARGET_ARCH),aarch64)
