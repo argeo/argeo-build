@@ -1297,13 +1297,20 @@ public class Repackage {
 							jmodName = "org.eclipse.swt" + JMOD_JNI_SUFFIX;
 						else
 							jmodName = nameVersion.getName() + JMOD_JNI_SUFFIX;
-						Path jmodsLibsDir = a2LibBase.resolve(multiArchDirName).resolve("jmods").resolve(jmodName)
-								.resolve("lib");
-						Files.createDirectories(jmodsLibsDir);
-						Path jmodsLib = jmodsLibsDir.resolve(target.getFileName());
-						if (Files.exists(jmodsLib))
-							Files.delete(jmodsLib);
-						Files.copy(target, jmodsLib);
+
+						Path jmodDir = a2LibBase.resolve(multiArchDirName).resolve("jmods").resolve(jmodName);
+						;
+						Path jmodLibDir = jmodDir.resolve("lib");
+						Files.createDirectories(jmodLibDir);
+
+						// Write version
+						// TODO merge OSGi and JMOD packaging
+						Files.writeString(jmodDir.resolve("VERSION.txt"), nameVersion.getVersion());
+						// copy shared library
+						Path jmodLib = jmodLibDir.resolve(target.getFileName());
+						if (Files.exists(jmodLib))
+							Files.delete(jmodLib);
+						Files.copy(target, jmodLib);
 
 					}
 					logger.log(TRACE, () -> "Copied " + target);

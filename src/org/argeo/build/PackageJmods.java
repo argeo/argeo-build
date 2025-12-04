@@ -62,12 +62,15 @@ public class PackageJmods {
 									moduleInfoJava.toString());
 
 							Path jmodLibDir = jmodDir.resolve("lib");
-							Path jmodsJavaVersionDir = jmodsDir.resolve(Integer.toString(Runtime.version().feature()));
+							int javaVersion = Runtime.version().feature();
+							String jmodVersion = Files.readString(jmodDir.resolve("VERSION.txt"));
+							Path jmodsJavaVersionDir = jmodsDir.resolve(Integer.toString(javaVersion));
 							Files.createDirectories(jmodsJavaVersionDir);
-							Path jmodPath = jmodsJavaVersionDir.resolve(moduleName + ".jmod");
+							Path jmodPath = jmodsJavaVersionDir.resolve(multiArchDir + "-" + moduleName + ".jmod");
 							if (Files.exists(jmodPath))
 								Files.delete(jmodPath);
 							jmodTool.run(System.out, System.err, "create", //
+									"--module-version", jmodVersion, //
 									"--class-path", jmodClassesDir.toString(), //
 									"--libs", jmodLibDir.toString(), //
 									jmodPath.toString());
