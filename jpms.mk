@@ -33,7 +33,10 @@ JLINK_JAVA_RELEASE = $(firstword $(subst .,$(space),$(JLINK_JAVA_VERSION)))
 # JMOD CREATION
 #
 A2_JMODS=$(A2_OUTPUT)/jmods
+A2_JMODS_NATIVE=$(TARGET_NATIVE_OUTPUT)/jmods
+
 JLINK_A2_JMODS=$(A2_JMODS)/$(JLINK_JAVA_RELEASE)
+JLINK_A2_JMODS_NATIVE=$(A2_JMODS_NATIVE)/$(JLINK_JAVA_RELEASE)
 JMODS_BASE=$(SDK_BUILD_BASE)/jmods
 
 JLINK_SUFFIX = $(JLINK_JAVA_RELEASE)-$(JLINK_JVM_VARIANT)-$(TARGET_NATIVE_CATEGORY_PREFIX)
@@ -71,7 +74,7 @@ endef
 
 define a2_jmod_create_native # (moduleName,moduleVersion)
 	$(RM) $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
-	mkdir -p $(JLINK_A2_JMODS)
+	mkdir -p $(JLINK_A2_JMODS_NATIVE)
 	
 	"$(JLINK_HOME)/bin/jmod" create \
 	 --module-version $(2) \
@@ -83,7 +86,7 @@ define a2_jmod_create_native # (moduleName,moduleVersion)
 	 --libs "$(JMODS_BASE)/$(1)/lib" \
 	 --cmds "$(JMODS_BASE)/$(1)/bin" \
 	 --header-files "$(JMODS_BASE)/$(1)/include" \
-	 "$(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
+	 "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
 	
 	# list content
 	"$(JLINK_HOME)/bin/jmod" list "$(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
@@ -95,7 +98,7 @@ endef
 define a2_jlink_create_jdk # (jdkName)	
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
 	"$(JLINK_HOME)/bin/jlink" \
-	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)" \
+	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)$(file_path_sep)$(JLINK_A2_JMODS_NATIVE)" \
 	 --add-modules $(JLINK_RT_MODULES),$(JLINK_JAVA_MODULES),$(subst $(space),$(comma),$(MODULES) $(JLINK_NATIVE_JMODS)) \
 	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
 	

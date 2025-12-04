@@ -19,7 +19,7 @@ import java.util.spi.ToolProvider;
  * to create custom Java runtimes with jlink.
  */
 public class PackageJmods {
-	/** A2 repository base for binary bundles */
+	/** A2 repository base. */
 	final Path a2Base;
 
 	private final ToolProvider jmodTool;
@@ -34,10 +34,9 @@ public class PackageJmods {
 
 	void processJmods() {
 		try {
-			Path jmodsDir = a2Base.resolve("jmods");
 			int javaVersion = Runtime.version().feature();
-			Path jmodsJavaVersionDir = jmodsDir.resolve(Integer.toString(javaVersion));
-			Files.createDirectories(jmodsJavaVersionDir);
+			Path jmodsDir = a2Base.resolve("jmods").resolve(Integer.toString(javaVersion));
+			Files.createDirectories(jmodsDir);
 			try (DirectoryStream<Path> multiArchDirs = Files.newDirectoryStream(a2Base.resolve("lib"),
 					(p) -> Files.isDirectory(p))) {
 				multiArchDirs: for (Path multiArchDir : multiArchDirs) {
@@ -47,6 +46,8 @@ public class PackageJmods {
 					Path jmodBuildDir = multiArchDir.resolve("jmods");
 					if (!Files.exists(jmodBuildDir))
 						continue multiArchDirs;
+					Path jmodsDirNative = multiArchDir.resolve("jmods").resolve(Integer.toString(javaVersion));
+					Files.createDirectories(jmodsDirNative);
 					try (DirectoryStream<Path> jmodDirs = Files.newDirectoryStream(jmodBuildDir,
 							(p) -> Files.isDirectory(p))) {
 						jmodDirs: for (Path jmodDir : jmodDirs) {
@@ -65,7 +66,7 @@ public class PackageJmods {
 
 							Path jmodLibDir = jmodDir.resolve("lib");
 							String jmodVersion = Files.readString(jmodDir.resolve("VERSION.txt"));
-							Path jmodPath = jmodsJavaVersionDir.resolve(multiArchDirName + "-" + moduleName + ".jmod");
+							Path jmodPath = jmodsDirNative.resolve(multiArchDirName + "-" + moduleName + ".jmod");
 							if (Files.exists(jmodPath))
 								Files.delete(jmodPath);
 							jmodTool.run(System.out, System.err, "create", //
