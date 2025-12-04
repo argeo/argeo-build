@@ -32,6 +32,7 @@ JLINK_JAVA_RELEASE = $(firstword $(subst .,$(space),$(JLINK_JAVA_VERSION)))
 #
 # JMOD CREATION
 #
+A2_JMODS=$(A2_OUTPUT)/jmods
 JLINK_A2_JMODS=$(A2_JMODS)/$(JLINK_JAVA_RELEASE)
 JMODS_BASE=$(SDK_BUILD_BASE)/jmods
 
@@ -68,11 +69,12 @@ define a2_jmod_create # (bundle)
 	 "$(JLINK_A2_JMODS)/$(1).jmod"
 endef
 
-define a2_jmod_create_native # (moduleName)
+define a2_jmod_create_native # (moduleName,moduleVersion)
 	$(RM) $(JLINK_A2_JMODS)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
 	mkdir -p $(JLINK_A2_JMODS)
 	
 	"$(JLINK_HOME)/bin/jmod" create \
+	 --module-version $(2) \
 	 --class-path "$(JMODS_BASE)/$(1)/classes" \
 	 --target-platform "$(JMOD_TARGET_PLATFORM)" \
 	 --config "$(JMODS_BASE)/$(1)/config" \
