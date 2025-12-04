@@ -45,7 +45,7 @@ ifeq ($(shell uname -s),Linux)
 TARGET_OS ?= linux
 HOST_ARCH ?= $(shell uname -m)
 TARGET_ARCH ?= $(HOST_ARCH)
-TARGET_LIBC ?= gnu
+TARGET_OS_LIBS ?= gnu
 shlib_prefix=lib
 shlib_suffix=.so
 
@@ -61,7 +61,7 @@ endif
 # MacOS
 ifeq ($(shell uname -s),Darwin)
 TARGET_OS ?= macos
-TARGET_LIBC ?= default
+TARGET_OS_LIBS ?= std
 shlib_prefix=lib
 shlib_suffix=.dylib
 ifeq ($(shell uname -m),arm64)
@@ -82,9 +82,8 @@ endif
 
 else
 # Windows
-HOST_OS ?= win32
+HOST_OS ?= windows
 TARGET_OS ?= $(HOST_OS)
-TARGET_LIBC ?= default
 shlib_prefix=
 shlib_suffix=.dll
 file_sep=\\
@@ -94,8 +93,10 @@ file_path_sep=;
 ifeq ($(MSYS_VERSION),0)
 # assume Intel
 TARGET_ARCH ?= x86_64
+TARGET_OS_LIBS ?= std
 else # MSYS
 TARGET_ARCH ?= $(shell uname -m)
+TARGET_OS_LIBS ?= gnu
 endif
 
 ifeq ($(TARGET_ARCH),aarch64)
@@ -106,9 +107,9 @@ JMOD_TARGET_PLATFORM = windows-amd64
 endif
 endif
 
-LOCAL_NATIVE_CATEGORY_PREFIX=$(shell uname -m)-$(TARGET_OS)-$(TARGET_LIBC)
+LOCAL_NATIVE_CATEGORY_PREFIX=$(shell uname -m)-$(TARGET_OS)-$(TARGET_OS_LIBS)
 
-TARGET_NATIVE_CATEGORY_PREFIX=$(TARGET_ARCH)-$(TARGET_OS)-$(TARGET_LIBC)
+TARGET_NATIVE_CATEGORY_PREFIX=$(TARGET_ARCH)-$(TARGET_OS)-$(TARGET_OS_LIBS)
 
 A2_NATIVE_OUTPUT=$(A2_OUTPUT)/lib
 TARGET_NATIVE_OUTPUT=$(A2_NATIVE_OUTPUT)/$(TARGET_NATIVE_CATEGORY_PREFIX)

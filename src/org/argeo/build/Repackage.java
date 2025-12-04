@@ -29,7 +29,7 @@ import static org.argeo.build.Repackage.SupportedArch.aarch64;
 import static org.argeo.build.Repackage.SupportedArch.x86_64;
 import static org.argeo.build.Repackage.SupportedOS.linux;
 import static org.argeo.build.Repackage.SupportedOS.macos;
-import static org.argeo.build.Repackage.SupportedOS.win32;
+import static org.argeo.build.Repackage.SupportedOS.windows;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -152,7 +152,7 @@ public class Repackage {
 
 	/** Supported operating systems. */
 	enum SupportedOS {
-		linux, win32, macos
+		linux, windows, macos
 	}
 
 	protected Path processNativeEntry(JarEntry entry, A2Origin origin, NameVersion nameVersion, Path bundleDir)
@@ -169,11 +169,13 @@ public class Repackage {
 				if (os.equals(linux))
 					multiArchDir = multiArchDir + "-gnu";
 				else
-					multiArchDir = multiArchDir + "-default";
+					multiArchDir = multiArchDir + "-std";
 
 				if (nameVersion.getName().startsWith("org.eclipse.swt")) {
 					if (os.equals(macos))
 						osToUse = "macosx";
+					if (os.equals(windows))
+						osToUse = "win32";
 					if (nameVersion.getName().contains(osToUse + "." + arch.name()))
 						copySharedLib = true;
 				} else if (nameVersion.getName().equals("com.sun.jna")) {
@@ -183,6 +185,8 @@ public class Repackage {
 //						archToUse = "arm";
 					if (os.equals(macos))
 						osToUse = "darwin";
+					if (os.equals(windows))
+						osToUse = "win32";
 					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
 						copySharedLib = true;
 				} else if (nameVersion.getName().equals("com.jogamp")) {
@@ -194,7 +198,7 @@ public class Repackage {
 //						archToUse = "armv6hf";
 					if (os.equals(macos) && (arch.equals(x86_64) || arch.equals(aarch64)))
 						archToUse = "universal";
-					if (os.equals(win32))
+					if (os.equals(windows))
 						osToUse = "windows";
 					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
 						copySharedLib = true;
@@ -206,7 +210,7 @@ public class Repackage {
 						archToUse = "arm64";
 					if (os.equals(linux))
 						osToUse = "Linux";
-					else if (os.equals(win32))
+					else if (os.equals(windows))
 						osToUse = "Windows";
 					else if (os.equals(macos))
 						osToUse = "Mac";

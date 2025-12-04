@@ -113,7 +113,7 @@ include(GNUInstallDirs)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 set(A2_TARGET_OS "linux")
 set(A2_TARGET_ARCH ${CMAKE_SYSTEM_PROCESSOR})
-set(A2_TARGET_CLIB "gnu")
+set(A2_TARGET_OS_LIBS "gnu")
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -124,7 +124,7 @@ endif() # CMAKE_SYSTEM_PROCESSOR
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-set(A2_TARGET_OS "win32")
+set(A2_TARGET_OS "windows")
 if(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
 set(A2_TARGET_ARCH "x86_64")
 endif() # CMAKE_SYSTEM_PROCESSOR
@@ -132,6 +132,7 @@ endif() # CMAKE_SYSTEM_NAME
 
 if(MINGW)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
+set(A2_TARGET_OS_LIBS "gnu")
 endif()
 
 # defaults
@@ -141,6 +142,6 @@ endif()
 if(NOT A2_TARGET_ARCH)
 set(A2_TARGET_ARCH ${CMAKE_SYSTEM_PROCESSOR})
 endif()
-if(NOT A2_TARGET_CLIB)
-set(A2_TARGET_CLIB "default")
+if(NOT A2_TARGET_OS_LIBS)
+set(A2_TARGET_OS_LIBS "std")
 endif()
