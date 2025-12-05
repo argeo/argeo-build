@@ -98,35 +98,43 @@ endef
 define a2_jlink_create_jdk # (jdkName)	
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
 	"$(JLINK_HOME)/bin/jlink" \
+	 --compress zip-6 \
 	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)$(file_path_sep)$(JLINK_A2_JMODS_NATIVE)" \
-	 --add-modules $(JLINK_RT_MODULES),$(JLINK_JAVA_MODULES),$(subst $(space),$(comma),$(MODULES) $(JLINK_NATIVE_JMODS)) \
+	 --add-modules $(JLINK_JAVA_MODULES),$(subst $(space),$(comma),$(strip $(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS))) \
 	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
 	
 	cp $(JLINK_HOME)/lib/src.zip $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib
 	
 	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src
 	$(foreach module,$(MODULES),cp -r $(module)/src $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src/$(module))
-	"$(JLINK_HOME)/bin/jar" -u -f $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/src.zip \
+# Expectedly fail if no modules
+	-"$(JLINK_HOME)/bin/jar" -u -f $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/src.zip \
 	 -C $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src $(MODULES)
+	# TODO deal with sources of modules coming from other projects
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src
 	
 	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods
 	$(foreach module,$(MODULES),\
 	 $(COPY) $(JLINK_A2_JMODS)/*$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	)
+	$(foreach module,$(JLINK_RT_MODULES),\
+# Only copy thos availables
+	 -$(COPY) $(JLINK_A2_JMODS)/*$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
+	)
 	$(foreach module,$(JLINK_NATIVE_JMODS),\
 	 $(COPY) $(JLINK_A2_JMODS_NATIVE)/*$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	)
 
 	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
-	$(COPY) -v $(A2_OUTPUT)/$(A2_CATEGORY)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
+	-$(COPY) -v $(A2_OUTPUT)/$(A2_CATEGORY)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
 endef
 
 define a2_jlink_create_rt # (rtName)	
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
 	"$(JLINK_HOME)/bin/jlink" \
-	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)" \
-	 --add-modules $(JLINK_RT_MODULES),$(subst $(space),$(comma),$(MODULES) $(JLINK_NATIVE_JMODS)) \
+	 --strip-debug --compress zip-6 \
+	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)$(file_path_sep)$(JLINK_A2_JMODS_NATIVE)" \
+	 --add-modules $(subst $(space),$(comma),$(strip $(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS))) \
 	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
 endef
 
