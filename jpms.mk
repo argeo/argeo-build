@@ -171,3 +171,12 @@ endef
 define a2_jpackage_install_pkg # (rtName)	
 	sudo installer -store -pkg "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)-$(A2_LAYER_VERSION).pkg" -target /
 endef
+
+##
+## TARGETS
+##
+jmods:
+	$(JLINK_HOME)/bin/java $(ARGEO_BUILD_BASE)/src/org/argeo/build/PackageJmods.java \
+	 $(A2_OUTPUT)
+# FIXME prepare jmods in output
+	$(RM) -r $(SDK_BUILD_BASE)/a2/lib/*/jmods/*.*
