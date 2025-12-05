@@ -145,7 +145,7 @@ endef
 define a2_jlink_create_rt # (rtName, modules, a2 categories)	
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
 	"$(JLINK_HOME)/bin/jlink" \
-	 --strip-debug --compress zip-6 \
+	 --compress zip-6 \
 	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)$(file_path_sep)$(JLINK_A2_JMODS_NATIVE)" \
 	 --add-modules $(subst $(space),$(comma),$(strip $(2))) \
 	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
