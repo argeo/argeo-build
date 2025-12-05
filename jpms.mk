@@ -95,7 +95,7 @@ endef
 #
 # JDK/JRE CREATION
 #
-define a2_jlink_create_jdk # (jdkName)	
+define a2_jlink_create_jdk # (jdkName, a2 categories)	
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
 	"$(JLINK_HOME)/bin/jlink" \
 	 --compress zip-6 \
@@ -117,27 +117,79 @@ define a2_jlink_create_jdk # (jdkName)
 	$(foreach module,$(MODULES),\
 	 $(COPY) $(JLINK_A2_JMODS)/*$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	)
-	$(foreach module,$(JLINK_RT_MODULES),\
-# Only copy thos availables
-	 -$(COPY) $(JLINK_A2_JMODS)/*$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
+# Only copy those availables
+	-$(foreach module,$(JLINK_RT_MODULES),\
+	 $(COPY) $(JLINK_A2_JMODS)/*$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	)
-	$(foreach module,$(JLINK_NATIVE_JMODS),\
+	-$(foreach module,$(JLINK_NATIVE_JMODS),\
 	 $(COPY) $(JLINK_A2_JMODS_NATIVE)/*$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	)
 
 	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
 	-$(COPY) -v $(A2_OUTPUT)/$(A2_CATEGORY)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
+
+	$(foreach category,$(strip $(2)),\
+	 if [ -d "/usr/share/a2/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category) && \
+	 $(COPY) /usr/share/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category); \
+	 fi ;
+	)
+	$(foreach category,$(strip $(2)),\
+	 if [ -d "/usr/lib/a2/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
+	 $(COPY) /usr/lib/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
+	 fi ;
+	)
 endef
 
-define a2_jlink_create_rt # (rtName)	
+define a2_jlink_create_rt # (rtName, modules, a2 categories)	
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
 	"$(JLINK_HOME)/bin/jlink" \
 	 --strip-debug --compress zip-6 \
 	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)$(file_path_sep)$(JLINK_A2_JMODS_NATIVE)" \
-	 --add-modules $(subst $(space),$(comma),$(strip $(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS))) \
+	 --add-modules $(subst $(space),$(comma),$(strip $(2))) \
 	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
+
+	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
+	-$(COPY) -v $(A2_OUTPUT)/$(A2_CATEGORY)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
+	
+	$(foreach category,$(strip $(3)),\
+	 if [ -d "/usr/share/a2/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category) && \
+	 $(COPY) /usr/share/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category); \
+	 $(RM) $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category)/*.src.jar; \
+	 fi ;
+	)
+	$(foreach category,$(strip $(3)),\
+	 if [ -d "/usr/lib/a2/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
+	 $(COPY) /usr/lib/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
+	 $(RM) $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category)/*.src.jar; \
+	 fi ;
+	)
 endef
 
+define a2_jlink_linux_dirs # (rtName)
+# strictly required by chroot or nspawn
+	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/usr/
+	ln -T -f --relative -s $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/conf/ $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/etc
+	ln -T -f --relative -s $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/ $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/usr/lib
+	ln -T -f --relative -s $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/ $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/usr/lib/$(TARGET_ARCH)-linux-gnu
+	ln -T -f --relative -s $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/ $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/usr/share
+
+# improve integration
+	ln -T -f --relative -s $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/bin/ $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/usr/bin
+	ln -T -f --relative -s $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/bin/ $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/usr/sbin
+	ln -T -f --relative -s $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/include/ $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/usr/include
+	ln -T -f --relative -s $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/man/ $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/usr/share/man
+
+	chmod +x $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/libc.so.*
+# shared libraries loader
+	chmod +x $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/ld-linux-$(subst _,-,$(TARGET_ARCH)).so.2
+	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib64
+	ln -T -f --relative -s $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/ld-linux-$(subst _,-,$(TARGET_ARCH)).so.2 $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/bin/ld.so
+	ln -f --relative -s $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/ld-linux-$(subst _,-,$(TARGET_ARCH)).so.2 $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib64
+endef
 #
 # OS PACKAGES
 #
