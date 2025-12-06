@@ -72,6 +72,19 @@ define a2_jmod_create # (bundle)
 	 "$(JLINK_A2_JMODS)/$(1).jmod"
 endef
 
+define a2_jmod_create_lib # (bundle)
+	$(RM) $(JLINK_A2_JMODS)/$(1).jmod
+	mkdir -p $(JLINK_A2_JMODS)
+	
+	"$(JLINK_HOME)/bin/jmod" create \
+	 --module-version $(A2_LAYER_VERSION) \
+	 --class-path "$(A2_OUTPUT)/lib/$(A2_CATEGORY)/$(1).$(major).$(minor).jar$(file_path_sep)$(JMODS_BASE)/$(1)/classes" \
+	 --config "$(JMODS_BASE)/$(1)/config" \
+	 --man-pages "$(JMODS_BASE)/$(1)/man" \
+	 --legal-notices "$(JMODS_BASE)/$(1)/legal" \
+	 "$(JLINK_A2_JMODS)/$(1).jmod"
+endef
+
 define a2_jmod_create_native # (moduleName,moduleVersion)
 	$(RM) $(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
 	mkdir -p $(JLINK_A2_JMODS_NATIVE)
@@ -103,53 +116,61 @@ define a2_jlink_create_jdk # (jdkName, a2 categories)
 	 --add-modules $(call join_list,$(comma),$(JLINK_JAVA_MODULES) $(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS)) \
 	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
 	
+	# copy JDK sources
 	cp $(JLINK_HOME)/lib/src.zip $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib
 	
 	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src
-	$(foreach module,$(MODULES),cp -r $(module)/src $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src/$(module))
-# Expectedly fail if no modules
-	-"$(JLINK_HOME)/bin/jar" -u -f $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/src.zip \
-	 -C $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src $(MODULES)
-	# TODO deal with sources of modules coming from other projects
+	$(foreach module,$(MODULES),\
+	 $(COPY) -r $(module)/src $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src/$(module); \
+	 "$(JLINK_HOME)/bin/jar" -u -f $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/src.zip \
+	 -C $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src $(module); \
+	)
+
+# TODO deal with sources of modules coming from other projects
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src
 	
 	# Distribute jmods with JDK
+	# JVM jmods
 	@mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods
-	$(foreach module,$(JLINK_JAVA_MODULES),\
+	@$(foreach module,$(JLINK_JAVA_MODULES),\
 	 $(COPY) -v $(JLINK_HOME)/jmods/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	)
 # Only copy those available
-	@$(foreach module,$(JLINK_RT_MODULES),\
+	@$(foreach module,$(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS),\
 	 if [ -f "$(JLINK_A2_JMODS)/$(module).jmod" ]; then \
 	 $(COPY) -v $(JLINK_A2_JMODS)/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
-	 fi ;
-	)
-	@$(foreach module,$(JLINK_RT_MODULES),\
-	 if [ -f "$(JLINK_A2_JMODS)/$(module).jmod" ]; then \
-	 $(COPY) -v $(JLINK_A2_JMODS)/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
-	 fi ;
-	)
-	@$(foreach module,$(JLINK_NATIVE_JMODS),\
+	 fi ; \
+	 if [ -f "$(JLINK_A2_JMODS_NATIVE)/$(module).jmod" ]; then \
+	 $(COPY) -v $(JLINK_A2_JMODS_NATIVE)/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
+	 fi ; \
 	 if [ -f "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(module).jmod" ]; then \
 	 $(COPY) -v $(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
-	 fi ;
+	 fi ; \
 	)
 
-	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
-	-$(COPY) -v $(A2_OUTPUT)/$(A2_CATEGORY)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
+#	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
+#	-$(COPY) -v $(A2_OUTPUT)/$(A2_CATEGORY)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
 
-	$(foreach category,$(strip $(2)),\
-	 @if [ -d "/usr/share/a2/$(category)" ]; then \
+	@$(foreach category,$(strip $(2) $(A2_CATEGORY)),\
+	 if [ -d "/usr/share/a2/$(category)" ]; then \
 	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category) && \
 	 $(COPY) /usr/share/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category); \
-	 echo copied A2 category $(category); \
-	 fi ;
-	)
-	$(foreach category,$(strip $(2)),\
-	 @if [ -d "/usr/lib/a2/$(category)" ]; then \
+	 echo Copied A2 category $(category) to share/a2; \
+	 fi ; \
+	 if [ -d "/usr/lib/a2/$(category)" ]; then \
 	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
 	 $(COPY) /usr/lib/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
-	 echo copied A2 category $(category); \
+	 echo Copied A2 category $(category) to lib/a2; \
+	 fi ; \
+	 if [ -d "$(A2_OUTPUT)/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category) && \
+	 $(COPY) $(A2_OUTPUT)/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category); \
+	 echo Copied A2 category $(category) to share/a2; \
+	 fi ; \
+	 if [ -d "$(A2_OUTPUT)/lib/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
+	 $(COPY) $(A2_OUTPUT)/lib/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
+	 echo Copied A2 category $(category) to lib/a2; \
 	 fi ;
 	)
 endef
