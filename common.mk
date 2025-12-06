@@ -170,7 +170,7 @@ reverse = $(if $(wordlist 2,2,$(1)),$(call reverse,$(wordlist 2,$(words $(1)),$(
 
 # Remove duplicates
 # see https://stackoverflow.com/questions/16144115/makefile-remove-duplicate-words-without-sorting/16151140#16151140
-uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
+uniq = $(strip $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1))))
 
 # Make variables used to replace spaces by a separator, typically in order to generate classpaths
 # for example: CLASSPATH = $(subst $(space),$(pathsep),$(strip $(JARS)))
@@ -182,6 +182,11 @@ define LF
 
 $(null)
 endef
+
+# Join list with the given separator and remove duplicates
+define join_list # (separator, spaceSeparatedList)
+$(subst $(space),$(1),$(call uniq,$(2)))
+endef 
 
 #
 # GLOBAL REFERENCES

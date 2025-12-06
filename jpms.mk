@@ -10,7 +10,7 @@ JLINK_JMODS ?= $(JLINK_HOME)/jmods
 JLINK_RT_MODULES ?= java.base
 
 # Note: replacing $${MODULES// /,} is bash specific
-JLINK_JAVA_MODULES ?= $(subst $(space),$(comma),$(shell . "$(JLINK_HOME)/release" && echo $$MODULES))
+JLINK_JAVA_MODULES ?= $(shell . "$(JLINK_HOME)/release" && echo $$MODULES)
 JLINK_JAVA_VERSION = $(shell . "$(JLINK_HOME)/release" && echo $$JAVA_VERSION)
 
 # JVM variant
@@ -100,7 +100,7 @@ define a2_jlink_create_jdk # (jdkName, a2 categories)
 	"$(JLINK_HOME)/bin/jlink" \
 	 --compress zip-6 \
 	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)$(file_path_sep)$(JLINK_A2_JMODS_NATIVE)" \
-	 --add-modules $(JLINK_JAVA_MODULES),$(subst $(space),$(comma),$(strip $(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS))) \
+	 --add-modules $(call join_list,$(comma),$(JLINK_JAVA_MODULES) $(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS)) \
 	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
 	
 	cp $(JLINK_HOME)/lib/src.zip $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib
@@ -113,12 +113,17 @@ define a2_jlink_create_jdk # (jdkName, a2 categories)
 	# TODO deal with sources of modules coming from other projects
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src
 	
-	# Distribut jmods with JDK
+	# Distribute jmods with JDK
 	@mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods
-	@$(foreach module,$(MODULES),\
-	 $(COPY) -v $(JLINK_A2_JMODS)/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
+	$(foreach module,$(JLINK_JAVA_MODULES),\
+	 $(COPY) -v $(JLINK_HOME)/jmods/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	)
 # Only copy those available
+	@$(foreach module,$(JLINK_RT_MODULES),\
+	 if [ -f "$(JLINK_A2_JMODS)/$(module).jmod" ]; then \
+	 $(COPY) -v $(JLINK_A2_JMODS)/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
+	 fi ;
+	)
 	@$(foreach module,$(JLINK_RT_MODULES),\
 	 if [ -f "$(JLINK_A2_JMODS)/$(module).jmod" ]; then \
 	 $(COPY) -v $(JLINK_A2_JMODS)/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
