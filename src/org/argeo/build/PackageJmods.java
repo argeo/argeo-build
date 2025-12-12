@@ -19,17 +19,14 @@ import java.util.spi.ToolProvider;
  * to create custom Java runtimes with jlink.
  */
 public class PackageJmods {
-	/** A2 repository base for binary bundles */
+	/** A2 repository base. */
 	final Path a2Base;
-	/** A2 base for native components */
-	final Path a2LibBase;
 
 	private final ToolProvider jmodTool;
 	private final ToolProvider javacTool;
 
 	PackageJmods(Path a2Base) {
 		this.a2Base = a2Base;
-		this.a2LibBase = a2Base.resolve("lib");
 
 		this.jmodTool = ToolProvider.findFirst("jmod").orElseThrow();
 		this.javacTool = ToolProvider.findFirst("javac").orElseThrow();
@@ -37,15 +34,21 @@ public class PackageJmods {
 
 	void processJmods() {
 		try {
-			try (DirectoryStream<Path> multiArchDirs = Files.newDirectoryStream(a2LibBase)) {
+			int javaVersion = Runtime.version().feature();
+			Path jmodsDir = a2Base.resolve("jmods").resolve(Integer.toString(javaVersion));
+			Files.createDirectories(jmodsDir);
+			try (DirectoryStream<Path> multiArchDirs = Files.newDirectoryStream(a2Base.resolve("lib"),
+					(p) -> Files.isDirectory(p))) {
 				multiArchDirs: for (Path multiArchDir : multiArchDirs) {
 					String multiArchDirName = multiArchDir.getFileName().toString();
 					if (!(multiArchDirName.startsWith("x86_64-") || multiArchDirName.startsWith("aarch64-")))
 						continue multiArchDirs;// TODO make it more robust
-					Path jmodsDir = multiArchDir.resolve("jmods");
-					if (!Files.exists(jmodsDir))
+					Path jmodBuildDir = multiArchDir.resolve("jmods");
+					if (!Files.exists(jmodBuildDir))
 						continue multiArchDirs;
-					try (DirectoryStream<Path> jmodDirs = Files.newDirectoryStream(jmodsDir,
+					Path jmodsDirNative = multiArchDir.resolve("jmods").resolve(Integer.toString(javaVersion));
+					Files.createDirectories(jmodsDirNative);
+					try (DirectoryStream<Path> jmodDirs = Files.newDirectoryStream(jmodBuildDir,
 							(p) -> Files.isDirectory(p))) {
 						jmodDirs: for (Path jmodDir : jmodDirs) {
 							String moduleName = jmodDir.getFileName().toString();
@@ -62,12 +65,12 @@ public class PackageJmods {
 									moduleInfoJava.toString());
 
 							Path jmodLibDir = jmodDir.resolve("lib");
-							Path jmodsJavaVersionDir = jmodsDir.resolve(Integer.toString(Runtime.version().feature()));
-							Files.createDirectories(jmodsJavaVersionDir);
-							Path jmodPath = jmodsJavaVersionDir.resolve(moduleName + ".jmod");
+							String jmodVersion = Files.readString(jmodDir.resolve("VERSION.txt"));
+							Path jmodPath = jmodsDirNative.resolve(multiArchDirName + "-" + moduleName + ".jmod");
 							if (Files.exists(jmodPath))
 								Files.delete(jmodPath);
 							jmodTool.run(System.out, System.err, "create", //
+									"--module-version", jmodVersion, //
 									"--class-path", jmodClassesDir.toString(), //
 									"--libs", jmodLibDir.toString(), //
 									jmodPath.toString());
@@ -77,7 +80,7 @@ public class PackageJmods {
 				}
 			}
 		} catch (IOException e) {
-			throw new UncheckedIOException("Cannot process jmods in " + a2LibBase, e);
+			throw new UncheckedIOException("Cannot process jmods in " + a2Base, e);
 		}
 	}
 

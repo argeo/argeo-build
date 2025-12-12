@@ -28,8 +28,8 @@ import static org.argeo.build.Repackage.ManifestHeader.SPDX_LICENSE_IDENTIFIER;
 import static org.argeo.build.Repackage.SupportedArch.aarch64;
 import static org.argeo.build.Repackage.SupportedArch.x86_64;
 import static org.argeo.build.Repackage.SupportedOS.linux;
-import static org.argeo.build.Repackage.SupportedOS.macosx;
-import static org.argeo.build.Repackage.SupportedOS.win32;
+import static org.argeo.build.Repackage.SupportedOS.macos;
+import static org.argeo.build.Repackage.SupportedOS.windows;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -152,7 +152,7 @@ public class Repackage {
 
 	/** Supported operating systems. */
 	enum SupportedOS {
-		linux, win32, macosx
+		linux, windows, macos
 	}
 
 	protected Path processNativeEntry(JarEntry entry, A2Origin origin, NameVersion nameVersion, Path bundleDir)
@@ -169,28 +169,36 @@ public class Repackage {
 				if (os.equals(linux))
 					multiArchDir = multiArchDir + "-gnu";
 				else
-					multiArchDir = multiArchDir + "-default";
+					multiArchDir = multiArchDir + "-std";
 
-				if (nameVersion.getName().startsWith("org.eclipse.swt")
-						&& nameVersion.getName().contains(os.name() + "." + arch.name())) {
-					copySharedLib = true;
+				if (nameVersion.getName().startsWith("org.eclipse.swt")) {
+					if (os.equals(macos))
+						osToUse = "macosx";
+					if (os.equals(windows))
+						osToUse = "win32";
+					if (nameVersion.getName().contains(osToUse + "." + arch.name()))
+						copySharedLib = true;
 				} else if (nameVersion.getName().equals("com.sun.jna")) {
 					if (arch.equals(x86_64))
 						archToUse = "x86-64";
 //					else if (arch.equals(armv7l))
 //						archToUse = "arm";
-					if (os.equals(macosx))
+					if (os.equals(macos))
 						osToUse = "darwin";
+					if (os.equals(windows))
+						osToUse = "win32";
 					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
 						copySharedLib = true;
 				} else if (nameVersion.getName().equals("com.jogamp")) {
+					if (os.equals(macos))
+						osToUse = "macosx";
 					if (arch.equals(x86_64))
 						archToUse = "amd64";
 //					else if (arch.equals(SupportedArch.armv7l))
 //						archToUse = "armv6hf";
-					if (os.equals(macosx) && (arch.equals(x86_64) || arch.equals(aarch64)))
+					if (os.equals(macos) && (arch.equals(x86_64) || arch.equals(aarch64)))
 						archToUse = "universal";
-					if (os.equals(win32))
+					if (os.equals(windows))
 						osToUse = "windows";
 					if (target.getParent().getFileName().toString().equals(osToUse + "-" + archToUse))
 						copySharedLib = true;
@@ -202,9 +210,9 @@ public class Repackage {
 						archToUse = "arm64";
 					if (os.equals(linux))
 						osToUse = "Linux";
-					else if (os.equals(win32))
+					else if (os.equals(windows))
 						osToUse = "Windows";
-					else if (os.equals(macosx))
+					else if (os.equals(macos))
 						osToUse = "Mac";
 //					else if (os.equals(freebsd))
 //						osToUse = "FreeBSD";
@@ -1293,13 +1301,20 @@ public class Repackage {
 							jmodName = "org.eclipse.swt" + JMOD_JNI_SUFFIX;
 						else
 							jmodName = nameVersion.getName() + JMOD_JNI_SUFFIX;
-						Path jmodsLibsDir = a2LibBase.resolve(multiArchDirName).resolve("jmods").resolve(jmodName)
-								.resolve("lib");
-						Files.createDirectories(jmodsLibsDir);
-						Path jmodsLib = jmodsLibsDir.resolve(target.getFileName());
-						if (Files.exists(jmodsLib))
-							Files.delete(jmodsLib);
-						Files.copy(target, jmodsLib);
+
+						Path jmodDir = a2LibBase.resolve(multiArchDirName).resolve("jmods").resolve(jmodName);
+						;
+						Path jmodLibDir = jmodDir.resolve("lib");
+						Files.createDirectories(jmodLibDir);
+
+						// Write version
+						// TODO merge OSGi and JMOD packaging
+						Files.writeString(jmodDir.resolve("VERSION.txt"), nameVersion.getVersion());
+						// copy shared library
+						Path jmodLib = jmodLibDir.resolve(target.getFileName());
+						if (Files.exists(jmodLib))
+							Files.delete(jmodLib);
+						Files.copy(target, jmodLib);
 
 					}
 					logger.log(TRACE, () -> "Copied " + target);
