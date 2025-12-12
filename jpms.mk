@@ -128,12 +128,16 @@ define a2_jlink_create_jdk # (jdkName, a2 categories)
 
 # TODO deal with sources of modules coming from other projects
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src
-	
-	# Distribute jmods with JDK
-	@$(foreach module,$(JLINK_JAVA_MODULES) $(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS),\
+
+	# Copy JDK jmods
+	@$(foreach module,$(JLINK_JAVA_MODULES),\
 	 if [ -f "$(JLINK_HOME)/$(module).jmod" ]; then \
 	 $(COPY) -v $(JLINK_HOME)/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	 fi ; \
+	)
+	
+	# Distribute jmods with JDK
+	@$(foreach module,$(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS),\
 	 if [ -f "$(JLINK_A2_JMODS)/$(module).jmod" ]; then \
 	 $(COPY) -v $(JLINK_A2_JMODS)/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	 fi ; \
