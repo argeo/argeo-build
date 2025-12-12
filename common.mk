@@ -2,7 +2,7 @@
 # VERSIONING
 #
 build-major=2
-build-minor=1
+build-minor=3
 
 # Third party libraries required by Argeo Build
 ECJ_MAJOR=3
