@@ -140,6 +140,7 @@ function(a2_build_bundle BUNDLE)
 	# classpath
 	set(CLASSPATH "")
 	cmake_path(APPEND MODULEPATH_DIRS ${A2_OUTPUT}/${A2_CATEGORY})
+	cmake_path(APPEND MODULEPATH_DIRS ${A2_OUTPUT}/lib/${A2_CATEGORY})
 	foreach(CATEGORY IN LISTS DEP_CATEGORIES)
 		message(STATUS "CLASSPATH += ${A2_BASE}/${CATEGORY}/*.jar")
 		file(GLOB JARS CONFIGURE_DEPENDS "${A2_BASE}/${CATEGORY}/*.jar")
