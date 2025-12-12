@@ -130,9 +130,10 @@ define a2_jlink_create_jdk # (jdkName, a2 categories)
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/src
 
 	# Copy JDK jmods
-	@$(foreach module,$(JLINK_JAVA_MODULES),\
-	 if [ -f "$(JLINK_HOME)/$(module).jmod" ]; then \
-	 $(COPY) -v $(JLINK_HOME)/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
+	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods
+	$(foreach module,$(JLINK_JAVA_MODULES),\
+	 if [ -f "$(JLINK_HOME)/jmods/$(module).jmod" ]; then \
+	 $(COPY) -v $(JLINK_HOME)/jmods/$(module).jmod $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods; \
 	 fi ; \
 	)
 	
