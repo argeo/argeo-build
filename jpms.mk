@@ -131,7 +131,7 @@ define a2_jlink_create_jdk # (jdkName, a2 categories)
 
 	# Copy JDK jmods
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods
-# Generated command is too long on Windows if use foreach
+# Generated command is too long on Windows if we use foreach
 	$(COPY) -r "$(JLINK_HOME)/jmods" "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
 	
 	# Distribute jmods with JDK
