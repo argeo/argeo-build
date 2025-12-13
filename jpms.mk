@@ -108,6 +108,36 @@ endef
 #
 # JDK/JRE CREATION
 #
+define a2_jlink_copy_categories # (jdkName, a2 categories)
+	@$(foreach category,$(strip $(2)),\
+	 if [ -d "/usr/share/a2/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category) && \
+	 $(COPY) /usr/share/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category); \
+	 echo Copied A2 category $(category) to share/a2; \
+	 fi;\
+	 if [ -d "/usr/lib/a2/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
+	 $(COPY) /usr/lib/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
+	 echo Copied A2 category $(category) to lib/a2; \
+	 fi;\
+	 if [ -d "$(A2_OUTPUT)/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category) && \
+	 $(COPY) $(A2_OUTPUT)/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category); \
+	 echo Copied A2 category $(category) to share/a2; \
+	 fi;\
+	 if [ -d "$(A2_OUTPUT)/lib/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
+	 $(COPY) $(A2_OUTPUT)/lib/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
+	 echo Copied A2 category $(category) to lib/a2; \
+	 fi;\
+	 if [ -d "$(A2_OUTPUT)/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/$(category)" ]; then \
+	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
+	 $(COPY) $(A2_OUTPUT)/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
+	 echo Copied A2 category $(category) to lib/a2; \
+	 fi;\
+	)
+endef
+
 define a2_jlink_create_jdk # (jdkName, a2 categories)	
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
 	"$(JLINK_HOME)/bin/jlink" \
@@ -147,31 +177,7 @@ define a2_jlink_create_jdk # (jdkName, a2 categories)
 	 fi;\
 	)
 
-#	mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
-#	-$(COPY) -v $(A2_OUTPUT)/$(A2_CATEGORY)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
-
-	@$(foreach category,$(strip $(2) $(A2_CATEGORY)),\
-	 if [ -d "/usr/share/a2/$(category)" ]; then \
-	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category) && \
-	 $(COPY) /usr/share/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category); \
-	 echo Copied A2 category $(category) to share/a2; \
-	 fi ; \
-	 if [ -d "/usr/lib/a2/$(category)" ]; then \
-	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
-	 $(COPY) /usr/lib/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
-	 echo Copied A2 category $(category) to lib/a2; \
-	 fi ; \
-	 if [ -d "$(A2_OUTPUT)/$(category)" ]; then \
-	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category) && \
-	 $(COPY) $(A2_OUTPUT)/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category); \
-	 echo Copied A2 category $(category) to share/a2; \
-	 fi ; \
-	 if [ -d "$(A2_OUTPUT)/lib/$(category)" ]; then \
-	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
-	 $(COPY) $(A2_OUTPUT)/lib/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
-	 echo Copied A2 category $(category) to lib/a2; \
-	 fi ;
-	)
+	$(call a2_jlink_copy_categories,$(1),$(2) $(A2_CATEGORY))
 endef
 
 define a2_jlink_create_rt # (rtName, modules, a2 categories)	
@@ -182,25 +188,7 @@ define a2_jlink_create_rt # (rtName, modules, a2 categories)
 	 --add-modules $(subst $(space),$(comma),$(strip $(2))) \
 	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
 
-	@mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
-	-$(COPY) -v $(A2_OUTPUT)/$(A2_CATEGORY)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(A2_CATEGORY)
-	
-	$(foreach category,$(strip $(3)),\
-	 @if [ -d "/usr/share/a2/$(category)" ]; then \
-	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category) && \
-	 $(COPY) /usr/share/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category); \
-	 $(RM) $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/share/a2/$(category)/*.src.jar; \
-	 echo copied A2 category $(category); \
-	 fi ;
-	)
-	$(foreach category,$(strip $(3)),\
-	 @if [ -d "/usr/lib/a2/$(category)" ]; then \
-	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
-	 $(COPY) /usr/lib/a2/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
-	 $(RM) $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category)/*.src.jar; \
-	 echo copied A2 category $(category); \
-	 fi ;
-	)
+	$(call a2_jlink_copy_categories,$(1),$(3) $(A2_CATEGORY))
 endef
 
 define a2_jlink_linux_dirs # (rtName)
