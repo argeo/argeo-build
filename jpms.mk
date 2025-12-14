@@ -6,12 +6,9 @@ include $(ARGEO_BUILD_BASE)common.mk
 # JLINK_JMODS       the directory where to find the Java jmods
 # JLINK_RT_MODULES  minimal set of modules when creating a runtime
 JLINK_HOME ?= $(JAVA_HOME)
-JLINK_JMODS ?= $(JLINK_HOME)/jmods
-JLINK_RT_MODULES ?= java.base
 
-# Note: replacing $${MODULES// /,} is bash specific
-JLINK_JAVA_MODULES ?= $(shell . "$(JLINK_HOME)/release" && echo $$MODULES)
 JLINK_JAVA_VERSION = $(shell . "$(JLINK_HOME)/release" && echo $$JAVA_VERSION)
+JLINK_JAVA_RELEASE = $(firstword $(subst .,$(space),$(JLINK_JAVA_VERSION)))
 
 # JVM variant
 ifeq ("$(shell . "$(JLINK_HOME)/release" && echo $$IMPLEMENTOR)","Eclipse OpenJ9") # Linux
@@ -27,7 +24,16 @@ ifeq ("$(JLINK_JVM_VARIANT)","") # default
 JLINK_JVM_VARIANT=hotspot
 endif
 
-JLINK_JAVA_RELEASE = $(firstword $(subst .,$(space),$(JLINK_JAVA_VERSION)))
+TARGET_JVM_VARIANT ?= $(JLINK_JVM_VARIANT)
+
+ifeq ($(TARGET_NATIVE_CATEGORY_PREFIX),$(LOCAL_NATIVE_CATEGORY_PREFIX))
+JLINK_JMODS ?= $(JLINK_HOME)/jmods
+JLINK_JAVA_MODULES ?= $(shell . "$(JLINK_HOME)/release" && echo $$MODULES)
+else
+JLINK_JMODS ?= $(A2_NATIVE_OUTPUT)/$(TARGET_NATIVE_CATEGORY_PREFIX)/jmods/$(JLINK_JAVA_RELEASE)/$(TARGET_JVM_VARIANT)
+JLINK_JAVA_MODULES ?= $(basename $(notdir $(wildcard $(JLINK_JMODS)/*.jmod)))
+endif
+JLINK_RT_MODULES ?= java.base
 
 #
 # JMOD CREATION
