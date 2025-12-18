@@ -170,14 +170,14 @@ define a2_jlink_create_jdk # (jdkName, modules)
 	
 	# Distribute jmods with JDK
 	@$(foreach module,$(2),\
-	 if [ -f "$(JLINK_A2_JMODS)/$(module).jmod" ]; then \
-	 $(COPY) -v "$(JLINK_A2_JMODS)/$(module).jmod" "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods";\
+	 if [ -f "$(JLINK_A2_JMODS)/$(module)-$(JLINK_JAVA_RELEASE).jmod" ]; then \
+	 $(COPY) -v "$(JLINK_A2_JMODS)/$(module)-$(JLINK_JAVA_RELEASE).jmod" "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods/$(module).jmod";\
 	 fi;\
-	 if [ -f "$(JLINK_A2_JMODS_NATIVE)/$(module).jmod" ]; then \
-	 $(COPY) -v "$(JLINK_A2_JMODS_NATIVE)/$(module).jmod" "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods";\
+	 if [ -f "$(JLINK_A2_JMODS_NATIVE)/$(module)-$(JLINK_JAVA_RELEASE).jmod" ]; then \
+	 $(COPY) -v "$(JLINK_A2_JMODS_NATIVE)/$(module)-$(JLINK_JAVA_RELEASE).jmod" "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods/$(module).jmod";\
 	 fi;\
-	 if [ -f "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(module).jmod" ]; then \
-	 $(COPY) -v "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(module).jmod" "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods";\
+	 if [ -f "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(module)-$(JLINK_JAVA_RELEASE).jmod" ]; then \
+	 $(COPY) -v "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(module)-$(JLINK_JAVA_RELEASE).jmod" "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods/$(module).jmod";\
 	 fi;\
 	)
 endef
