@@ -92,12 +92,13 @@ file_path_sep=;
 # TODO detect MinGW/MSYS with environment variable MSYSTEM ?
 ifeq ($(MSYS_VERSION),0)
 # assume Intel
-TARGET_ARCH ?= x86_64
+HOST_ARCH ?= x86_64
 TARGET_OS_LIBS ?= std
 else # MSYS
-TARGET_ARCH ?= $(shell uname -m)
+HOST_ARCH ?= $(shell uname -m)
 TARGET_OS_LIBS ?= std
 endif
+TARGET_ARCH ?= $(HOST_ARCH)
 
 ifeq ($(TARGET_ARCH),aarch64)
 # TODO verify
