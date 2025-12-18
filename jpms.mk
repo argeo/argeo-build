@@ -148,7 +148,7 @@ define a2_jlink_copy_categories # (jdkName, a2 categories)
 endef
 
 define a2_jlink_create_jdk # (jdkName, modules)
-	$(call a2_jlink_create_rt,$(1),$(2))
+	$(call a2_jlink_create_rt,$(1),$(JLINK_JAVA_MODULES) $(2))
 	
 	# copy JDK sources
 	cp $(JLINK_HOME)/lib/src.zip $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib
@@ -169,7 +169,7 @@ define a2_jlink_create_jdk # (jdkName, modules)
 	$(COPY) -r "$(JLINK_HOME)/jmods" "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
 	
 	# Distribute jmods with JDK
-	@$(foreach module,$(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS),\
+	@$(foreach module,$(2),\
 	 if [ -f "$(JLINK_A2_JMODS)/$(module).jmod" ]; then \
 	 $(COPY) -v "$(JLINK_A2_JMODS)/$(module).jmod" "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods";\
 	 fi;\
