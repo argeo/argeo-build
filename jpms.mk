@@ -66,7 +66,7 @@ define a2_jmod_prepare_output # (moduleName)
 endef
 
 define a2_jmod_create # (bundle)
-	$(RM) $(JLINK_A2_JMODS)/$(1).jmod
+	$(RM) $(JLINK_A2_JMODS)/$(1)-$(JLINK_JAVA_RELEASE).jmod
 	mkdir -p $(JLINK_A2_JMODS)
 	
 	"$(JLINK_HOME)/bin/jmod" create \
@@ -75,11 +75,11 @@ define a2_jmod_create # (bundle)
 	 --config "$(JMODS_BASE)/$(1)/config" \
 	 --man-pages "$(JMODS_BASE)/$(1)/man" \
 	 --legal-notices "$(JMODS_BASE)/$(1)/legal" \
-	 "$(JLINK_A2_JMODS)/$(1).jmod"
+	 "$(JLINK_A2_JMODS)/$(1)-$(JLINK_JAVA_RELEASE).jmod"
 endef
 
 define a2_jmod_create_lib # (bundle)
-	$(RM) $(JLINK_A2_JMODS)/$(1).jmod
+	$(RM) $(JLINK_A2_JMODS)/$(1)-$(JLINK_JAVA_RELEASE).jmod
 	mkdir -p $(JLINK_A2_JMODS)
 	
 	"$(JLINK_HOME)/bin/jmod" create \
@@ -88,11 +88,11 @@ define a2_jmod_create_lib # (bundle)
 	 --config "$(JMODS_BASE)/$(1)/config" \
 	 --man-pages "$(JMODS_BASE)/$(1)/man" \
 	 --legal-notices "$(JMODS_BASE)/$(1)/legal" \
-	 "$(JLINK_A2_JMODS)/$(1).jmod"
+	 "$(JLINK_A2_JMODS)/$(1)-$(JLINK_JAVA_RELEASE).jmod"
 endef
 
 define a2_jmod_create_native # (moduleName,moduleVersion)
-	$(RM) $(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod
+	$(RM) $(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1)-$(JLINK_JAVA_RELEASE).jmod
 	mkdir -p $(JLINK_A2_JMODS_NATIVE)
 	
 	"$(JLINK_HOME)/bin/jmod" create \
@@ -105,10 +105,10 @@ define a2_jmod_create_native # (moduleName,moduleVersion)
 	 --libs "$(JMODS_BASE)/$(1)/lib" \
 	 --cmds "$(JMODS_BASE)/$(1)/bin" \
 	 --header-files "$(JMODS_BASE)/$(1)/include" \
-	 "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
+	 "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1)-$(JLINK_JAVA_RELEASE).jmod"
 	
 	# list content
-	"$(JLINK_HOME)/bin/jmod" list "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1).jmod"
+	"$(JLINK_HOME)/bin/jmod" list "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(1)-$(JLINK_JAVA_RELEASE).jmod"
 endef
 
 #
@@ -136,6 +136,9 @@ define a2_jlink_copy_categories # (jdkName, a2 categories)
 	 $(COPY) $(A2_OUTPUT)/lib/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
 	 echo Copied A2 category $(category) to lib/a2; \
 	 fi;\
+	)
+	# corner case when a jar is platform-specific (e.g. SWT)
+	-@$(foreach category,$(strip $(2)),\
 	 if [ -d "$(A2_OUTPUT)/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/$(category)" ]; then \
 	 mkdir -p $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category) && \
 	 $(COPY) $(A2_OUTPUT)/lib/$(TARGET_NATIVE_CATEGORY_PREFIX)/$(category)/*.jar $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib/a2/$(category); \
@@ -144,13 +147,8 @@ define a2_jlink_copy_categories # (jdkName, a2 categories)
 	)
 endef
 
-define a2_jlink_create_jdk # (jdkName, a2 categories)	
-	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
-	"$(JLINK_HOME)/bin/jlink" \
-	 --compress zip-6 \
-	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)$(file_path_sep)$(JLINK_A2_JMODS_NATIVE)" \
-	 --add-modules $(call join_list,$(comma),$(JLINK_JAVA_MODULES) $(JLINK_RT_MODULES) $(MODULES) $(JLINK_NATIVE_JMODS)) \
-	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
+define a2_jlink_create_jdk # (jdkName, modules)
+	$(call a2_jlink_create_rt,$(1),$(2))
 	
 	# copy JDK sources
 	cp $(JLINK_HOME)/lib/src.zip $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/lib
@@ -182,19 +180,15 @@ define a2_jlink_create_jdk # (jdkName, a2 categories)
 	 $(COPY) -v "$(JLINK_A2_JMODS_NATIVE)/$(TARGET_NATIVE_CATEGORY_PREFIX)-$(module).jmod" "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)/jmods";\
 	 fi;\
 	)
-
-	$(call a2_jlink_copy_categories,$(1),$(2) $(A2_CATEGORY))
 endef
 
-define a2_jlink_create_rt # (rtName, modules, a2 categories)	
+define a2_jlink_create_rt # (rtName, modules)	
 	$(RM) -r $(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)
 	"$(JLINK_HOME)/bin/jlink" \
 	 --compress zip-6 \
 	 --module-path "$(JLINK_JMODS)$(file_path_sep)$(JLINK_A2_JMODS)$(file_path_sep)$(JLINK_A2_JMODS_NATIVE)" \
-	 --add-modules $(subst $(space),$(comma),$(strip $(2))) \
+	 --add-modules $(call join_list,$(comma),$(2)) \
 	 --output "$(BUILD_BASE)/$(1)-$(JLINK_SUFFIX)"
-
-	$(call a2_jlink_copy_categories,$(1),$(3) $(A2_CATEGORY))
 endef
 
 define a2_jlink_linux_dirs # (rtName)
