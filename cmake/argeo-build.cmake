@@ -180,7 +180,10 @@ function(a2_build_bundle BUNDLE)
 	# JNI includes
 	add_dependencies(${A2_CATEGORY}-includes ${BUNDLE}-include)
 	
+if(NOT A2_BUILD_ARCH_ONLY)
 	install_jar(${BUNDLE} ${BUNDLE_INSTALL_DIR})
+endif()
+
 endfunction() # a2_build_bundle
 
 ## Build a list of bundles ##
