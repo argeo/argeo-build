@@ -29,8 +29,11 @@ ECJ_JAR=$(firstword \
 LOGGER_JAR ?= $(firstword $(foreach base, $(A2_BASE), $(wildcard $(base)/log/syslogger/org.argeo.tp/org.argeo.tp.syslogger.$(SYSLOGGER_BRANCH).jar)))
 BNDLIB_JAR ?= $(firstword $(foreach base, $(A2_BASE), $(wildcard $(base)/org.argeo.tp.build/biz.aQute.bndlib.$(BNDLIB_BRANCH).jar)))
 
+ARGEO_MAKE_CLASSPATH ?= $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR)
+
 # Internal variables
-ARGEO_MAKE = $(JVM) -cp $(LOGGER_JAR):$(ECJ_JAR):$(BNDLIB_JAR) $(ARGEO_BUILD_BASE)src/org/argeo/build/Make.java
+ARGEO_MAKE = $(JVM) -cp $(ARGEO_MAKE_CLASSPATH) $(ARGEO_BUILD_BASE)src/org/argeo/build/Make.java
+
 JAVADOC_SRCS = $(foreach bundle, $(BUNDLES), $(bundle)/src)
 ifneq ($(NO_MANIFEST_COPY),true)
 MANIFESTS = $(foreach bundle, $(BUNDLES), $(bundle)/META-INF/MANIFEST.MF)
@@ -56,7 +59,11 @@ $(BUILD_BASE)/built : $(TODOS)
 	@echo "| A2 category  : $(A2_CATEGORY)"
 	@echo "| Version      : $(major).$(minor).$(micro)$(qualifier)"
 	@echo "| Bundles      : $(BUNDLES_TO_BUILD)"
+ifneq ("true","$(ARGEO_BUILD_IGNORE_A2)")
 	@echo "| Dependencies : $(DEP_CATEGORIES)"
+else
+	@echo "| Dependencies : (A2 categories ignored, only extra build classpath being used)"
+endif
 	@echo "| Compiler     : $(notdir $(ECJ_JAR)) ($(JAVA_HOME))"
 	@$(ARGEO_MAKE) \
 	 all --a2-bases $(A2_BASE) --dep-categories $(DEP_CATEGORIES) \

@@ -45,8 +45,6 @@ import org.eclipse.jdt.core.compiler.CompilationProgress;
 
 import aQute.bnd.osgi.Analyzer;
 import aQute.bnd.osgi.Jar;
-import aQute.bnd.osgi.Resource;
-import aQute.bnd.plugin.jpms.JPMSModuleInfoPlugin;
 
 /**
  * Minimalistic OSGi compiler and packager, meant to be used as a single file
@@ -97,8 +95,17 @@ public class Make {
 	 */
 	private final static String ENV_SDK_BUILD_BASE_WIN = "SDK_BUILD_BASE_WIN";
 
-//	/** Make file variable (in {@link #SDK_MK}) with a path to the sources base. */
-//	private final static String VAR_SDK_SRC_BASE = "SDK_SRC_BASE";
+	/**
+	 * Environment variable to disable using A2 bases and categories. To be combined
+	 * with {@link #ENV_ARGEO_BUILD_CLASSPATH_EXTRA} in order to build with a
+	 * regular classpath.
+	 */
+	private final static String ENV_ARGEO_BUILD_IGNORE_A2 = "ARGEO_BUILD_IGNORE_A2";
+
+	/**
+	 * Environment variable to provide extra classpath entries to the build.
+	 */
+	private final static String ENV_ARGEO_BUILD_CLASSPATH_EXTRA = "ARGEO_BUILD_CLASSPATH_EXTRA";
 
 	/**
 	 * Make file variable (in {@link #SDK_MK}) with a path to the build output base.
@@ -205,11 +212,17 @@ public class Make {
 		if (bundles.isEmpty())
 			return;
 
-		List<String> a2Categories = options.getOrDefault("--dep-categories", new ArrayList<>());
-		List<String> a2Bases = options.getOrDefault("--a2-bases", new ArrayList<>());
-		a2Bases = a2Bases.stream().distinct().collect(Collectors.toList());// remove duplicates
-		if (a2Bases.isEmpty() || !a2Bases.contains(a2Output.toString())) {// make sure a2 output is available
-			a2Bases.add(a2Output.toString());
+		boolean ignoreA2 = Boolean.parseBoolean(System.getenv(ENV_ARGEO_BUILD_IGNORE_A2));
+
+		List<String> a2Categories = new ArrayList<>();
+		List<String> a2Bases = new ArrayList<>();
+		if (!ignoreA2) {
+			a2Categories = options.getOrDefault("--dep-categories", new ArrayList<>());
+			a2Bases = options.getOrDefault("--a2-bases", new ArrayList<>());
+			a2Bases = a2Bases.stream().distinct().collect(Collectors.toList());// remove duplicates
+			if (a2Bases.isEmpty() || !a2Bases.contains(a2Output.toString())) {// make sure a2 output is available
+				a2Bases.add(a2Output.toString());
+			}
 		}
 
 		List<String> compilerArgs = new ArrayList<>();
@@ -218,12 +231,13 @@ public class Make {
 		compilerArgs.add("@" + ecjArgs);
 
 		// classpath
-		if (!a2Categories.isEmpty()) {
-			// We will keep only the highest major.minor
-			// and order by bundle name, for predictability
-			Map<String, A2Jar> a2Jars = new TreeMap<>();
 
-			StringJoiner modulePath = new StringJoiner(File.pathSeparator);
+		// We will keep only the highest major.minor
+		// and order by bundle name, for predictability
+		Map<String, A2Jar> a2Jars = new TreeMap<>();
+		StringJoiner modulePath = new StringJoiner(File.pathSeparator);
+		if (!a2Categories.isEmpty()) {
+
 			for (String a2Base : a2Bases) {
 				categories: for (String a2Category : a2Categories) {
 					Path a2Dir = Paths.get(a2Base).resolve(a2Category);
@@ -252,23 +266,30 @@ public class Make {
 				}
 			}
 
-			StringJoiner classPath = new StringJoiner(File.pathSeparator);
-			for (Iterator<A2Jar> it = a2Jars.values().iterator(); it.hasNext();)
-				classPath.add(it.next().path.toString());
+		}
 
-			String classPathStr = classPath.toString();
-			if (!"".equals(classPathStr)) {
-				compilerArgs.add("-cp");
-				compilerArgs.add(classPathStr);
-			}
+		StringJoiner classPath = new StringJoiner(File.pathSeparator);
+		for (Iterator<A2Jar> it = a2Jars.values().iterator(); it.hasNext();)
+			classPath.add(it.next().path.toString());
 
-			String modulePathStr = modulePath.toString();
-			if (!"".equals(modulePathStr)) {
-				compilerArgs.add("--module-path");
-				compilerArgs.add(modulePathStr);
-				compilerArgs.add("--add-modules");
-				compilerArgs.add("org.eclipse.osgi");
-			}
+		// Add all jars in an extra directory
+		String argeoBuildClassPathExtra = System.getenv(ENV_ARGEO_BUILD_CLASSPATH_EXTRA);
+		if (argeoBuildClassPathExtra != null && !argeoBuildClassPathExtra.isBlank()) {
+			classPath.add(argeoBuildClassPathExtra);
+		}
+
+		String classPathStr = classPath.toString();
+		if (!"".equals(classPathStr)) {
+			compilerArgs.add("-cp");
+			compilerArgs.add(classPathStr);
+		}
+
+		String modulePathStr = modulePath.toString();
+		if (!"".equals(modulePathStr)) {
+			compilerArgs.add("--module-path");
+			compilerArgs.add(modulePathStr);
+			compilerArgs.add("--add-modules");
+			compilerArgs.add("org.eclipse.osgi");
 		}
 
 		// sources
@@ -284,6 +305,7 @@ public class Make {
 				} else
 					throw new IllegalArgumentException("Bundle " + bundle + " not found in " + execDirectory);
 			}
+			
 			Path bundleSrc = bundlePath.resolve("src");
 			if (!Files.exists(bundleSrc)) {
 				logger.log(WARNING, bundleSrc + " does not exist, skipping it, as this is not a Java bundle");
@@ -292,11 +314,28 @@ public class Make {
 			sb.append(bundleSrc);
 			sb.append("[-d");
 			compilerArgs.add(sb.toString());
+			
 			sb = new StringBuilder();
 			sb.append(buildBase.resolve(bundle).resolve("bin"));
 			sb.append("]");
 			compilerArgs.add(sb.toString());
 			atLeastOneBundleToCompile = true;
+			
+			// JPMS specific
+			Path jpmsSrc = bundlePath.resolve("jpms");
+			if (!"".equals(modulePathStr) && Files.exists(jpmsSrc)) {
+				// TODO factorize with above
+				sb = new StringBuilder();
+				sb.append(jpmsSrc);
+				sb.append("[-d");
+				compilerArgs.add(sb.toString());
+				
+				sb = new StringBuilder();
+				sb.append(buildBase.resolve(bundle).resolve("bin"));
+				sb.append("]");
+				compilerArgs.add(sb.toString());
+			}
+			
 		}
 
 		if (!atLeastOneBundleToCompile)
@@ -538,19 +577,13 @@ public class Make {
 		if (!Files.exists(binP))
 			Files.createDirectories(binP);
 		Manifest manifest;
-		Resource moduleInfoClass = null;
+//		Resource moduleInfoClass = null;
 		try (Analyzer bndAnalyzer = new Analyzer()) {
 			bndAnalyzer.setProperties(properties);
 			Jar jar = new Jar(bundleSymbolicName, binP.toFile());
 			bndAnalyzer.setJar(jar);
 			manifest = bndAnalyzer.calcManifest();
 			jar.setManifest(manifest);
-
-			// JPMS module
-			JPMSModuleInfoPlugin jpmsModuleInfoPlugin = new JPMSModuleInfoPlugin();
-			jpmsModuleInfoPlugin.mainSet(bndAnalyzer, manifest);
-//			jpmsModuleInfoPlugin.verify(bndAnalyzer);
-			moduleInfoClass = bndAnalyzer.getJar().getResource("module-info.class");
 		} catch (Exception e) {
 			throw new RuntimeException("Bnd analysis of " + compiled + " failed", e);
 		}
@@ -565,22 +598,6 @@ public class Make {
 		Files.createDirectories(manifestP.getParent());
 		try (OutputStream out = Files.newOutputStream(manifestP)) {
 			manifest.write(out);
-		}
-
-		// Write module-info.class
-		if (moduleInfoClass != null) {
-			Path moduleInfoClassP = binP.resolve("module-info.class");
-			try {
-				if (!Files.exists(moduleInfoClassP) && moduleInfoClass.size() > 0) {
-					Files.createDirectories(moduleInfoClassP.getParent());
-					try (OutputStream out = Files.newOutputStream(moduleInfoClassP)) {
-						moduleInfoClass.write(out);
-//				logger.log(INFO, "Wrote " + moduleInfoClassP);
-					}
-				}
-			} catch (Exception e) {
-				throw new RuntimeException("Cannot write module-info.class");
-			}
 		}
 
 		// Load excludes
