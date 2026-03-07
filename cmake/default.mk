@@ -16,28 +16,28 @@ export JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 # Required on Windows
 
 CMAKE_BUILD_TYPE ?= Release
 
-all:
+cmake-all:
 	cmake -B $(BUILD_BASE) . \
 	 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) \
 	 -DA2_INSTALL_MODE=a2 \
 	 -DJAVA_HOME=$(JAVA_HOME)
 	$(CMAKE) --build $(BUILD_BASE) --config $(CMAKE_BUILD_TYPE) -j $(shell nproc)
 
-clean:
+cmake-clean:
 	-if [ -d $(BUILD_BASE) ]; then $(CMAKE) --build $(BUILD_BASE) --target clean; fi;
 
-distclean:
+cmake-distclean:
 	$(RM) -r $(BUILD_BASE)
 	$(RM) sdk.mk
 
-install:
+cmake-install:
 	$(CMAKE) --build $(BUILD_BASE) --target install
 
-describe:
+cmake-describe:
 	echo SDK_SRC_BASE=$(SDK_SRC_BASE)
 	echo SDK_BUILD_BASE=$(SDK_BUILD_BASE)
 	echo BUILD_BASE=$(BUILD_BASE)
 	echo JAVA_HOME=$(JAVA_HOME)
 	echo A2_OUTPUT=$(A2_OUTPUT)
 
-.PHONY: all clean distclean install describe
+.PHONY: cmake-all cmake-clean cmake-distclean cmake-install cmake-describe
