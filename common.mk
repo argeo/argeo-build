@@ -96,7 +96,17 @@ HOST_ARCH ?= x86_64
 TARGET_OS_LIBS ?= std
 else # MSYS
 HOST_ARCH ?= $(shell uname -m)
+
+ifeq ($(MSYSTEM),UCRT64)
+TARGET_OS_LIBS ?= gnu
+else
+ifeq ($(MSYSTEM),CLANG64)
+TARGET_OS_LIBS ?= llvm
+else
 TARGET_OS_LIBS ?= std
+endif
+endif
+
 endif
 TARGET_ARCH ?= $(HOST_ARCH)
 

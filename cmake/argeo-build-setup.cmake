@@ -132,7 +132,11 @@ endif() # CMAKE_SYSTEM_NAME
 
 if(MINGW)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
+if($ENV{MSYSTEM} STREQUAL "CLANG64")
+set(A2_TARGET_OS_LIBS "llvm")
+else()
 set(A2_TARGET_OS_LIBS "gnu")
+endif()
 endif()
 
 # defaults
