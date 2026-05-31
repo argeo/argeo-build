@@ -139,15 +139,15 @@ function(a2_build_bundle BUNDLE)
 	
 	# classpath
 	set(CLASSPATH "")
-	cmake_path(APPEND MODULEPATH_DIRS ${A2_OUTPUT}/${A2_CATEGORY})
-	cmake_path(APPEND MODULEPATH_DIRS ${A2_OUTPUT}/lib/${A2_CATEGORY})
+	list(APPEND MODULEPATH_DIRS ${A2_OUTPUT}/${A2_CATEGORY})
+	list(APPEND MODULEPATH_DIRS ${A2_OUTPUT}/lib/${A2_CATEGORY})
 	foreach(CATEGORY IN LISTS DEP_CATEGORIES)
 		message(STATUS "CLASSPATH += ${A2_BASE}/${CATEGORY}/*.jar")
 		file(GLOB JARS CONFIGURE_DEPENDS "${A2_BASE}/${CATEGORY}/*.jar")
 		list(APPEND CLASSPATH ${JARS})
-		cmake_path(APPEND MODULEPATH_DIRS ${A2_BASE}/${CATEGORY})
+		list(APPEND MODULEPATH_DIRS ${A2_BASE}/${CATEGORY})
 	endforeach()
-	cmake_path(CONVERT ${MODULEPATH_DIRS} TO_NATIVE_PATH_LIST MODULEPATH)
+	cmake_path(CONVERT "${MODULEPATH_DIRS}" TO_NATIVE_PATH_LIST MODULEPATH)
 	message(STATUS "MODULEPATH=${MODULEPATH}")
 	
 	if(${A2_INSTALL_MODE} STREQUAL "a2")
@@ -193,6 +193,36 @@ macro(a2_build_bundles BUNDLES)
 		a2_build_bundle(${BUNDLE})
 	endforeach() # BUNDLES
 endmacro() # a2_build_bundles
+
+## Build SDK Java module ##
+macro(a2_build_sdk_java BUNDLES)
+	file(GLOB_RECURSE JAVA_SRC CONFIGURE_DEPENDS "sdk/java/*.java")
+	
+	string(REPLACE ";" "," REQUIRED_MODULES_STR "${BUNDLES}")
+	list(APPEND ADD_MODULES "--add-modules")
+	list(APPEND ADD_MODULES ${REQUIRED_MODULES_STR})
+	
+	set(CMAKE_JAVA_COMPILE_FLAGS --release ${A2_JAVA_RELEASE} --module-path ${A2_MODULEPATH} ${ADD_MODULES})
+	message(STATUS "CMAKE_JAVA_COMPILE_FLAGS=${CMAKE_JAVA_COMPILE_FLAGS}")
+
+	add_jar(sdk_java 
+	 SOURCES ${JAVA_SRC}
+	)
+endmacro() # a2_build_sdk_module
+
+## Run a Java class from within a module ##
+macro(a2_add_test_java TEST_CLASS)
+	add_test(NAME ${TEST_CLASS} COMMAND
+	 java -ea
+	  -Djava.util.logging.config.file=${CMAKE_SOURCE_DIR}/sdk/logging-tests.properties
+	  -Djava.library.path=${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}/${A2_CATEGORY}
+	  --module-path ${A2_MODULEPATH}
+	  --module ${TEST_CLASS}
+	)
+	set_property(TEST ${TEST_CLASS} PROPERTY ENVIRONMENT
+	 LD_LIBRARY_PATH=${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}
+	)
+endmacro() # a2_add_test_java
 
 #
 # NATIVE BUILD
