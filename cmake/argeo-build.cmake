@@ -210,7 +210,7 @@ macro(a2_build_sdk_java BUNDLES)
 	)
 endmacro() # a2_build_sdk_module
 
-## Run a Java class from within a module ##
+## Run as test a Java class from within a module ##
 macro(a2_add_test_java TEST_CLASS)
 	add_test(NAME ${TEST_CLASS} COMMAND
 	 java -ea
@@ -218,6 +218,7 @@ macro(a2_add_test_java TEST_CLASS)
 	  -Djava.library.path=${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}/${A2_CATEGORY}
 	  --module-path ${A2_MODULEPATH}
 	  --module ${TEST_CLASS}
+	 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/sdk
 	)
 	set_property(TEST ${TEST_CLASS} PROPERTY ENVIRONMENT
 	 LD_LIBRARY_PATH=${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}
