@@ -152,6 +152,12 @@ set(A2_TARGET_OS_LIBS "gnu")
 endif()
 endif()
 
+# Tell MSBuild to use all cores
+set(CMAKE_VS_GLOBALS
+    "UseMultiToolTask=true"
+    "EnforceProcessCountAttribute=true"
+)
+
 # defaults
 if(NOT A2_TARGET_OS)
 set(A2_TARGET_OS ${CMAKE_SYSTEM_NAME})

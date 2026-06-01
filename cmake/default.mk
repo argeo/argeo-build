@@ -8,6 +8,7 @@ MSVC_IDE_BASE=$(shell cygpath -m 'C:/Program Files (x86)/Microsoft Visual Studio
 endif
 MSVC_CMAKE_BASE=$(MSVC_IDE_BASE)CommonExtensions/Microsoft/CMake
 MSVC_CMAKE="$(MSVC_CMAKE_BASE)/CMake/bin/cmake.exe"
+#MSVC_NINJA="$(MSVC_CMAKE_BASE)/Ninja/ninja.exe"
 ifeq ($(MSYSTEM),MSYS) # Use MSVC when no full MSYS toolchain available
 CMAKE ?= $(MSVC_CMAKE)
 endif
@@ -34,11 +35,12 @@ A2_BUILD_INDEP_ONLY ?= OFF
 CMAKE_BUILD_TYPE ?= Release
 
 cmake-all:
-	cmake -B $(BUILD_BASE) . \
+	$(CMAKE) -B $(BUILD_BASE) . \
 	 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) \
 	 -DA2_INSTALL_MODE=$(A2_INSTALL_MODE) \
 	 -DA2_BUILD_INDEP_ONLY=$(A2_BUILD_INDEP_ONLY) \
-	 -DJAVA_HOME=$(JAVA_HOME)
+	 -DJAVA_HOME=$(JAVA_HOME) \
+	 $(A2_CMAKE_FLAGS)
 	$(CMAKE) --build $(BUILD_BASE) --config $(CMAKE_BUILD_TYPE) -j $(shell nproc)
 
 cmake-clean:
