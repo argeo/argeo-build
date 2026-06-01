@@ -139,16 +139,11 @@ function(a2_build_bundle BUNDLE)
 	
 	# classpath
 	set(CLASSPATH "")
-	list(APPEND MODULEPATH_DIRS ${A2_OUTPUT}/${A2_CATEGORY})
-	list(APPEND MODULEPATH_DIRS ${A2_OUTPUT}/lib/${A2_CATEGORY})
 	foreach(CATEGORY IN LISTS DEP_CATEGORIES)
 		message(STATUS "CLASSPATH += ${A2_BASE}/${CATEGORY}/*.jar")
 		file(GLOB JARS CONFIGURE_DEPENDS "${A2_BASE}/${CATEGORY}/*.jar")
 		list(APPEND CLASSPATH ${JARS})
-		list(APPEND MODULEPATH_DIRS ${A2_BASE}/${CATEGORY})
 	endforeach()
-	cmake_path(CONVERT "${MODULEPATH_DIRS}" TO_NATIVE_PATH_LIST MODULEPATH)
-	message(STATUS "MODULEPATH=${MODULEPATH}")
 	
 	if(${A2_INSTALL_MODE} STREQUAL "a2")
 		set(BUNDLE_OUTPUT_NAME ${BUNDLE}.${A2_major}.${A2_minor})
@@ -158,7 +153,8 @@ function(a2_build_bundle BUNDLE)
 		set(BUNDLE_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/java)
 	endif()
 	
-	set(CMAKE_JAVA_COMPILE_FLAGS --release ${A2_JAVA_RELEASE} --module-path ${MODULEPATH} ${ADD_MODULES})
+	set(CMAKE_JAVA_COMPILE_FLAGS --release ${A2_JAVA_RELEASE} --module-path "${A2_MODULEPATH}" ${ADD_MODULES})
+	message(STATUS "CMAKE_JAVA_COMPILE_FLAGS=${CMAKE_JAVA_COMPILE_FLAGS}")
 	add_jar(${BUNDLE} 
 	 SOURCES ${JAVA_SRC}
 	 RESOURCES ${SOURCES_AS_RESOURCES}
@@ -202,8 +198,7 @@ macro(a2_build_sdk_java BUNDLES)
 	list(APPEND ADD_MODULES "--add-modules")
 	list(APPEND ADD_MODULES ${REQUIRED_MODULES_STR})
 	
-	set(CMAKE_JAVA_COMPILE_FLAGS --release ${A2_JAVA_RELEASE} --module-path ${A2_MODULEPATH} ${ADD_MODULES})
-	message(STATUS "CMAKE_JAVA_COMPILE_FLAGS=${CMAKE_JAVA_COMPILE_FLAGS}")
+	set(CMAKE_JAVA_COMPILE_FLAGS --release ${A2_JAVA_RELEASE} --module-path "${A2_MODULEPATH}" ${ADD_MODULES})
 
 	add_jar(sdk_java 
 	 SOURCES ${JAVA_SRC}
@@ -216,7 +211,7 @@ macro(a2_add_test_java TEST_CLASS)
 	 java -ea
 	  -Djava.util.logging.config.file=${CMAKE_SOURCE_DIR}/sdk/logging-tests.properties
 	  -Djava.library.path=${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}/${A2_CATEGORY}
-	  --module-path ${A2_MODULEPATH}
+	  --module-path "${A2_MODULEPATH}"
 	  --module ${TEST_CLASS}
 	 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/sdk
 	)
