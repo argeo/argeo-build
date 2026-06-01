@@ -1,6 +1,20 @@
 ARGEO_BUILD_BASE := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))..)
 
-CMAKE = cmake
+ifneq ($(MSYS_VERSION),0) # MSYS
+ifneq (,$(VCIDEInstallDir))
+MSVC_IDE_BASE=$(shell cygpath -m '$(VCIDEInstallDir)\\..')
+else
+MSVC_IDE_BASE=$(shell cygpath -m 'C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/')
+endif
+MSVC_CMAKE_BASE=$(MSVC_IDE_BASE)CommonExtensions/Microsoft/CMake
+MSVC_CMAKE="$(MSVC_CMAKE_BASE)/CMake/bin/cmake.exe"
+ifeq ($(MSYSTEM),MSYS) # Use MSVC when no full MSYS toolchain available
+CMAKE ?= $(MSVC_CMAKE)
+endif
+endif # MSYS
+
+# Must be after MSVC checks
+CMAKE ?= cmake
 
 ifeq ($(SDK_SRC_BASE),)
 SDK_SRC_BASE=$(abspath $(ARGEO_BUILD_BASE)/../..)
@@ -36,6 +50,13 @@ cmake-distclean:
 
 cmake-install:
 	$(CMAKE) --build $(BUILD_BASE) --target install
+
+cmake-check:
+ifeq ($(CMAKE),$(MSVC_CMAKE))
+	$(CMAKE) --build $(BUILD_BASE) --target RUN_TESTS
+else
+	$(CMAKE) --build $(BUILD_BASE) --target test
+endif
 
 cmake-describe:
 	echo SDK_SRC_BASE=$(SDK_SRC_BASE)

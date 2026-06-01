@@ -208,16 +208,24 @@ endmacro() # a2_build_sdk_module
 ## Run as test a Java class from within a module ##
 macro(a2_add_test_java TEST_CLASS)
 	add_test(NAME ${TEST_CLASS} COMMAND
-	 java -ea
+	 ${Java_JAVA_EXECUTABLE} -ea
 	  -Djava.util.logging.config.file=${CMAKE_SOURCE_DIR}/sdk/logging-tests.properties
-	  -Djava.library.path=${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}/${A2_CATEGORY}
+	  -Djava.library.path=${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}
 	  --module-path "${A2_MODULEPATH}"
 	  --module ${TEST_CLASS}
 	 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/sdk
 	)
-	set_property(TEST ${TEST_CLASS} PROPERTY ENVIRONMENT
-	 LD_LIBRARY_PATH=${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}
-	)
+	
+	if(WIN32)
+	    # Automatically manages the semicolon separator on Windows
+	    set_property(TEST ${TEST_CLASS} PROPERTY ENVIRONMENT_MODIFICATION
+	        "PATH=path_list_prepend:${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}"
+	    )
+	else()
+	    set_property(TEST ${TEST_CLASS} PROPERTY ENVIRONMENT_MODIFICATION
+	        "LD_LIBRARY_PATH=path_list_prepend:${A2_OUTPUT}/lib/${TARGET_NATIVE_CATEGORY_PREFIX}"
+	    )
+	endif()
 endmacro() # a2_add_test_java
 
 #
